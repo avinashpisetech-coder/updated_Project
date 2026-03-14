@@ -1,0 +1,29 @@
+---
+description: Next.js 15 App Router, RSC, and Server Actions for EIRMS
+globs: "**/*.ts,**/*.tsx"
+alwaysApply: false
+---
+
+# Next.js 15 — EIRMS Patterns
+
+## App Router Structure
+- Use **App Router** only. Route groups from Architecture Plan: `(auth)/`, `(employee)/`, `(agent)/`, `(admin)/`, `api/`.
+- **middleware.ts**: Supabase session check and role-based route protection before page render.
+- Prefer **React Server Components** for dashboards, ticket lists, reports; use **Client Components** only for live chat, realtime, forms, or client interactivity.
+
+## Server Actions
+- Use **Server Actions** for mutations: create/update ticket, stock movements, user CRUD, meeting schedule. No unnecessary API route boilerplate for these.
+- Validate all inputs with **Zod**; re-validate auth (e.g. `createServerClient`, role check) inside the action.
+- Use `revalidatePath` / `revalidateTag` after mutations as needed. Return serializable data or redirect.
+
+## Data Fetching
+- Server Components: fetch in component or layout; use TanStack Query in Client Components for cache and background refetch.
+- Supabase: use `createServerClient()` in Server Components and Server Actions; `createBrowserClient()` in Client Components (from `@supabase/ssr` pattern).
+
+## Performance
+- Minimize `'use client'`, `useEffect`, and `setState`; prefer RSC and server-first flows.
+- Use dynamic imports for heavy or below-the-fold client components.
+- Mobile-first responsive layout.
+
+## Error Handling
+- Early returns and guard clauses for invalid state. Use custom error types where it helps. Never swallow errors in empty catch blocks.

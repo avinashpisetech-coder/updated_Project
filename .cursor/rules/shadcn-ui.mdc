@@ -1,0 +1,24 @@
+---
+description: Shadcn/ui usage and styling for EIRMS
+globs: "**/*.tsx,**/components/**/*"
+alwaysApply: false
+---
+
+# Shadcn/ui — EIRMS UI
+
+## Component Library
+- **Use Shadcn/ui** for all UI components. Do not introduce a different component library for core UI (buttons, forms, dialogs, tables, etc.).
+- Add new Shadcn components via the project’s Shadcn CLI when needed (e.g. `bunx shadcn@latest add dialog`).
+- Compose from Shadcn primitives; extend with project-specific variants in the theme, not by replacing the library.
+
+## Theming and Tokens
+- Follow the project’s **theme tokens** (primary, secondary, font, etc.) from Platform Settings / branding. Use CSS variables or Tailwind theme for colors and typography.
+- Support **light/dark** and user density/font-size preferences where specified in the PRD (theme prefs in profiles).
+
+## Styling
+- Use **Tailwind CSS** for layout and utilities. Keep styling consistent with Shadcn’s design (radix-based).
+- Responsive and mobile-first. Use Shadcn’s responsive patterns (e.g. Sheet for mobile, Dialog for desktop where appropriate).
+
+## Forms and Tables
+- Forms: pair Shadcn form components (Input, Select, etc.) with **React Hook Form** and **Zod** for validation.
+- Tables: use Shadcn Table (or Data Table pattern if present) for ticket queues, asset lists, and reports; support sorting and filtering as per PRD.

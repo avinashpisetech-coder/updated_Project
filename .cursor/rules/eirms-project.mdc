@@ -1,0 +1,30 @@
+---
+description: EIRMS project context, tech stack, and domain rules from PRD v3 and Architecture Plan
+alwaysApply: true
+---
+
+# EIRMS — Project Rules
+
+## Project Context
+Enterprise Issue & Request Management System (EIRMS): unified portal for raising, tracking, and resolving internal issues and requests. Follow **docs/EIRMS_PRD_v3_Updated.md** and **docs/EIRMS_Architecture_Plan.md** for requirements and architecture.
+
+## Core Domain
+- **3 modules**: Help Desk (IT), ERP, General. Scope selector on ticket creation routes to the correct module.
+- **Ticketing**: Full lifecycle (New → Assigned → In Progress → Resolved/Closed), SLA engine, unassigned queue, assignment modes (admin-only / self-pick / round-robin), in-ticket live chat, activity log.
+- **IT Asset & Stock**: Full lifecycle (opening stock, purchase inward, handover, return, damaged, write-off). Mandatory photo at every movement; handover email with inline photos; employee acknowledgement.
+- **Auth**: RBAC (super_admin, dept_admin, module_agent, end_user), OTP forgot password, MFA for admins, force change on first login, password policy (10 chars, complexity, last-5 no reuse).
+- **Meetings**: Linked to tickets, .ics invitations, team calendar; Resend for email.
+
+## Tech Stack (Mandatory)
+- **Runtime & package manager**: **Bun** — use `bun install`, `bun run`, `bunx` for all scripts and tooling.
+- **Framework**: Next.js 15 (App Router). Prefer React Server Components; use Client Components only when needed (live chat, realtime, forms).
+- **Database**: Supabase (PostgreSQL). **Do not use Supabase CLI.** All SQL lives in versioned files under `db/` (see supabase-db-files rule).
+- **UI**: Shadcn/ui + Tailwind. Use Shadcn components; follow project theme and tokens.
+- **State**: TanStack Query (server/cache), Zustand (client UI state). Forms: React Hook Form + Zod.
+- **Validation**: Zod for all Server Action inputs and API payloads.
+
+## Conventions
+- TypeScript strict mode. Functional components and declarative patterns; no classes.
+- Guard clauses and early returns for errors; custom error types where appropriate.
+- Directory names: lowercase with dashes (e.g. `components/auth-wizard`).
+- JSDoc for non-trivial functions; clear comments for complex logic.

@@ -1,0 +1,17 @@
+---
+description: Use Bun for package management and scripts
+globs: "package.json,**/package.json"
+alwaysApply: false
+---
+
+# Bun — Runtime and Package Manager
+
+## Mandatory Use
+- **Bun** is the project’s runtime and package manager. Use it for all installs, scripts, and running code.
+- Use **`bun install`** (not npm/yarn/pnpm) for dependencies.
+- Use **`bun run <script>`** or **`bun run dev`** etc. for scripts defined in package.json.
+- Use **`bunx`** for one-off CLI tools (e.g. `bunx shadcn@latest add button`, `bunx drizzle-kit generate`).
+
+## Scripts and Tooling
+- In docs and README, document commands with `bun` (e.g. `bun run build`, `bun run lint`).
+- Do not add or assume npm/yarn/pnpm in setup or run instructions unless explicitly required by a tool that does not support Bun.

@@ -1,0 +1,42 @@
+---
+description: Supabase database queries — no CLI; versioned SQL files run manually
+globs: "**/db/**/*.sql,**/*.sql"
+alwaysApply: false
+---
+
+# Supabase DB — Versioned SQL Files
+
+## No Supabase CLI
+Do **not** use Supabase CLI for migrations or local DB. All schema changes and queries are maintained as SQL files and run manually (e.g. in Supabase Dashboard SQL Editor or your DB client).
+
+## File Location and Naming
+- Store all DB-related SQL under **`db/`** (or agreed project root for SQL).
+- **Version prefix** every file so order is clear as the project grows:
+  - Format: `vNNN_short_description.sql` (e.g. `v001_initial_schema.sql`, `v002_tickets_and_activities.sql`, `v003_rls_tickets.sql`).
+  - Use zero-padded numbers (001, 002, … 010, 011) for correct lexicographic order.
+  - One logical change per file (e.g. one migration or one set of related objects).
+
+## File Contents
+- **Schema**: CREATE TABLE, ALTER TABLE, indexes, enums, etc.
+- **RLS**: CREATE POLICY / ALTER TABLE ENABLE ROW LEVEL SECURITY in versioned files (e.g. `v004_rls_profiles.sql`).
+- **Functions/RPCs**: Stored procedures, triggers, and pg_cron jobs in versioned files with clear names (e.g. `v005_sla_functions.sql`).
+- Add a short comment at the top of each file: purpose and any dependency (e.g. “Run after v002”).
+
+## Running
+- Run files **manually** in order (v001, then v002, …). Document in README or `db/README.md` if needed.
+- Do not generate or rely on `supabase migration` commands or CLI-driven migration history.
+
+## Example
+```sql
+-- v003_rls_tickets.sql
+-- RLS policies for tickets. Run after v002_tickets_and_activities.sql.
+
+ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tickets_select ON tickets FOR SELECT
+USING (
+  requester_id = auth.uid()
+  OR EXISTS (SELECT 1 FROM module_agents ma WHERE ma.user_id = auth.uid() AND ma.module_id = tickets.module_id)
+  OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'super_admin'
+);
+```
