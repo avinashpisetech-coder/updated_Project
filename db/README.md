@@ -15,3 +15,11 @@ Run files **manually** in order (v001 → v002 → …) in Supabase Dashboard �
 ## Order
 
 Execute in ascending version order. Some files may depend on previous ones (e.g. RLS after tables exist); file headers may note dependencies.
+
+## Files (Phase 1)
+
+| File | Purpose |
+|------|---------|
+| v001_initial_schema.sql | departments, profiles, modules, minimal RLS |
+| v002_profile_insert_and_audit.sql | Allow insert own profile; audit_log table |
+| v003_seed_modules.sql | Seed Help Desk, ERP, General modules |
