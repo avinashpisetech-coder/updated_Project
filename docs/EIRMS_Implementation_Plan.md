@@ -3,7 +3,6 @@
 **Enterprise Issue & Request Management System**  
 Industry SaaS Implementation Plan · Phase 1 (33 Weeks)
 
-
 | Attribute                  | Value                                |
 | -------------------------- | ------------------------------------ |
 | **Document Type**          | Implementation Plan                  |
@@ -12,7 +11,6 @@ Industry SaaS Implementation Plan · Phase 1 (33 Weeks)
 | **Tech Stack**             | Next.js 15, Supabase, Shadcn/ui, Bun |
 | **Total Duration**         | 33 weeks (~8 months)                 |
 | **Classification**         | Internal — Confidential              |
-
 
 ---
 
@@ -31,7 +29,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 1.2 Tech Stack (Mandatory)
 
-
 | Layer                     | Technology                                     |
 | ------------------------- | ---------------------------------------------- |
 | Runtime / Package manager | **Bun**                                        |
@@ -43,25 +40,23 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | Email                     | Resend + React Email                           |
 | Realtime                  | Supabase Realtime (chat, queue, presence)      |
 
-
 ---
 
 ## 2. Phase Overview
 
-
-| Phase  | Name                         | Weeks | PRD Alignment               |
-| ------ | ---------------------------- | ----- | --------------------------- |
-| **P0** | Discovery & Design           | 1–2   | Discovery & Design          |
-| **P1** | Foundation & User Auth       | 3–5   | User Auth & Foundation      |
-| **P2** | 3-Module Ticketing           | 6–13  | 3-Module Ticketing          |
-| **P3** | Meeting Scheduling           | 14–15 | Meeting Scheduling          |
-| **P4** | IT Asset & Stock Mgmt        | 16–22 | IT Asset & Stock Management |
-| **P5** | Reporting & Analytics        | 23–24 | Reporting & Analytics       |
-| **P6** | Platform Settings & Branding | 25–26 | Settings & Branding         |
-| **P7** | Security, Infra & Hardening  | 27–28 | Cloud & Security            |
-| **P8** | UAT & Training               | 29–30 | UAT & Training              |
-| **P9** | Go-Live & Hypercare          | 31–33 | Go-Live & Hypercare         |
-
+| Phase   | Name                                      | Weeks | PRD Alignment               |
+| ------- | ----------------------------------------- | ----- | --------------------------- |
+| **P0**  | Discovery & Design                        | 1–2   | Discovery & Design          |
+| **P1**  | Foundation & User Auth                    | 3–5   | User Auth & Foundation      |
+| **P2**  | 3-Module Ticketing                        | 6–13  | 3-Module Ticketing          |
+| **P2A** | Notifications, SLA Aging & Admin Workflow | 13–14 | Ticketing Enhancements      |
+| **P3**  | Meeting Scheduling                        | 15–16 | Meeting Scheduling          |
+| **P4**  | IT Asset & Stock Mgmt                     | 16–22 | IT Asset & Stock Management |
+| **P5**  | Reporting & Analytics                     | 23–24 | Reporting & Analytics       |
+| **P6**  | Platform Settings & Branding              | 25–26 | Settings & Branding         |
+| **P7**  | Security, Infra & Hardening               | 27–28 | Cloud & Security            |
+| **P8**  | UAT & Training                            | 29–30 | UAT & Training              |
+| **P9**  | Go-Live & Hypercare                       | 31–33 | Go-Live & Hypercare         |
 
 ---
 
@@ -71,22 +66,20 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 3.1 Scope
 
-
-| #    | Deliverable              | Description                                                                                                                                        |
-| ---- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1  | PRD sign-off             | Written approval from all stakeholders per PRD Section 15.                                                                                         |
-| 0.2  | Turborepo + repo setup   | Monorepo with Bun: apps (e.g. web, email), packages (db, ui, types). CI (type-check, lint, test) on every PR.                                      |
-| 0.3  | Supabase project         | Project created; Auth, Storage, Realtime, Edge Functions enabled. No CLI migrations; `db/` for versioned SQL.                                      |
-| 0.4  | Next.js 15 scaffold      | App Router, TypeScript strict, Tailwind, Shadcn/ui init in apps/web. Middleware stub for auth.                                                     |
-| 0.5  | DB schema v1 (versioned) | First SQL files in `db/`: profiles, departments, modules, categories, sla_policies (e.g. `v001_`*, `v002_*`). Run manually in Supabase SQL Editor. |
-| 0.6  | Supabase client pattern  | `@supabase/ssr` server/client helpers; cookie-based sessions. Documented in README.                                                                |
-| 0.7  | Module & SLA workshops   | HODs agree on 3 modules (Help Desk, ERP, General), categories, sub-categories, and SLA values (P1–P4). Signed SLA matrix.                          |
-| 0.8  | Asset type workshop      | IS/Admin agree on IT asset sub-types, mandatory fields, low-stock thresholds.                                                                      |
-| 0.9  | UI/UX wireframes         | Figma (or equivalent) for: login, scope selector, ticket form, queue views, asset handover, key admin screens.                                     |
-| 0.10 | Design tokens            | Shadcn theme aligned to branding (primary/secondary, fonts). Document in design system.                                                            |
-| 0.11 | Vercel + env setup       | Vercel project linked to repo; env vars for Supabase, Resend; preview deployments.                                                                 |
-| 0.12 | Day-1 runbook            | One-page: how to run app locally (Bun), run SQL from `db/`, and deploy to preview.                                                                 |
-
+| #    | Deliverable              | Description                                                                                                                                          |
+| ---- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1  | PRD sign-off             | Written approval from all stakeholders per PRD Section 15.                                                                                           |
+| 0.2  | Turborepo + repo setup   | Monorepo with Bun: apps (e.g. web, email), packages (db, ui, types). CI (type-check, lint, test) on every PR.                                        |
+| 0.3  | Supabase project         | Project created; Auth, Storage, Realtime, Edge Functions enabled. No CLI migrations; `db/` for versioned SQL.                                        |
+| 0.4  | Next.js 15 scaffold      | App Router, TypeScript strict, Tailwind, Shadcn/ui init in apps/web. Middleware stub for auth.                                                       |
+| 0.5  | DB schema v1 (versioned) | First SQL files in `db/`: profiles, departments, modules, categories, sla*policies (e.g. `v001*`*, `v002\_\*`). Run manually in Supabase SQL Editor. |
+| 0.6  | Supabase client pattern  | `@supabase/ssr` server/client helpers; cookie-based sessions. Documented in README.                                                                  |
+| 0.7  | Module & SLA workshops   | HODs agree on 3 modules (Help Desk, ERP, General), categories, sub-categories, and SLA values (P1–P4). Signed SLA matrix.                            |
+| 0.8  | Asset type workshop      | IS/Admin agree on IT asset sub-types, mandatory fields, low-stock thresholds.                                                                        |
+| 0.9  | UI/UX wireframes         | Figma (or equivalent) for: login, scope selector, ticket form, queue views, asset handover, key admin screens.                                       |
+| 0.10 | Design tokens            | Shadcn theme aligned to branding (primary/secondary, fonts). Document in design system.                                                              |
+| 0.11 | Vercel + env setup       | Vercel project linked to repo; env vars for Supabase, Resend; preview deployments.                                                                   |
+| 0.12 | Day-1 runbook            | One-page: how to run app locally (Bun), run SQL from `db/`, and deploy to preview.                                                                   |
 
 ### 3.2 Dependencies
 
@@ -112,7 +105,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 4.1 Scope
 
-
 | #    | Deliverable                                                                                                                | PRD / Feature                                                           |
 | ---- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | 1.1  | Auth: Email + password                                                                                                     | §3.2 Login                                                              |
@@ -133,7 +125,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 1.16 | RLS for profiles, departments; middleware role-based route protection                                                      | Architecture 5.2                                                        |
 | 1.17 | Audit log (login, password change, user create/edit/deactivate)                                                            | §11.2 Security                                                          |
 | 1.18 | Basic email engine (Resend + React Email): account created, OTP, password changed, account locked, self-reg approve/reject | §8 Email Notification Engine (Auth subset)                              |
-
 
 ### 4.2 Dependencies
 
@@ -159,7 +150,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 **Goal**: End-to-end ticketing: scope selector, ticket lifecycle, SLA engine, unassigned queue, assignment modes, live chat, and full email notifications for ticketing.
 
 ### 5.1 Scope
-
 
 | #                                 | Deliverable                                                                                                                                                                    | PRD / Feature                            |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
@@ -201,7 +191,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 2.28                              | Ticketing email triggers (created, assigned, status, reply, transferred, escalated, pending user, resolved, closed, reopened, SLA warning/breach, CSAT negative, daily digest) | §8 Email Notification Engine (Ticketing) |
 | 2.29                              | CSAT survey on resolution (1–5 star + comment); trigger on close                                                                                                               | §4.2, §8                                 |
 
-
 ### 5.2 Dependencies
 
 - P1 complete (auth, RBAC, profiles, email engine stub).
@@ -221,12 +210,58 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ---
 
-## 6. Phase 3 — Meeting Scheduling (Weeks 14–15)
+## 5A. Phase 2A — Notifications, SLA Aging & Admin Workflow (Weeks 13–14)
+
+**Goal**: Layer real-time notifications, ticket-age / SLA visual alerting, and the requester approve-close / re-open admin workflow on top of the core ticketing engine built in P2.
+
+### 5A.1 Scope
+
+| #                       | Deliverable                                                                                                                                    | PRD / Feature    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Database**            |                                                                                                                                                |                  |
+| 2A.1                    | `ticket_notifications` table: `id`, `user_id`, `ticket_id`, `message`, `is_read` (boolean), `created_at`; RLS (users see own only)             | §4.2, §8         |
+| 2A.2                    | `ticket_logs` view/alias over `ticket_activity_log` — every status change records `actor_id`, `old_value`, `new_value`, `created_at`           | §4.2 Audit       |
+| **Assignment Logic**    |                                                                                                                                                |                  |
+| 2A.3                    | DB trigger `trg_ticket_assignment_notify`: on `assigned_to_id` change → auto-set status to `assigned`; insert notification row for assignee    | §4.2, §4.7       |
+| 2A.4                    | Simulated email trigger function `simulate_assignment_email(ticket_id)` — logs intent to `ticket_activity_log` (real send via Resend in P2)    | §8 Email         |
+| **Notification Module** |                                                                                                                                                |                  |
+| 2A.5                    | Server Action `getUnreadNotifications(userId)` — returns all unread rows ordered by `created_at DESC`                                          | §8               |
+| 2A.6                    | Server Action `markNotificationsRead(ids[])` — bulk mark read                                                                                  | §8               |
+| 2A.7                    | Notification bell in dashboard header: badge count, dropdown list, mark-all-read                                                               | §8 UI            |
+| **SLA Time Aging**      |                                                                                                                                                |                  |
+| 2A.8                    | DB function `ticket_age_display(ticket_id)` — returns `{ display_text, total_minutes, is_overdue, is_resolved }`; stops clock at `resolved_at` | §4.6 SLA         |
+| 2A.9                    | Client-side `useTicketAge(createdAt, resolvedAt, status)` hook — formats `X Days, Y Hours, Z Minutes`; `setInterval` 60s refresh               | §4.6 UI          |
+| 2A.10                   | **Visual alerts in Ticket List**: Pending > 48 h → `Overdue` red badge; < 24 h → `New` green badge; resolved → show resolution time            | §4.6 UI          |
+| **Admin Workflow**      |                                                                                                                                                |                  |
+| 2A.11                   | Admin Server Action `resolveTicket(ticketId)` — sets `status = resolved`, `resolved_at = now()`, inserts notification to requester             | §4.2             |
+| 2A.12                   | Requester UI on resolved ticket: **"Approve Closing"** (→ `closed`) and **"Re-open"** (→ `in_progress`, clears `resolved_at`) buttons          | §4.2, §4.9.1     |
+| 2A.13                   | Notifications for requester approve/re-open; activity log entry for each action                                                                | §8               |
+| **Security**            |                                                                                                                                                |                  |
+| 2A.14                   | RLS on `ticket_notifications`; only `user_id = auth.uid()` can read/update own rows                                                            | Architecture 5.2 |
+| 2A.15                   | All server actions validate role before mutation (Zod + auth check)                                                                            | Architecture 5.1 |
+
+### 5A.2 Dependencies
+
+- P2 complete (tickets, `ticket_activity_log`, assignment, status machine).
+- P1 (auth, profiles, Resend email engine stub).
+
+### 5A.3 Acceptance Criteria
+
+- Assigning a ticket auto-sets status to `Assigned`; assignee sees notification in bell (badge +1).
+- Ticket List shows `Time Pending` column refreshing every 60 s; overdue/new colour badges apply correctly.
+- Resolved/Closed tickets show static Resolution Time; clock does not advance.
+- Admin can mark ticket Resolved from the detail page; requester notification appears.
+- Requester can Approve Closing (→ Closed) or Re-open (→ In Progress) from their ticket detail view.
+- All mutations write to `ticket_activity_log`; unread notification count correct after mark-read.
+
+### 5A.4 Risks & Mitigations
+
+- **Clock drift on client**: `setInterval` 60 s is acceptable for display; source-of-truth is DB `created_at`.
+- **Notification flood**: limit to one notification per event type per ticket × user (upsert with conflict ignore). (Weeks 14–15)
 
 **Goal**: Meetings linked to tickets, .ics invitations, team calendar, and meeting outcome logging.
 
 ### 6.1 Scope
-
 
 | #   | Deliverable                                                                                          | PRD / Feature              |
 | --- | ---------------------------------------------------------------------------------------------------- | -------------------------- |
@@ -237,7 +272,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 3.5 | Meeting outcome note (completed/cancelled); reschedule/cancel with updated/cancel .ics               | §6.1                       |
 | 3.6 | Team calendar (Help Desk + ERP): day/week/month; filter by agent; open ticket from entry             | §6.2 Team Meeting Calendar |
 | 3.7 | Email triggers: meeting scheduled, reminder, rescheduled, cancelled                                  | §8                         |
-
 
 ### 6.2 Dependencies
 
@@ -256,7 +290,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 **Goal**: Full asset lifecycle with mandatory photos, stock ledger, handover emails with inline photos, acknowledgement, and return/damage/write-off flows.
 
 ### 7.1 Scope
-
 
 | #                          | Deliverable                                                                                                                              | PRD / Feature                    |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
@@ -282,7 +315,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 4.14                       | Asset email triggers (handover, ack reminder/escalation, return, write-off approval/approved, low stock, warranty 30d/7d)                | §8 (IT Asset & Stock)            |
 | 4.15                       | Versioned SQL for assets, stock_movements, asset_photos, acknowledgements; RLS (e.g. asset_photos no delete/update)                      | Architecture 4.5, 5.2            |
 
-
 ### 7.2 Dependencies
 
 - P2 complete (tickets for “Raise Repair Ticket”); P1 (users for employee lookup).
@@ -307,7 +339,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 8.1 Scope
 
-
 | #   | Deliverable                                                                                                                                                                                | PRD / Feature                 |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
 | 5.1 | Module summary dashboard (open, in-progress, SLA-breached by module)                                                                                                                       | §9.1 Ticketing Reports        |
@@ -318,7 +349,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 5.6 | Stock ledger; purchase inward; handover; return; damaged & write-off; chain of custody; unacknowledged handovers; under repair; warranty expiry; employee asset summary; IT asset register | §9.2 IT Asset & Stock Reports |
 | 5.7 | Executive dashboard: module tiles, SLA gauge, top 5 categories, asset overview, trend lines, overdue escalations, drill-down                                                               | §9.3 Executive Dashboard      |
 | 5.8 | Export: PDF and Excel where specified; scheduled email reports (e.g. daily digest)                                                                                                         | §9.1, §4.6                    |
-
 
 ### 8.2 Dependencies
 
@@ -338,7 +368,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 9.1 Scope
 
-
 | #   | Deliverable                                                                                                                                               | PRD / Feature                  |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | 6.1 | Company branding: logo, name, favicon, login banner/tagline, email banner/footer, PDF header, module icons                                                | §10.1 Company Branding         |
@@ -347,7 +376,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 6.4 | Custom fields: add to Ticketing, Assets, Activities (types per PRD); required/optional/admin-only; conditional display; order                             | §10.4 Custom Fields            |
 | 6.5 | Email template editor (variables, preview, test send); per-module branding option                                                                         | §10.5 Email Template Editor    |
 | 6.6 | Custom module builder (Phase 2-ready): define module name/icon/type, form, categories, routing (documentation and schema support; full UI can be Phase 2) | §10.6 Custom Module Builder    |
-
 
 ### 9.2 Dependencies
 
@@ -367,7 +395,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 10.1 Scope
 
-
 | #   | Deliverable                                                                                   | PRD / Architecture               |
 | --- | --------------------------------------------------------------------------------------------- | -------------------------------- |
 | 7.1 | Full RLS audit: every table has correct policies; confidential and module boundaries verified | §11.2 Security, Architecture 5.2 |
@@ -378,7 +405,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 7.6 | Vercel production config (env, no debug headers); Supabase Pro PITR/backups                   | §11.1, Architecture 10.1         |
 | 7.7 | DR runbook: RTO < 4h, RPO < 1h; restore test                                                  | §11.3                            |
 | 7.8 | Load test (e.g. k6) for 500+ concurrent users; tune if needed                                 | §11.3, Architecture 11.1         |
-
 
 ### 10.2 Dependencies
 
@@ -398,7 +424,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 11.1 Scope
 
-
 | #   | Deliverable             | Description                                                                                               |
 | --- | ----------------------- | --------------------------------------------------------------------------------------------------------- |
 | 8.1 | UAT plan                | Test cases for all roles and critical flows (login, ticket lifecycle, asset handover, meetings, reports). |
@@ -407,7 +432,6 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 | 8.4 | Training: End users     | Portal: new ticket, scope selector, My Tickets, My Assets.                                                |
 | 8.5 | Knowledge base          | Internal KB for common issues and how to use EIRMS (links from portal).                                   |
 | 8.6 | Go-live checklist       | Sign-off: security, backup, DNS, email domain, support contacts.                                          |
-
 
 ### 11.2 Dependencies
 
@@ -426,13 +450,11 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 ### 12.1 Scope
 
-
 | #   | Deliverable        | Description                                                                     |
 | --- | ------------------ | ------------------------------------------------------------------------------- |
 | 9.1 | Phased go-live     | Auth + Ticketing first → then Assets → then Reports/Settings (or as agreed).    |
 | 9.2 | Hypercare          | Dedicated support window; quick defect fix and user support.                    |
 | 9.3 | Post-launch review | Metrics (adoption, SLA, CSAT); lessons learned; Phase 2 backlog prioritisation. |
-
 
 ### 12.2 Dependencies
 
@@ -449,12 +471,12 @@ This plan breaks down the build of EIRMS into **phase-wise deliverables** with c
 
 Use this as a quick map from PRD section to implementation phase.
 
-
 | PRD Section                                                                     | Phase                                                 |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | §1–2 Module architecture, scope selector                                        | P0 (design), P2 (build)                               |
 | §3 User auth, CRUD, login, OTP, MFA, password policy, profile                   | P1                                                    |
 | §4 Ticketing (lifecycle, queue, chat, SLA, tasks, activities, extras)           | P2                                                    |
+| §4A Notifications, SLA aging, approve-close, reopen                             | P2A                                                   |
 | §5 Module category configuration                                                | P2                                                    |
 | §6 Meeting scheduling & team calendar                                           | P3                                                    |
 | §7 IT Asset & Stock (lifecycle, ledger, handover, return, write-off, My Assets) | P4                                                    |
@@ -463,7 +485,6 @@ Use this as a quick map from PRD section to implementation phase.
 | §10 Platform settings & branding                                                | P6                                                    |
 | §11 Cloud & security                                                            | P7                                                    |
 | §12 Phase 2 (deferred)                                                          | Backlog                                               |
-
 
 ---
 
@@ -480,12 +501,11 @@ Use this as a quick map from PRD section to implementation phase.
 
 ## 15. Document Control
 
-
-| Version | Date       | Author     | Summary                                                                          |
-| ------- | ---------- | ---------- | -------------------------------------------------------------------------------- |
-| 1.0     | March 2026 | EIRMS Team | Initial phase-wise implementation plan; aligned to PRD v3 and Architecture Plan. |
-
+| Version | Date       | Author     | Summary                                                                                                                                                  |
+| ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0     | March 2026 | EIRMS Team | Initial phase-wise implementation plan; aligned to PRD v3 and Architecture Plan.                                                                         |
+| 1.1     | March 2026 | EIRMS Team | Added Phase 2A: Notifications, SLA Aging & Admin Workflow (ticket assign trigger, notification bell, time-pending column, approve-close / re-open flow). |
 
 ---
 
-*This plan is the single source of truth for Phase 1 implementation order and scope. For detailed requirements, see EIRMS_PRD_v3_Updated.md; for technical design, see EIRMS_Architecture_Plan.md.*
+_This plan is the single source of truth for Phase 1 implementation order and scope. For detailed requirements, see EIRMS_PRD_v3_Updated.md; for technical design, see EIRMS_Architecture_Plan.md._

@@ -1,0 +1,37 @@
+---
+description: Copilot assistant guidance for EIRMS Shadcn + Next.js project
+globs: "**/*.tsx,**/*.ts,**/*.md"
+alwaysApply: true
+---
+
+# GitHub Copilot / IntelliCode Rules for EIRMS
+
+## Project context
+
+- Core stack: Next.js App Router, Supabase, Shadcn/ui (Radix + Tailwind) and Bun.
+- Keep features compliant with EIRMS PRD, architecture and strict TypeScript patterns.
+- Prefer server actions (Next.js form actions) and guarded access around Supabase auth.
+
+## Shadcn component usage
+
+- Use `@/components/ui/*` wrappers for UI primitives (`Button`, `Input`, `Label`, `Select`, `Textarea`, `Card`, `Dialog`, `Table`, `Tabs`, etc.).
+- Do not duplicate component-level behavior; prefer composing existing shadcn variants and tokens.
+- Keep `@/components/ui` wrappers aligned with shadcn naming and props conventions.
+- Style with Tailwind classes, route all theme color adjustments through design tokens (e.g. `bg-primary`, `text-muted-foreground`).
+
+## Forms and accessibility
+
+- For controlled `Select` / `Checkbox` code, keep `use client` on component files.
+- For server components, avoid client-only Radix wrappers unless separated into client subcomponents.
+- Keep semantic labels via `Label` and add `aria-*` accessibility attributes for form validation.
+
+## Copilot prompt hygiene
+
+- When generating code, avoid hardcoded magic strings; prefer types/enums for role values (e.g. `role: "end_user" | ...`).
+- Preserve existing structure when refactoring pages; keep page-level data fetching and table columns intact.
+- Do not introduce third-party UI libraries beyond shadcn (no MUI, Chakra, etc.).
+
+## CI and VS Code
+
+- Use linting from `bun run lint` and format via `bunx prettier --write .`.
+- Keep VS Code settings for Copilot in workspace config (if present) consistent with this rule guidance.

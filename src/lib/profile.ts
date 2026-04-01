@@ -9,9 +9,15 @@ export function deriveProfileFromUser(user: User): {
   full_name: string;
 } {
   const email = user.email ?? "";
-  const base = email.split("@")[0] ?? user.id.slice(0, 8);
+  const atIndex = email.indexOf("@");
+  const emailPrefix = atIndex > 0 ? email.slice(0, atIndex) : "";
+  const base = emailPrefix || user.id.slice(0, 8);
+  const metadataFullName =
+    typeof user.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name.trim()
+      : "";
   return {
     employee_id: base.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 32) || user.id.slice(0, 8),
-    full_name: user.user_metadata?.full_name ?? email.slice(0, email.indexOf("@")) ?? "User",
+    full_name: metadataFullName || emailPrefix || "User",
   };
 }

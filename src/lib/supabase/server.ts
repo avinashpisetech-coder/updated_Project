@@ -1,11 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 /**
  * Supabase client for Server Components, Server Actions, and Route Handlers.
- * Use this in app router server code only.
+ * Wrapped in React cache() to ensure a single client instance per request.
+ * This prevents redundant Auth calls when multiple components call createClient().
  */
-export async function createClient() {
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -28,4 +30,14 @@ export async function createClient() {
       },
     }
   );
-}
+});
+
+/**
+ * Optimized helper to get the current authenticated user.
+ * Memoized across the entire request lifecycle.
+ */
+export const getCachedUser = cache(async () => {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+});

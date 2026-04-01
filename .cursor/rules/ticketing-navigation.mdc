@@ -1,0 +1,11 @@
+---
+description: Ensure consistent navigation to status-specific ticket queues using the status query parameter.
+globs: src/app/(dashboard)/dashboard/page.tsx, src/components/Sidebar.tsx, src/app/(dashboard)/tickets/TicketListClient.tsx
+---
+
+# Ticketing Navigation Rule
+
+- All navigation to filtered ticket lists MUST use the `?status={status_name}` query parameter.
+- The `{status_name}` MUST match the official database ENUM values: `new`, `assigned`, `in_progress`, `pending_user`, `pending_dept`, `pending_third_party`, `scheduled`, `escalated`, `resolved`, `closed`, `cancelled`.
+- Sidebar links and Dashboard status badges must be synchronized to use this filtering logic.
+- Avoid hardcoding status-specific routes; use the `/tickets` base route with the query filter.
