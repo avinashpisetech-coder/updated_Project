@@ -32,7 +32,7 @@ export async function upsertModuleAccess(
     .single();
 
   // For dept_admin fallback: allow only same department
-  if (currentProfile?.role === "dept_admin") {
+  if (currentProfile && currentProfile.role === "dept_admin") {
     const { data: target } = await supabase
       .from("profiles")
       .select("department_id")

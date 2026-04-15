@@ -25,6 +25,10 @@ export default async function AccessControlPage() {
     redirect("/dashboard");
   }
 
+  if (!profile) {
+    redirect("/dashboard");
+  }
+
   // Get base query for users
   const usersQuery = supabase
     .from("profiles")
