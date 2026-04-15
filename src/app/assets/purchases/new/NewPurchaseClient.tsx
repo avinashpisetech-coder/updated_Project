@@ -48,8 +48,21 @@ interface Props {
   projects: { id: string; name: string }[];
   assetTypes: { id: string; name: string }[];
   subTypes: { id: string; name: string; type_id: string }[];
-  catalog: { id: string; name: string; sub_type_id: string; hsn_code_id: string; brand: string; model_number: string; uom?: { name: string; symbol: string }; asset_sub_types?: { type_id: string } }[];
-  hsnCodes: { id: string; hsn_code: string; tax_group: { name: string; taxes: { name: string; percentage: number }[] } }[];
+  catalog: { 
+    id: string; 
+    name: string; 
+    sub_type_id: string; 
+    hsn_code_id: string; 
+    brand: string; 
+    model_number: string; 
+    uom?: { name: string; symbol: string } | { name: string; symbol: string }[]; 
+    asset_sub_types?: { type_id: string } | { type_id: string }[]; 
+  }[];
+  hsnCodes: { 
+    id: string; 
+    hsn_code: string; 
+    tax_group: { name: string; taxes: { name: string; percentage: number }[] } | { name: string; taxes: { name: string; percentage: number }[] }[] 
+  }[];
   budgets: any[];
   indents: any[]; // New prop for authorized indents
 }
@@ -137,14 +150,22 @@ export function NewPurchaseClient({ suppliers, projects, assetTypes, subTypes, c
             if (selectedCatalog) {
                 newItem.name = selectedCatalog.name;
                 newItem.description = `${selectedCatalog.brand || ''} ${selectedCatalog.model_number || ''}`;
-                newItem.uom = selectedCatalog.uom?.symbol || "-";
-                newItem.assetTypeId = selectedCatalog.asset_sub_types?.type_id; 
+                
+                // Handle UOM array or object
+                const uomObj = Array.isArray(selectedCatalog.uom) ? selectedCatalog.uom[0] : selectedCatalog.uom;
+                newItem.uom = uomObj?.symbol || "-";
+                
+                // Handle asset_sub_types array or object
+                const subTypeObj = Array.isArray(selectedCatalog.asset_sub_types) ? selectedCatalog.asset_sub_types[0] : selectedCatalog.asset_sub_types;
+                newItem.assetTypeId = subTypeObj?.type_id; 
                 newItem.subTypeId = selectedCatalog.sub_type_id;
                 const hsn = hsnCodes.find(h => h.id === selectedCatalog.hsn_code_id);
                 if (hsn) {
                     newItem.hsn_code = hsn.hsn_code;
                     newItem.cgst_pct = 0; newItem.sgst_pct = 0; newItem.igst_pct = 0;
-                    hsn.tax_group?.taxes?.forEach(t => {
+                    
+                    const taxGroupObj = Array.isArray(hsn.tax_group) ? hsn.tax_group[0] : hsn.tax_group;
+                    taxGroupObj?.taxes?.forEach((t: any) => {
                         if (t.name.toUpperCase().includes('CGST')) newItem.cgst_pct = t.percentage;
                         if (t.name.toUpperCase().includes('SGST')) newItem.sgst_pct = t.percentage;
                         if (t.name.toUpperCase().includes('IGST')) newItem.igst_pct = t.percentage;

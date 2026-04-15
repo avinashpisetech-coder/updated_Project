@@ -78,6 +78,9 @@ interface MaintenanceRecord {
     notes?: string;
     start_date: string;
     created_at: string;
+    vendor_name?: string;
+    description_malfunction?: string;
+    failure_analysis?: { symptom?: string; cause?: string; action?: string };
     asset?: { 
         asset_code: string; 
         brand: string; 
@@ -436,7 +439,7 @@ export function MaintenanceClient({ initialRecords, initialSchedules, catalog, a
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
                                     <div className="space-y-3">
                                         <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Internal_Control_ID</Label>
-                                        <Input disabled className="h-14 rounded-2xl bg-slate-50 border-slate-100 text-[12px] font-black uppercase shadow-none opacity-50" value={form.maintenance_number} />
+                                        <Input disabled className="h-14 rounded-2xl bg-slate-50 border-slate-100 text-[12px] font-black uppercase shadow-none opacity-50" value="AUTO_GENERATED" />
                                     </div>
                                     <div className="space-y-3">
                                         <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Asset_Type_Class</Label>

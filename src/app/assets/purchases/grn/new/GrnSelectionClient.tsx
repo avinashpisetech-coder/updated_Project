@@ -24,7 +24,7 @@ interface Purchase {
     id: string;
     po_number: string;
     project_id: string;
-    supplier: { name: string };
+    supplier: { name: string } | { name: string }[];
     purchase_items: { quantity: number; received_quantity: number }[];
 }
 
@@ -43,11 +43,18 @@ export function GrnSelectionClient({ projects, purchases }: Props) {
     const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState("");
 
+    // Helper to get supplier name regardless of if it's an array or object
+    const getSupplierName = (supplier: any) => {
+        if (Array.isArray(supplier)) return supplier[0]?.name || "";
+        return supplier?.name || "";
+    };
+
     // Filter POs by project and search term
     const filteredPurchases = purchases.filter(p => {
         const matchesProject = selectedProjectId === "all" || p.project_id === selectedProjectId;
+        const supplierName = getSupplierName(p.supplier);
         const matchesSearch = p.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             p.supplier?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+                             supplierName.toLowerCase().includes(searchTerm.toLowerCase());
         
         // Only show POs that actually have items to be received
         const hasPendingItems = p.purchase_items.some(i => i.quantity > (i.received_quantity || 0));
@@ -170,7 +177,7 @@ export function GrnSelectionClient({ projects, purchases }: Props) {
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 <Building2 size={12} className="text-slate-300" />
-                                                <span className="text-[12px] font-bold text-slate-600 uppercase tracking-tight">{po.supplier?.name}</span>
+                                                <span className="text-[12px] font-bold text-slate-600 uppercase tracking-tight">{getSupplierName(po.supplier)}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right pr-8">

@@ -752,7 +752,7 @@ export function AssetMastersClient({
                                                 type="number" 
                                                 step="0.01"
                                                 value={catalogForm.salvage_value_percent} 
-                                                onChange={e => setCatalogForm({...catalogForm, salvage_value_percent: e.target.value === "" ? "" : Number(e.target.value)})} 
+                                                onChange={e => setCatalogForm({...catalogForm, salvage_value_percent: e.target.value === "" ? 0 : Number(e.target.value)})} 
                                                 className="h-11 rounded-xl bg-background/50 border-border/30 text-foreground text-[14px] font-black px-4 w-full" 
                                             />
                                         </div>

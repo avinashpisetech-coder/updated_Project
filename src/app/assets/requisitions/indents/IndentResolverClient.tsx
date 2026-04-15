@@ -34,6 +34,7 @@ import {
     SelectValue 
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -47,7 +48,7 @@ interface Indent {
     quantity: number;
     created_at: string;
     sub_type: { name: string };
-    store: { name: string; code: string };
+    store: { id: string; name: string; code: string };
     department: { name: string };
     project?: { name: string };
     resolution_type?: string;

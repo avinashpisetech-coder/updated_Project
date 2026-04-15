@@ -19,7 +19,8 @@ import {
   Shield,
   MonitorSmartphone,
   CheckCircle,
-  Box
+  Box,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

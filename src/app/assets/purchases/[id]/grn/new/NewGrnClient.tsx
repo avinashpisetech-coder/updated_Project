@@ -58,9 +58,12 @@ interface PurchaseItem {
     id: string;
     asset_name: string;
     model_number: string;
+    model?: string;
     quantity: number;
     received_quantity: number;
     sub_type_id: string;
+    sub_type?: { id: string; name: string };
+    catalog?: { brand: string };
     brand: string;
     po_item_indents: { indent: Indent; allocated_quantity: number }[];
 }

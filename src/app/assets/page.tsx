@@ -5,6 +5,8 @@ import { ModuleHeader } from "@/components/ModuleHeader";
 import { AssetDashboardClient } from "./AssetDashboardClient";
 import { format } from "date-fns";
 import { ShieldCheck, Activity, Layers } from "lucide-react";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function AssetsDashboardPage() {
   const supabase = await createClient();

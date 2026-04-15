@@ -26,7 +26,8 @@ import {
   MousePointer2,
   User,
   ReceiptIndianRupee,
-  Layers
+  Layers,
+  Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
