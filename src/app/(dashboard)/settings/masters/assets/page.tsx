@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { ensureProfile } from "@/lib/profile";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { redirect } from "next/navigation";
-import AssetMasterClient from "@/components/assets/AssetMasterClient";
+import { AssetMasterClient } from "./AssetMasterClient";
 
 export default async function AssetsMasterPage() {
   const supabase = await createClient();
@@ -16,19 +16,28 @@ export default async function AssetsMasterPage() {
     redirect("/dashboard");
   }
 
-  const { data: suppliers } = await supabase
-    .from("asset_suppliers")
-    .select("*")
-    .order("name");
-
-  // Fetch budgets
-  const { data: budgets } = await supabase
-    .from("asset_budgets")
-    .select(`
+  // Fetch all necessary data for the master center
+  const [
+    { data: subTypes },
+    { data: assetTypes },
+    { data: departments },
+    { data: suppliers },
+    { data: budgets },
+    { data: onboardingConfigs }
+  ] = await Promise.all([
+    supabase.from("asset_sub_types").select("*").order("name"),
+    supabase.from("asset_types").select("*").order("name"),
+    supabase.from("departments").select("id, name").order("name"),
+    supabase.from("asset_suppliers").select("*").order("name"),
+    supabase.from("asset_budgets").select("*, asset_type:asset_types(name)").order("fiscal_year", { ascending: false }),
+    supabase.from("onboarding_asset_config").select(`
       *,
-      asset_type:asset_types(name)
-    `)
-    .order("fiscal_year", { ascending: false });
+      items:onboarding_asset_items(
+        *,
+        sub_type:asset_sub_types(name)
+      )
+    `).order("title")
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-8">
