@@ -56,7 +56,7 @@ const THEMES: ThemeDef[] = [
   { id: "zelle-pro",  label: "Zelle PRO",  mode: "light", dot: "#E74C3C", Icon: Palette   },
 ];
 
-const DEFAULT_THEME: ThemeId = "astra";
+const DEFAULT_THEME: ThemeId = "adios";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);

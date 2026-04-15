@@ -50,13 +50,8 @@ export default async function DashboardLayout({
     <NavigationProvider>
       <div className="relative min-h-screen flex flex-col text-foreground selection:bg-primary/30 selection:text-white overflow-x-hidden">
         <ThemeOrnaments />
-        <Navbar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} />
-        <Sidebar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} />
-        
-        {/* Top right utility bar for notifications */}
-        <div className="fixed top-6 right-[8%] z-[110] flex items-center gap-3">
-          <NotificationBell initial={notifications} />
-        </div>
+        <Navbar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} notifications={notifications} />
+        <Sidebar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} notifications={notifications} />
 
         <DashboardShell>
           {children}

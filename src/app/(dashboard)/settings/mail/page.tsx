@@ -208,7 +208,7 @@ export default function MailSettingsPage() {
                 <div className="space-y-1.5">
                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Display Alias</Label>
                   <Input 
-                    placeholder="EIRMS_NOTIFICATION_SYSTEM" 
+                    placeholder="ADIOS_NOTIFICATION_SYSTEM" 
                     value={settings.smtp_from_name || ""} 
                     onChange={e => updateSetting("smtp_from_name", e.target.value)}
                     className="h-12 px-4 rounded-2xl bg-muted/20 border-border/40 focus:border-primary/50 focus:ring-primary/20 font-bold italic text-xs transition-all uppercase tracking-widest"

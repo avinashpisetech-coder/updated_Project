@@ -44,6 +44,7 @@ import { BackButton } from "./BackButton";
 import React, { useState } from "react";
 import { ProfileRow } from "@/lib/ensure-profile";
 import { Badge } from "@/components/ui/badge";
+import { NotificationBell } from "./NotificationBell";
 
 interface SidebarItemProps {
   href?: string;
@@ -196,12 +197,14 @@ export function Sidebar({
   canAccessMasters, 
   canAccessSecurity,
   profile,
-  permissions = []
+  permissions = [],
+  notifications = []
 }: { 
   canAccessMasters: boolean; 
   canAccessSecurity: boolean;
   profile: ProfileRow | null;
   permissions?: Permission[];
+  notifications?: any[];
 }) {
   const { isSidebarOpen, toggleSidebar, navMode, toggleNavMode } = useNavigation();
   const pathname = usePathname();
@@ -257,11 +260,11 @@ export function Sidebar({
             href="/dashboard" 
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg shadow-lg shadow-primary/20 ring-1 ring-primary/20 transition-transform active:scale-95"
           >
-            E
+            A
           </Link>
           {isSidebarOpen && (
             <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-500">
-              <span className="text-sm font-bold tracking-tight uppercase text-foreground tracking-[0.1em]">EIRMS</span>
+              <span className="text-sm font-bold tracking-tight uppercase text-foreground tracking-[0.1em]">ADIOS</span>
               <span className="text-[9px] text-primary uppercase tracking-[0.2em] font-bold opacity-60">Management</span>
             </div>
           )}
@@ -433,8 +436,11 @@ export function Sidebar({
             "flex items-center gap-3 p-2.5 rounded-2xl bg-muted/20 border border-border/40 transition-all duration-500 overflow-hidden",
             !isSidebarOpen && "justify-center p-1 border-transparent bg-transparent"
           )}>
-            <div className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <User className="h-4.5 w-4.5 text-primary opacity-60" />
+            <div className={cn("flex items-center gap-2", !isSidebarOpen && "flex-col gap-3")}>
+              <div className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <User className="h-4.5 w-4.5 text-primary opacity-60" />
+              </div>
+              <NotificationBell initial={notifications} />
             </div>
             {isSidebarOpen && (
               <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-2 duration-500 font-sans">

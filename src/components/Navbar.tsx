@@ -34,6 +34,7 @@ import { ProfileRow } from "@/lib/ensure-profile";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "./BackButton";
 import { DashboardVersionSwitcher } from "./dashboard/DashboardVersionSwitcher";
+import { NotificationBell } from "./NotificationBell";
 
 interface NavItemProps {
   href: string;
@@ -75,12 +76,14 @@ export function Navbar({
   canAccessMasters, 
   canAccessSecurity,
   profile,
-  permissions = []
+  permissions = [],
+  notifications = []
 }: { 
   canAccessMasters: boolean; 
   canAccessSecurity: boolean;
   profile: ProfileRow | null;
   permissions?: Permission[];
+  notifications?: any[];
 }) {
   const { navMode, toggleNavMode } = useNavigation();
   const pathname = usePathname();
@@ -104,10 +107,10 @@ export function Navbar({
             className="flex items-center gap-3 mr-4 select-none group"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-lg shadow-primary/20 ring-1 ring-primary/20 transition-transform active:scale-95">
-              E
+              A
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight uppercase text-foreground/90 group-hover:text-primary transition-colors tracking-[0.1em]">EIRMS</span>
+              <span className="text-sm font-bold tracking-tight uppercase text-foreground/90 group-hover:text-primary transition-colors tracking-[0.1em]">ADIOS</span>
               <span className="text-[8px] text-primary uppercase tracking-[0.2em] font-bold opacity-40">Portal</span>
             </div>
           </Link>
@@ -208,6 +211,7 @@ export function Navbar({
         </div>
 
         <div className="flex items-center gap-4">
+          <NotificationBell initial={notifications} />
           <DashboardVersionSwitcher />
           
           {/* User Info */}

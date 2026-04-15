@@ -57,10 +57,10 @@ export function RegisterForm({
       <header className="flex items-center justify-between px-2">
         <Link href="/" className="flex items-center gap-4 group transition-transform hover:scale-105">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-black text-2xl shadow-xl shadow-primary/20">
-            E
+            A
           </div>
           <div className="hidden sm:block text-left">
-            <p className="text-2xl font-black tracking-tighter text-foreground">EIRMS</p>
+            <p className="text-2xl font-black tracking-tighter text-foreground">ADIOS</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">
               Enterprise Management System
             </p>

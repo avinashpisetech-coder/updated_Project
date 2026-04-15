@@ -8,10 +8,10 @@ export default function HomePage() {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#22d3ee] text-[#020617] font-bold shadow-[0_0_15px_rgba(34,211,238,0.4)]">
-              E
+              A
             </div>
             <div>
-              <p className="text-xs font-bold tracking-tight text-slate-100 uppercase tracking-widest">EIRMS</p>
+              <p className="text-xs font-bold tracking-tight text-slate-100 uppercase tracking-widest">ADIOS</p>
               <p className="text-[10px] text-slate-400 font-medium">
                 Enterprise Issue &amp; Request Management System
               </p>
@@ -134,7 +134,7 @@ export default function HomePage() {
 
             <div className="rounded-2xl bg-white p-6 shadow-xl">
               <p className="text-xs font-bold text-slate-900 mb-4 uppercase tracking-widest">
-                Why teams use EIRMS
+                Why teams use ADIOS
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 group">

@@ -30,8 +30,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       style={{
         marginLeft: navMode === "vertical" ? "var(--sidebar-width, 256px)" : 0,
         width: navMode === "vertical"
-          ? "calc(100vw - var(--sidebar-width, 256px))"
-          : "100vw",
+          ? "calc(100% - var(--sidebar-width, 256px))"
+          : "100%",
         minHeight: "100vh",
       }}
     >

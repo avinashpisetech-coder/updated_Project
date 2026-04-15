@@ -100,13 +100,13 @@ BEGIN
   SELECT jsonb_agg(att) INTO v_attachments
   FROM (
     SELECT 
-      id, file_name, file_size, content_type, storage_path, 
-      uploaded_by, created_at,
+      ta.id, ta.file_name, ta.file_size, ta.content_type, ta.storage_path, 
+      ta.uploaded_by, ta.created_at,
       jsonb_build_object('full_name', p.full_name) as uploader
     FROM public.ticket_attachments ta
     LEFT JOIN public.profiles p ON ta.uploaded_by = p.id
     WHERE ta.ticket_id = v_ticket_id
-    ORDER BY created_at DESC
+    ORDER BY ta.created_at DESC
   ) att;
 
   RETURN jsonb_build_object(

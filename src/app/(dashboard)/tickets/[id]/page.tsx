@@ -35,21 +35,33 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   const user = await getCachedUser();
   if (!user) return <div>Unauthorized</div>;
 
-  const [fullBundleRes, permissions] = await Promise.all([
+  // ── Unified Performance Matrix ──
+  // We fetch the full bundle (ticket, activities, attachments), user permissions, 
+  // and assignable profiles in parallel to eliminate sequential waterfall delays.
+  const [fullBundleRes, permissions, assignableRes] = await Promise.all([
     supabase.rpc("get_ticket_full_bundle_v2", { p_identifier: routeId }),
     getUserPermissions(user.id),
+    supabase.rpc("get_assignable_profiles")
   ]);
 
-  if (fullBundleRes.error || !fullBundleRes.data) {
-     console.error("RPC Fetch Error [Ticket Detail Bundle]:", fullBundleRes.error);
-     return notFound();
+  // ── Error Handling & Performance Debugging ──
+  if (fullBundleRes.error) {
+    console.error("❌ DATABASE_ERROR_DETAILS:", fullBundleRes.error.message);
+    console.error("Error Code:", fullBundleRes.error.code);
+    console.error("Error Hint:", fullBundleRes.error.hint);
+    console.error("Identifier attempted:", routeId);
+    return notFound();
+  }
+
+  if (!fullBundleRes.data || !fullBundleRes.data.ticket) {
+    console.warn("⚠️ SECURITY_BLOCK: The RPC returned null data for identifier:", routeId);
+    console.warn("   This typically means the visibility logic in get_ticket_full_bundle_v2 denied access or the ID is invalid.");
+    return notFound();
   }
 
   const { ticket, activities, attachments } = fullBundleRes.data;
   const isAgent = hasPermission(permissions, RESOURCES.TICKETS, "update");
-
-  const assignableResponse = isAgent ? await supabase.rpc("get_assignable_profiles") : { data: [] };
-  const assignableUsers = assignableResponse.data || [];
+  const assignableUsers = assignableRes.data || [];
 
   const canViewAttachments = isAgent || user.id === ticket.requester_id || user.id === ticket.assigned_to_id;
 

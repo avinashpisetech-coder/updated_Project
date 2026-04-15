@@ -54,155 +54,129 @@ export function AssetDashboardClient({ stats, movements, lowStock, budgets, role
   const isPrivileged = role === "super_admin" || role === "dept_admin" || role === "module_agent";
 
   const statCards = [
-    { label: "ASSET_POOL", value: stats.total, sub: "Total_Lifecycle_Stock", icon: Package, color: "text-primary", bg: "bg-primary/10", border: "border-primary/20" },
-    { label: "AVAILABLE_READY", value: stats.available, sub: "Deployment_Capacity", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    { label: "ACTIVE_FIELD_NODES", value: stats.assigned, sub: "Operations_Assigned", icon: Activity, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-    { label: "MAINTENANCE_BAY", value: (stats.repair + stats.damaged), sub: "Loss_and_Recovery", icon: Wrench, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+    { label: "Asset Pool", value: stats.total || 0, sub: "Total Lifecycle", icon: Package, color: "text-blue-600", border: "border-blue-100", accent: "bg-blue-600" },
+    { label: "Available", value: stats.available || stats.in_store || 0, sub: "Ready to Deploy", icon: CheckCircle2, color: "text-emerald-600", border: "border-emerald-100", accent: "bg-emerald-600" },
+    { label: "Active Nodes", value: stats.assigned || stats.active || 0, sub: "Field Assets", icon: Activity, color: "text-indigo-600", border: "border-indigo-100", accent: "bg-indigo-600" },
+    { label: "Maintenance", value: (stats.repair || 0) + (stats.damaged || 0), sub: "In Repair / Damaged", icon: Wrench, color: "text-rose-600", border: "border-rose-100", accent: "bg-rose-600" },
   ];
 
   return (
-    <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+    <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      {/* 1. Precise Telemetry Grid - High Density Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Main Operational Cluster */}
+      {/* 1. Statistics & Action Matrix */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {statCards.map((stat, i) => (
+          <div key={i} className="group relative p-4 rounded-xl bg-white border border-border/40 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 overflow-hidden">
+            <div className={cn("absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity", stat.accent)} />
+            <div className="flex items-center justify-between mb-3">
+              <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center border transition-transform group-hover:scale-105", stat.border, "shadow-sm bg-background")}>
+                <stat.icon className={cn("h-4 w-4", stat.color)} />
+              </div>
+              <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest opacity-60 rounded-full py-0.5">
+                {stat.sub}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground mb-0.5">{stat.label}</p>
+              <div className="flex items-baseline gap-1.5">
+                <h2 className="text-2xl font-black tracking-tighter text-foreground leading-none">{stat.value}</h2>
+                <TrendingUp className="h-3 w-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left Column: Quick Actions & Budget */}
         <div className="lg:col-span-8 space-y-8">
-            <div className="grid grid-cols-4 gap-4">
-                {statCards.map((stat, i) => (
-                    <div key={i} className={cn(
-                        "group relative p-8 rounded-[2.5rem] bg-card/40 border hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 overflow-hidden backdrop-blur-xl shadow-sm",
-                        stat.border
-                    )}>
-                        <div className="flex items-center justify-between mb-5 relative z-10">
-                            <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-all bg-background shadow-inner border border-border/40", stat.border)}>
-                                <stat.icon className={cn("h-6 w-6", stat.color)} />
-                            </div>
+            
+            {/* Action Matrix */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Link href="/assets/inventory" className="group h-full">
+                    <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-primary/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
+                        <div className="h-9 w-9 rounded-lg bg-primary shadow-lg shadow-primary/20 flex items-center justify-center mb-3 text-white">
+                            <Plus size={16} />
                         </div>
-                        <div className="space-y-1 relative z-10">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-40 leading-none mb-1">{stat.label}</p>
-                            <h2 className="text-4xl font-black tracking-tighter text-foreground italic leading-none">{stat.value}</h2>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mt-3 opacity-0 group-hover:opacity-100 transition-opacity">v.2.0_THEME_NEXUS_SYNC</p>
+                        <div>
+                          <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Commit Stock</h3>
+                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Record New Hardware</p>
                         </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Quick Action Matrix - High Density Snow White */}
-            <div className="grid grid-cols-3 gap-6">
-                <Link href="/assets/inventory" className="group">
-                    <div className="h-full p-10 rounded-[3rem] bg-card/60 border border-border/40 hover:border-primary/60 transition-all duration-500 relative overflow-hidden shadow-sm backdrop-blur-2xl">
-                        <div className="h-14 w-14 rounded-[1.5rem] bg-primary shadow-2xl shadow-primary/30 flex items-center justify-center mb-8 transform group-hover:-translate-y-1 transition-transform">
-                            <Plus size={24} className="text-primary-foreground" />
-                        </div>
-                        <h3 className="text-2xl font-black uppercase tracking-tight text-foreground mb-1 leading-none">COMMIT_STOCK</h3>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none opacity-50">Record New Hardware Node</p>
-                        <div className="absolute bottom-[-10%] right-[-10%] p-10 opacity-[0.05] group-hover:scale-125 group-hover:text-primary transition-all duration-700">
-                            <Database size={150} />
-                        </div>
+                        <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-primary transition-colors" size={16} />
                     </div>
                 </Link>
 
-                <Link href="/assets/deployment" className="group">
-                    <div className="h-full p-10 rounded-[3rem] bg-card/60 border border-border/40 hover:border-emerald-500/60 transition-all duration-500 relative overflow-hidden shadow-sm backdrop-blur-2xl">
-                        <div className="h-14 w-14 rounded-[1.5rem] bg-emerald-500 shadow-2xl shadow-emerald-500/30 flex items-center justify-center mb-8 transform group-hover:-translate-y-1 transition-transform">
-                            <Zap size={24} className="text-white" />
+                <Link href="/assets/deployment" className="group h-full">
+                    <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
+                        <div className="h-9 w-9 rounded-lg bg-emerald-600 shadow-lg shadow-emerald-600/20 flex items-center justify-center mb-3 text-white">
+                            <Zap size={16} />
                         </div>
-                        <h3 className="text-2xl font-black uppercase tracking-tight text-foreground mb-1 leading-none">HANDOVER_PRO</h3>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none opacity-50">Authorize Deployment Cycle</p>
-                        <div className="absolute bottom-[-10%] right-[-10%] p-10 opacity-[0.05] group-hover:scale-125 group-hover:text-emerald-500 transition-all duration-700">
-                            <ArrowUpRight size={150} />
+                        <div>
+                          <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Handover</h3>
+                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Deploy Asset Node</p>
                         </div>
+                        <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-emerald-500 transition-colors" size={16} />
                     </div>
                 </Link>
 
-                <Link href="/assets/return" className="group">
-                    <div className="h-full p-10 rounded-[3rem] bg-card/60 border border-border/40 hover:border-amber-500/60 transition-all duration-500 relative overflow-hidden shadow-sm backdrop-blur-2xl">
-                        <div className="h-14 w-14 rounded-[1.5rem] bg-amber-500 shadow-2xl shadow-amber-500/30 flex items-center justify-center mb-8 transform group-hover:-translate-y-1 transition-transform">
-                            <History size={24} className="text-white" />
+                <Link href="/assets/return" className="group h-full">
+                    <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
+                        <div className="h-9 w-9 rounded-lg bg-amber-600 shadow-lg shadow-amber-600/20 flex items-center justify-center mb-3 text-white">
+                            <History size={16} />
                         </div>
-                        <h3 className="text-2xl font-black uppercase tracking-tight text-foreground mb-1 leading-none">RECOVERY_LOG</h3>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none opacity-50">Reverse Custody Protocol</p>
-                        <div className="absolute bottom-[-10%] right-[-10%] p-10 opacity-[0.05] group-hover:scale-125 group-hover:text-amber-500 transition-all duration-700">
-                            <ArrowDownLeft size={150} />
+                        <div>
+                          <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Recovery</h3>
+                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Reverse Custody</p>
                         </div>
+                        <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-amber-500 transition-colors" size={16} />
                     </div>
                 </Link>
             </div>
-        </div>
 
-        {/* System Alerts & Master Policy Matrix */}
-        <div className="lg:col-span-4 space-y-8">
-            {/* Low Stock Alert Matrix */}
-            <div className="p-10 rounded-[3rem] bg-amber-500/5 border border-amber-500/20 relative overflow-hidden shadow-sm backdrop-blur-3xl">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-amber-500/10">
+            {/* Budget Monitoring Matrix */}
+            <div className="p-5 rounded-xl bg-white border border-border/40 shadow-sm">
+                <div className="flex items-center justify-between mb-5 pb-3 border-b border-border/40">
                     <div className="flex items-center gap-3">
-                        <AlertTriangle size={18} className="text-amber-500" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">INVENTORY_THRESHOLD_ALERT</span>
-                    </div>
-                    <Badge className="bg-amber-500 text-white border-none text-[8px] font-black h-4 px-2 rounded-full">{lowStock.length}</Badge>
-                </div>
-                
-                <div className="space-y-4">
-                    {lowStock.length === 0 ? (
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center py-6 italic opacity-30">Stock Levels Healthy</p>
-                    ) : lowStock.slice(0, 3).map((alert, i) => (
-                        <div key={i} className="flex items-center justify-between p-5 rounded-2xl bg-card border border-amber-500/10 hover:border-amber-500/30 transition-all shadow-inner">
-                            <div className="flex items-center gap-3">
-                                <Monitor size={16} className="text-amber-500 opacity-60 shrink-0" />
-                                <span className="text-[11px] font-black uppercase tracking-tight text-foreground truncate max-w-[130px]">{alert.sub_type_name}</span>
-                            </div>
-                            <span className="text-[10px] font-black text-amber-600 tracking-widest">STOCK: {alert.current_count}</span>
+                        <div className="h-7 w-7 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-center">
+                          <ReceiptIndianRupee size={14} className="text-primary" />
                         </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Masters Policy Entry */}
-            <Link href="/assets/masters" className="block">
-                <div className="group p-8 rounded-[3rem] bg-foreground text-background border border-foreground/10 hover:brightness-110 transition-all duration-500 flex items-center justify-between shadow-2xl shadow-black/20 relative overflow-hidden">
-                    <div className="flex items-center gap-6 relative z-10">
-                         <div className="h-12 w-12 rounded-[1.5rem] bg-background/10 backdrop-blur-md flex items-center justify-center text-background">
-                            <Settings2 size={24} />
-                         </div>
-                         <div className="flex flex-col">
-                            <span className="text-[16px] font-black uppercase tracking-tight leading-none mb-1">GOVERNANCE_MASTERS</span>
-                            <span className="text-[9px] font-bold opacity-50 uppercase tracking-[0.3em] leading-none">Logic Policy Management</span>
-                         </div>
-                    </div>
-                    <ChevronRight size={22} className="opacity-50 group-hover:opacity-100 group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-2" />
-                </div>
-            </Link>
-
-            {/* Capital Matrix (Budget Monitoring) */}
-            <div className="p-8 rounded-[2.5rem] bg-white border border-slate-100 relative overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
-                    <div className="flex items-center gap-3">
-                        <ReceiptIndianRupee size={16} className="text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">CAPITAL_MATRIX (FY 26-27)</span>
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-foreground">Fiscal Protocol Matrix</p>
+                          <p className="text-[7px] font-black text-muted-foreground uppercase tracking-[0.1em]">FY 26-27 Monitoring</p>
+                        </div>
                     </div>
                 </div>
                 
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {budgets.length === 0 ? (
-                        <p className="text-[10px] font-black text-slate-200 uppercase tracking-widest text-center py-6 italic">No Active Fiscal Protocols</p>
-                    ) : budgets.slice(0, 3).map((b, i) => {
+                        <div className="col-span-full py-16 text-center border-2 border-dashed border-border/40 rounded-3xl">
+                            <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest italic opacity-50">No Active Fiscal Protocols Defined</p>
+                        </div>
+                    ) : budgets.slice(0, 6).map((b, i) => {
                         const percent = Math.min((b.spent_amount / b.allocated_amount) * 100, 100);
+                        const isHigh = percent > 85;
                         return (
-                            <div key={i} className="space-y-3">
+                            <div key={i} className="group space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-black uppercase text-slate-700 tracking-tight">{b.asset_type?.name}</span>
-                                    <span className="text-[13px] font-black text-primary tracking-tighter">₹ {mounted ? b.spent_amount.toLocaleString('en-IN') : b.spent_amount}</span>
+                                    <span className="text-[11px] font-black uppercase text-foreground tracking-widest">{b.asset_type?.name}</span>
+                                    <span className={cn("text-[10px] font-black font-mono", isHigh ? "text-rose-600" : "text-primary")}>{percent.toFixed(1)}%</span>
                                 </div>
-                                <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                                <div className="h-2 w-full bg-muted/50 rounded-full overflow-hidden border border-border/20">
                                     <div 
-                                        className="h-full bg-primary transition-all duration-1000 shadow-[0_0_8px_rgba(37,99,235,0.4)]" 
+                                        className={cn("h-full transition-all duration-1000", isHigh ? "bg-rose-500" : "bg-primary")}
                                         style={{ width: `${percent}%` }}
                                     />
                                 </div>
-                                <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-[0.3em] text-slate-300">
-                                    <span>POOL_LIMIT: ₹{mounted ? b.allocated_amount.toLocaleString('en-IN') : b.allocated_amount}</span>
-                                    <span>UTIL: {percent.toFixed(1)}%</span>
+                                <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg border border-border/20">
+                                    <div className="flex flex-col">
+                                      <span className="text-[8px] font-black text-muted-foreground uppercase opacity-60">Utilitized</span>
+                                      <span className="text-[10px] font-black text-foreground">₹{mounted ? b.spent_amount.toLocaleString('en-IN') : b.spent_amount}</span>
+                                    </div>
+                                    <div className="h-6 w-px bg-border/40" />
+                                    <div className="flex flex-col text-right">
+                                      <span className="text-[8px] font-black text-muted-foreground uppercase opacity-60">Allocation</span>
+                                      <span className="text-[10px] font-black text-foreground/60">₹{mounted ? b.allocated_amount.toLocaleString('en-IN') : b.allocated_amount}</span>
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -210,110 +184,166 @@ export function AssetDashboardClient({ stats, movements, lowStock, budgets, role
                 </div>
             </div>
         </div>
+
+        {/* Right Column: Threshold Alerts & Governance */}
+        <div className="lg:col-span-4 space-y-5">
+            <div className="p-6 rounded-[1.25rem] bg-white border border-border/40 shadow-sm">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/40">
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-rose-500" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Threshold Warnings</span>
+                    </div>
+                    {lowStock.length > 0 && (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-rose-500 text-[10px] font-bold text-white shadow-lg shadow-rose-500/20">
+                          {lowStock.length}
+                        </span>
+                    )}
+                </div>
+                
+                <div className="space-y-2">
+                    {lowStock.length === 0 ? (
+                        <div className="py-6 text-center flex flex-col items-center gap-2 opacity-30">
+                            <CheckCircle2 size={20} className="text-emerald-500" />
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Nodes Healthy</p>
+                        </div>
+                    ) : lowStock.slice(0, 5).map((alert, i) => (
+                        <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-rose-50/10 border border-rose-500/10 hover:bg-rose-50/20 transition-colors">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Monitor size={12} className="text-rose-400 shrink-0" />
+                                <span className="text-[10px] font-bold uppercase tracking-tight text-foreground truncate">{alert.sub_type_name}</span>
+                            </div>
+                            <Badge variant="outline" className="text-[9px] font-black text-rose-600 border-rose-200 bg-white px-1.5 h-5">
+                               {alert.current_count}
+                            </Badge>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Governance Master Entry */}
+            <Link href="/assets/masters" className="block text-white">
+                <div className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:bg-black transition-all duration-300 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                         <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center">
+                            <Settings2 size={16} />
+                         </div>
+                         <div className="flex flex-col">
+                            <span className="text-[11px] font-black uppercase tracking-tight leading-none mb-0.5">Policy Matrix</span>
+                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">System Administration</span>
+                         </div>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-500 group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-1" />
+                </div>
+            </Link>
+
+            {/* External Links / Help */}
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                <h4 className="text-[9px] font-black uppercase tracking-wider text-primary mb-3 flex items-center gap-2">
+                    <ShieldCheck size={12} /> Compliance Registry
+                </h4>
+                <div className="space-y-1.5">
+                    {["Lifecycle Policy", "Security SOP", "Retirement Log"].map((link, j) => (
+                        <div key={j} className="flex items-center justify-between text-[10px] font-bold text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                            <span className="truncate">{link}</span>
+                            <ArrowUpRight size={10} className="opacity-40" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
       </div>
 
-       {/* 2. Standardized Activity Table - High Fidelity System Chronology */}
-      <div className="rounded-[3.5rem] border border-border/40 bg-card/40 overflow-hidden shadow-2xl shadow-black/5 mb-10 backdrop-blur-3xl">
-          <div className="px-12 py-10 border-b border-border/40 flex items-center justify-between bg-muted/5">
-                <div className="flex items-center gap-6">
-                    <div className="h-14 w-14 rounded-[1.5rem] bg-background border border-border/40 flex items-center justify-center text-primary shadow-inner">
-                         <Activity size={28} />
+      <div className="rounded-[1.25rem] border border-border/40 bg-background/50 overflow-hidden shadow-sm mb-12">
+          <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between bg-white/40 backdrop-blur-xl min-w-[1000px]">
+                <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
+                         <Activity size={18} />
                     </div>
-                    <div className="flex flex-col">
-                        <h3 className="text-3xl font-black text-foreground uppercase tracking-tighter leading-none mb-1">SYSTEM_CHRONOLOGY</h3>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] opacity-40">Synchronized Asset Movement Ledger</p>
+                    <div>
+                        <h3 className="text-lg font-black text-foreground uppercase tracking-tight leading-none mb-0.5">System Chronology</h3>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.1em]">Synchronized Movement Ledger</p>
                     </div>
                 </div>
                 <Link href="/assets/movements">
-                    <Button variant="outline" className="h-12 px-10 rounded-[2rem] text-[10px] font-black uppercase tracking-widest border-border/40 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all shadow-sm">
-                        View_Complete_Audit_Trail
+                    <Button variant="outline" className="h-8 px-4 rounded-lg text-[9px] font-black uppercase tracking-widest border-border/60 text-muted-foreground hover:bg-primary hover:text-white transition-all group">
+                        Full Audit
+                        <ArrowRightLeft className="ml-2 h-3 w-3 transition-transform group-hover:rotate-180" />
                     </Button>
                 </Link>
           </div>
           
-          <Table>
-                <TableHeader className="bg-muted/10 sticky top-0 z-20 backdrop-blur-md">
-                    <TableRow className="h-14 border-none hover:bg-transparent">
-                        <TableHead className="pl-12 text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">PATH</TableHead>
-                        <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">PROTOCOL_ACTION_TYPE</TableHead>
-                        <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">HARDWARE_IDENTITY</TableHead>
-                        <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">TARGET_CUSTODIAN</TableHead>
-                        <TableHead className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] text-right pr-12">OPERATOR_SYNC</TableHead>
+          <div className="overflow-auto custom-scrollbar">
+            <Table className="min-w-[1000px] border-collapse">
+                <TableHeader className="bg-background/80 sticky top-0 z-10 backdrop-blur-md">
+                    <TableRow className="h-10 border-b border-border/40 hover:bg-transparent">
+                        <TableHead className="pl-10 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Protocol_Type</TableHead>
+                        <TableHead className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Action_Class</TableHead>
+                        <TableHead className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Entity_Identity</TableHead>
+                        <TableHead className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Custodian_Node</TableHead>
+                        <TableHead className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Timestamp</TableHead>
+                        <TableHead className="text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right pr-10">Operator</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {movements.length === 0 ? (
-                        <TableRow className="h-64 border-none hover:bg-transparent">
-                            <TableCell colSpan={5} className="text-center opacity-10">
-                                <div className="flex flex-col items-center gap-2">
-                                    <Shield size={40} />
-                                    <p className="text-[10px] font-black uppercase tracking-[0.5em]">Registry_Ledger_Invariant</p>
-                                </div>
+                        <TableRow className="h-48 border-none hover:bg-transparent">
+                            <TableCell colSpan={6} className="text-center">
+                                <p className="text-[11px] font-black text-slate-200 uppercase tracking-[0.4em]">Audit Ledger Invariant</p>
                             </TableCell>
                         </TableRow>
                     ) : (
-                        movements.map((move) => (
-                           <TableRow key={move.id} className="h-16 group hover:bg-slate-50 border-b border-border/50 transition-all">
+                        movements.slice(0, 10).map((move) => (
+                           <TableRow key={move.id} className="h-16 border-b border-border/20 hover:bg-white transition-all group cursor-default">
                                 <TableCell className="pl-10">
                                     <div className={cn(
-                                        "h-10 w-10 rounded-xl flex items-center justify-center shadow-sm border",
-                                        move.direction === 'in' ? "bg-emerald-50 text-emerald-500 border-emerald-100" : "bg-blue-50 text-blue-500 border-blue-100"
+                                        "h-9 w-9 rounded-xl flex items-center justify-center shadow-sm border transition-transform group-hover:scale-110",
+                                        move.direction === 'in' ? "bg-emerald-50 text-emerald-500 border-emerald-100" : "bg-primary/5 text-primary border-primary/10"
                                     )}>
-                                        {move.direction === 'in' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                                        {move.direction === 'in' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge className={cn(
-                                        "text-[8px] font-black uppercase tracking-widest h-5 px-3 rounded-full border-none shadow-sm min-w-[100px] justify-center",
-                                        move.type === 'handover' && "bg-blue-500 text-white shadow-blue-500/20",
-                                        move.type === 'return' && "bg-amber-500 text-white shadow-amber-500/20",
-                                        move.type === 'purchase_inward' && "bg-emerald-500 text-white shadow-emerald-500/20",
-                                        move.type === 'damaged' && "bg-red-500 text-white shadow-red-500/20"
+                                    <Badge variant="outline" className={cn(
+                                        "text-[9px] font-black uppercase tracking-widest h-6 px-3 rounded-md border transition-colors",
+                                        move.type === 'handover' && "bg-blue-50 text-blue-700 border-blue-100",
+                                        move.type === 'return' && "bg-amber-50 text-amber-700 border-amber-100",
+                                        move.type === 'purchase_inward' && "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                        move.type === 'damaged' && "bg-rose-50 text-rose-700 border-rose-100"
                                     )}>
-                                        {move.type.replace('_', ' ')}
+                                        {move.type.replace(/_/g, ' ')}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-9 w-9 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
-                                            <Package size={16} />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[14px] font-black text-slate-800 uppercase tracking-tight leading-none mb-1">{move.asset?.asset_code}</span>
-                                            <span className="text-[9px] font-black text-primary/40 uppercase tracking-widest">{move.asset?.sub_type?.name}</span>
-                                        </div>
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-[12px] font-black text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">{move.asset?.asset_code}</span>
+                                        <span className="text-[10px] font-bold text-muted-foreground leading-none uppercase tracking-wider">{move.asset?.sub_type?.name}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell>
                                     {move.to_user_profile ? (
                                         <div className="flex items-center gap-3">
-                                            <div className="h-7 w-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 border border-blue-100">
+                                            <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center text-muted-foreground border border-border/40">
                                                 <User size={12} />
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[12px] font-black text-slate-700 uppercase tracking-tight leading-none">{move.to_user_profile.full_name}</span>
-                                                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{format(new Date(move.created_at), 'dd MMM yyyy')}</span>
-                                            </div>
+                                            <span className="text-[11px] font-black text-foreground uppercase tracking-tight">{move.to_user_profile.full_name}</span>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-2 opacity-20 italic">
-                                             <Database size={12} />
-                                             <span className="text-[10px] font-black uppercase tracking-widest leading-none">CENTRAL_STOCK</span>
-                                        </div>
+                                        <span className="text-[9px] font-black text-muted-foreground uppercase italic tracking-widest opacity-40">Stock Repository</span>
                                     )}
                                 </TableCell>
+                                <TableCell className="text-[11px] font-bold text-muted-foreground tabular-nums uppercase tracking-tighter">
+                                    {format(new Date(move.created_at), 'dd_MMM_yyyy HH:mm')}
+                                </TableCell>
                                 <TableCell className="text-right pr-10">
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-[11px] font-black uppercase text-slate-800 tracking-tight leading-none mb-1">{move.performed_by_profile?.full_name}</span>
-                                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{format(new Date(move.created_at), 'HH:mm:ss')}</span>
-                                    </div>
+                                    <span className="text-[11px] font-black text-foreground uppercase tracking-tight">{move.performed_by_profile?.full_name}</span>
                                 </TableCell>
                            </TableRow>
                         ))
                     )}
                 </TableBody>
              </Table>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
 }

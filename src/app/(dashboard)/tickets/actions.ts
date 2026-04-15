@@ -111,62 +111,38 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
       return { success: false, error: `Database Error: ${error.message}` };
     }
 
-    // Email notification
-    let notificationEmail: string | null = null;
-
-    if (affectedPerson) {
-      const { data: affectedProfile } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("id", affectedPerson)
-        .single();
-      notificationEmail = affectedProfile?.email ?? null;
-    }
-
-    if (!notificationEmail) {
-      notificationEmail = user.email ?? null;
-    }
-
-    // Log activity
-    const { error: activityError } = await supabase.from("ticket_activity_log").insert({
-      ticket_id: ticket.id,
-      actor_id: user.id,
-      activity_type: "status_change",
-      content: "Added ticket",
-      new_value: ticketNumber,
-      is_internal: false
-    });
-
-    if (activityError && process.env.NODE_ENV !== "production") {
-      console.warn("Failed to log ticket creation activity:", activityError.message);
-    }
-
-    if (notificationEmail) {
-      sendTicketNotification(notificationEmail, ticketNumber, subject, description)
-        .catch(emailError => {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn("Ticket email notification failed:", emailError);
-          }
-        });
-    }
-
-    // New: If assigned, also notify the assignee
-    if (effectiveAssignedToId) {
-      const { data: assignee } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("id", effectiveAssignedToId)
-        .single();
-      
-      if (assignee?.email) {
-        sendTicketAssignmentNotification(assignee.email, ticketNumber)
-          .catch(emailError => {
-            if (process.env.NODE_ENV !== "production") {
-              console.warn("Assignee email notification failed:", emailError);
-            }
-          });
+    // Non-blocking notifications
+    (async () => {
+      let notificationEmail: string | null = null;
+      if (affectedPerson) {
+        const { data: affectedProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", affectedPerson)
+          .single();
+        notificationEmail = affectedProfile?.email ?? null;
       }
-    }
+      if (!notificationEmail) {
+        notificationEmail = user.email ?? null;
+      }
+
+      if (notificationEmail) {
+        sendTicketNotification(notificationEmail, ticketNumber, subject, description)
+          .catch(e => console.warn("Creation email failed:", e));
+      }
+
+      if (effectiveAssignedToId) {
+        const { data: assignee } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", effectiveAssignedToId)
+          .single();
+        if (assignee?.email) {
+          sendTicketAssignmentNotification(assignee.email, ticketNumber)
+            .catch(e => console.warn("Assignee email failed:", e));
+        }
+      }
+    })();
 
     revalidatePath("/tickets");
     return { success: true, ticket };
@@ -338,22 +314,23 @@ export async function scheduleTicketMeeting(formData: FormData): Promise<{ succe
       console.warn("Failed to log meeting activity:", activityError.message);
     }
 
-    const participantIdList = Array.from(participantIds);
-    if (participantIdList.length > 0) {
-      const { data: participants } = await supabase
-        .from("profiles")
-        .select("id, email, full_name")
-        .in("id", participantIdList);
+    // Background Notifications (Non-blocking)
+    (async () => {
+      const participantIdList = Array.from(participantIds);
+      if (participantIdList.length > 0) {
+        const { data: participants } = await supabase
+          .from("profiles")
+          .select("id, email, full_name")
+          .in("id", participantIdList);
 
-      if (participants && participants.length > 0) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-        const ticketUrl = appUrl ? `${appUrl}/tickets/${ticketId}` : "";
+        if (participants && participants.length > 0) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+          const ticketUrl = appUrl ? `${appUrl}/tickets/${ticketId}` : "";
 
-        await Promise.all(
           participants
-            .filter((participant) => Boolean(participant.email))
-            .map((participant) =>
-              sendMeetingInviteNotification(participant.email as string, {
+            .filter((p) => Boolean(p.email))
+            .forEach((p) =>
+              sendMeetingInviteNotification(p.email as string, {
                 ticketNumber: ticket.ticket_number,
                 ticketSubject: ticket.subject,
                 meetingId: meeting.id,
@@ -364,16 +341,18 @@ export async function scheduleTicketMeeting(formData: FormData): Promise<{ succe
                 agenda,
                 meetingLink,
                 location,
-                participantName: participant.full_name,
+                participantName: p.full_name,
                 ticketUrl,
-              }),
-            ),
-        );
+              }).catch(e => console.warn("Meeting email failed:", e))
+            );
+        }
       }
-    }
+    })();
 
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/tickets");
+    await Promise.all([
+      revalidatePath(`/tickets/${ticketId}`),
+      revalidatePath("/tickets")
+    ]);
 
     return { success: true, meetingId: meeting.id, error: null };
   } catch (err: any) {
@@ -495,39 +474,42 @@ export async function assignTicket(ticketId: string, assigneeId: string): Promis
       });
     }
 
-    if (assigneeProfile.email && currentTicket.ticket_number) {
-      sendTicketAssignmentNotification(assigneeProfile.email, currentTicket.ticket_number)
-        .catch(emailError => {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn("Assignment email notification failed:", emailError);
-          }
-        });
-    }
-
-    if (currentTicket.requester_id && currentTicket.ticket_number) {
-      const { data: requester } = await supabase
+    // Background Notifications (Non-blocking)
+    (async () => {
+      const { data: assigneeProfile } = await supabase
         .from("profiles")
-        .select("email")
-        .eq("id", currentTicket.requester_id)
+        .select("id, email, full_name")
+        .eq("id", assigneeId)
         .single();
-
-      if (requester?.email) {
-        sendTicketUpdateNotification(
-          requester.email,
-          currentTicket.ticket_number,
-          "assigned",
-          `Ticket assigned to ${assigneeProfile.full_name ?? "a user"}.`,
-        ).catch(emailError => {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn("Requester email notification failed:", emailError);
-          }
-        });
+      
+      if (assigneeProfile?.email) {
+        sendTicketAssignmentNotification(assigneeProfile.email, currentTicket.ticket_number)
+          .catch(e => console.warn("Assignee notify failed:", e));
       }
-    }
 
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/tickets");
-    revalidatePath("/dashboard");
+      if (currentTicket.requester_id) {
+        const { data: requester } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", currentTicket.requester_id)
+          .single();
+
+        if (requester?.email) {
+          sendTicketUpdateNotification(
+            requester.email,
+            currentTicket.ticket_number,
+            "assigned",
+            `Ticket assigned to ${assigneeProfile?.full_name ?? "a user"}.`,
+          ).catch(e => console.warn("Requester notify failed:", e));
+        }
+      }
+    })();
+
+    await Promise.all([
+      revalidatePath(`/tickets/${ticketId}`),
+      revalidatePath("/tickets"),
+      revalidatePath("/dashboard")
+    ]);
     
     return { success: true };
   } catch (err: any) {
@@ -711,35 +693,32 @@ export async function updateTicketStatus(
       }
     }
 
-    const recipients = [currentTicket.requester_id, currentTicket.assigned_to_id]
-      .filter((id): id is string => Boolean(id));
+    // Background Notifications (Non-blocking)
+    (async () => {
+      const recipients = [currentTicket.requester_id, currentTicket.assigned_to_id]
+        .filter((id): id is string => Boolean(id));
 
-    if (recipients.length > 0) {
-      const { data: recipientProfiles } = await supabase
-        .from("profiles")
-        .select("id, email")
-        .in("id", recipients);
+      if (recipients.length > 0) {
+        const { data: recipientProfiles } = await supabase
+          .from("profiles")
+          .select("id, email")
+          .in("id", recipients);
 
-      const uniqueEmails = Array.from(
-        new Set((recipientProfiles ?? []).map((row) => row.email).filter((email): email is string => Boolean(email))),
-      );
+        (recipientProfiles ?? [])
+          .map((row) => row.email)
+          .filter(Boolean)
+          .forEach((email) =>
+            sendTicketUpdateNotification(email!, currentTicket.ticket_number, normalizedStatus, note.trim())
+              .catch(e => console.warn("Status change notify failed:", e))
+          );
+      }
+    })();
 
-      await Promise.all(
-        uniqueEmails.map((email) =>
-          sendTicketUpdateNotification(email, currentTicket.ticket_number, normalizedStatus, note.trim()).catch(
-            (emailError) => {
-              if (process.env.NODE_ENV !== "production") {
-                console.warn("Status update email notification failed:", emailError);
-              }
-            }
-          )
-        ),
-      );
-    }
-
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/tickets");
-    revalidatePath("/dashboard");
+    await Promise.all([
+      revalidatePath(`/tickets/${ticketId}`),
+      revalidatePath("/tickets"),
+      revalidatePath("/dashboard")
+    ]);
     
     return { success: true };
   } catch (err: any) {
@@ -854,26 +833,27 @@ export async function submitTicketReply(
       console.warn("Failed to log reply activity:", activityError.message);
     }
 
-    // 4. Send notification to the assigned agent if one exists
-    if (ticket.assigned_to_id) {
-       const { data: agent } = await supabase
-         .from("profiles")
-         .select("email")
-         .eq("id", ticket.assigned_to_id)
-         .single();
-       
-       if (agent?.email) {
-         try {
-           await sendTicketReplyNotification(agent.email, ticket.ticket_number || "TKT", replyContent.slice(0, 500));
-         } catch (e) {
-           console.warn("Reply notification failed:", e);
+    // 4. Send notification (Non-blocking)
+    (async () => {
+      if (ticket.assigned_to_id) {
+         const { data: agent } = await supabase
+           .from("profiles")
+           .select("email")
+           .eq("id", ticket.assigned_to_id)
+           .single();
+         
+         if (agent?.email) {
+            sendTicketReplyNotification(agent.email, ticket.ticket_number || "TKT", replyContent.slice(0, 500))
+              .catch(e => console.warn("Reply notification failed:", e));
          }
-       }
-    }
+      }
+    })();
 
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/tickets");
-    revalidatePath("/dashboard");
+    await Promise.all([
+      revalidatePath(`/tickets/${ticketId}`),
+      revalidatePath("/tickets"),
+      revalidatePath("/dashboard")
+    ]);
 
     return { success: true };
   } catch (err: any) {
@@ -1376,24 +1356,29 @@ export async function approveTicketClose(ticketId: string): Promise<{ success: b
       });
     }
 
-    const { data: requester } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", ticket.requester_id)
-      .single();
+    // Background notification (Non-blocking)
+    (async () => {
+      const { data: requester } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", ticket.requester_id)
+        .single();
 
-    if (requester?.email) {
-      await sendTicketUpdateNotification(
-        requester.email,
-        ticket.ticket_number,
-        "closed",
-        "Your ticket has been closed after your approval.",
-      ).catch(e => console.warn("Closure notification failed:", e));
-    }
+      if (requester?.email) {
+        sendTicketUpdateNotification(
+          requester.email,
+          ticket.ticket_number,
+          "closed",
+          "Your ticket has been closed after your approval.",
+        ).catch(e => console.warn("Closure notification failed:", e));
+      }
+    })();
 
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/tickets");
-    revalidatePath("/dashboard");
+    await Promise.all([
+      revalidatePath(`/tickets/${ticketId}`),
+      revalidatePath("/tickets"),
+      revalidatePath("/dashboard")
+    ]);
     
     return { success: true };
   } catch (err: any) {

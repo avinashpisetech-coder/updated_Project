@@ -31,7 +31,7 @@ export default function RootLayout({
               (function() {
                 try {
                   var theme = localStorage.getItem('ui-theme');
-                  if (!theme) theme = 'nova';
+                  if (!theme) theme = 'adios';
                   document.documentElement.setAttribute('data-theme', theme);
                   var darkThemes = ['midnight-executive', 'emerald-night', 'charcoal-gold', 'plum-enterprise', 'cyber-pulse'];
                   if (darkThemes.indexOf(theme) !== -1) {

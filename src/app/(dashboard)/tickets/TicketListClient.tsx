@@ -204,7 +204,7 @@ export default function TicketListClient({ tickets: initialTickets, pagination }
           </motion.div>
         )}
         
-        <Table className="border-collapse">
+        <Table className="border-collapse min-w-[1200px]">
           <TableHeader className="bg-background/80 sticky top-0 z-50 backdrop-blur-md">
             <TableRow className="h-10 border-b border-border/40 hover:bg-transparent">
               <TableHead className="pl-10 w-[160px] text-[9px] font-black text-muted-foreground uppercase tracking-widest">Protocol</TableHead>

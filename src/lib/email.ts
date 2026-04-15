@@ -93,12 +93,12 @@ async function createTransporter() {
 async function resolveFromAddress() {
   const dbSettings = await getSystemSettings();
   const address = dbSettings.smtp_from_address || process.env.SMTP_FROM || process.env.SMTP_USER;
-  const name = dbSettings.smtp_from_name || "EIRMS System";
+  const name = dbSettings.smtp_from_name || "ADIOS System";
   
   if (address) {
     return `"${name}" <${address}>`;
   }
-  return '"EIRMS System" <no-reply@localhost>';
+  return '"ADIOS System" <no-reply@localhost>';
 }
 
 // Helper for sending and logging
@@ -140,7 +140,7 @@ export async function sendTicketNotification(toEmail: string, ticketNumber: stri
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
         <h2 style="color: #0f172a;">New Ticket Created</h2>
-        <p>Your ticket has been successfully created in the EIRMS system.</p>
+        <p>Your ticket has been successfully created in the ADIOS system.</p>
         <p><strong>Ticket No:</strong> ${ticketNumber}</p>
         <p><strong>Subject:</strong> ${subject}</p>
         <div style="margin-top: 20px; padding: 15px; background-color: #f8fafc; border-radius: 6px;">
@@ -155,11 +155,11 @@ export async function sendTicketNotification(toEmail: string, ticketNumber: stri
 export async function sendUserCreationNotification(toEmail: string, name: string) {
   await sendMailWrapper({
     to: toEmail,
-    subject: `Welcome to EIRMS, ${name}! Your Account is Ready`,
-    text: `Hello ${name},\n\nYour user account for the EIRMS System has been created successfully. You should receive a separate email to set your initial password.\n\nPlease log in once set up.`,
+    subject: `Welcome to ADIOS, ${name}! Your Account is Ready`,
+    text: `Hello ${name},\n\nYour user account for the ADIOS System has been created successfully. You should receive a separate email to set your initial password.\n\nPlease log in once set up.`,
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-        <h2 style="color: #0f172a;">Welcome to EIRMS!</h2>
+        <h2 style="color: #0f172a;">Welcome to ADIOS!</h2>
         <p>Hello ${name},</p>
         <p>Your user account for the Enterprise Issue & Request Management System has been created.</p>
         <p>You should have received (or will shortly receive) a separate email containing a link to set your password and activate your account.</p>
@@ -196,7 +196,7 @@ export async function sendTicketAssignmentNotification(toEmail: string, ticketNu
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
         <h2 style="color: #0f172a;">Ticket Assignment</h2>
         <p>Ticket <strong>${ticketNumber}</strong> has been assigned to you.</p>
-        <p>Please log in to the EIRMS system to review.</p>
+        <p>Please log in to the ADIOS system to review.</p>
       </div>
     `,
   });
@@ -223,7 +223,7 @@ export async function sendTicketReplyNotification(toEmail: string, ticketNumber:
 export async function sendPasswordResetNotification(toEmail: string, resetUrl: string) {
   await sendMailWrapper({
     to: toEmail,
-    subject: `EIRMS Password Reset`,
+    subject: `ADIOS Password Reset`,
     text: `Use this link to reset your password: ${resetUrl}`,
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -281,11 +281,11 @@ function buildMeetingIcs(payload: MeetingInvitePayload) {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//EIRMS//Ticket Meeting//EN",
+    "PRODID:-//ADIOS//Ticket Meeting//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
     "BEGIN:VEVENT",
-    `UID:${payload.meetingId}@eirms.local`,
+    `UID:${payload.meetingId}@ADIOS.local`,
     `DTSTAMP:${toIcsTimestamp(new Date())}`,
     `DTSTART:${toIcsTimestamp(start)}`,
     `DTEND:${toIcsTimestamp(end)}`,

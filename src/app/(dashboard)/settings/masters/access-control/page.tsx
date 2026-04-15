@@ -101,7 +101,7 @@ export default async function AccessControlPage() {
   }
 
   const baseModules = modules || [];
-  const EIRMS_WHITELIST = [
+  const ADIOS_WHITELIST = [
     "help-desk", "support-queue",
     "users_master", "help_desk_master", "access_control", "organizations",
     "dashboard", "intelligence_hub", "reports", "mail", "themes"
@@ -125,7 +125,7 @@ export default async function AccessControlPage() {
     ...systemNodes
   ].filter((m, index, self) => 
     index === self.findIndex((t) => t.slug === m.slug)
-  ).filter(m => EIRMS_WHITELIST.includes(m.slug.toLowerCase().trim()));
+  ).filter(m => ADIOS_WHITELIST.includes(m.slug.toLowerCase().trim()));
 
   // Prepare roles and permissions for client
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
