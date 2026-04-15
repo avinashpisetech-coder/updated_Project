@@ -40,11 +40,11 @@ export default async function UserMasterPage() {
   ]);
 
   const currentProfile = profileResponse.data;
-  if (!hasPermission(permissions, RESOURCES.USERS, "manage")) {
+  if (!currentProfile || !hasPermission(permissions, RESOURCES.USERS, "manage")) {
     redirect("/dashboard");
   }
 
-  const role = currentProfile.role;
+  const role = currentProfile.role || "end_user";
   const departmentId = currentProfile.department_id || "";
 
   const profiles = profilesResponse.data || [];
