@@ -3,10 +3,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/navigation";
-import { History, Maximize2, Minimize2, Activity, Clock } from "lucide-react";
+import { History, Activity, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ActivityItem {
   id: string;
@@ -28,10 +27,8 @@ export default function ActivityLog({
 }) {
   const [activities, setActivities] = useState<ActivityItem[]>(initialActivities);
   const [loading, setLoading] = useState(initialActivities.length === 0);
-  const [isExpanded, setIsExpanded] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
-  // Load activities only if initial data is missing
   useEffect(() => {
     if (initialActivities.length > 0) {
       setActivities(initialActivities);
@@ -55,7 +52,7 @@ export default function ActivityLog({
     loadActivities();
   }, [ticketId, supabase, initialActivities]);
 
-  // Handle Realtime Subscription for Activities
+  // Handle Realtime Subscription
   useEffect(() => {
     const channel = supabase
       .channel(`ticket-activity:${ticketId}`)
@@ -65,10 +62,7 @@ export default function ActivityLog({
         table: 'ticket_activity_log',
         filter: `ticket_id=eq.${ticketId}`
       }, async (payload) => {
-        // Filter: for display in operational journal, we show all (except maybe very noisy system ones)
         const newItem = payload.new as any;
-        
-        // Fetch actor details for the new activity
         const { data: actorProfile } = await supabase
           .from("profiles")
           .select("full_name")
@@ -85,102 +79,71 @@ export default function ActivityLog({
   }, [ticketId, supabase]);
 
   const filteredActivities = activities.filter((a) => {
-    // 1. Exclude conversational narration already handled in the Interaction history
+    // Exclude basic reply/note types as they go in interaction queue
     if (["public_reply", "internal_note"].includes(a.activity_type)) return false;
-
-    // 2. Exclude the "synthesis" or literal added ticket activity log if it is conversational noise
-    if (a.content === "Added ticket") return false;
-
-    // 3. Keep all system/operational transitions
     return true;
   });
 
-  const lastActivity = filteredActivities[0];
+  if (loading) return <div className="h-20 flex items-center justify-center text-[10px] font-black uppercase text-slate-300 tracking-widest">Hydrating Logs...</div>;
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-indigo-500" />
-          <span className="text-[11px] font-black tracking-widest text-slate-800 uppercase italic">Operational Journal</span>
-        </div>
-        <button 
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="h-8 w-8 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white hover:border-indigo-100 transition-all shadow-sm"
-        >
-          {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-        </button>
-      </div>
+    <div className="space-y-4">
+      <h3 className="text-base font-black text-slate-700 flex items-center gap-2 pl-1">
+          <Activity className="h-4 w-4 text-indigo-600" />
+          Audit Trail
+      </h3>
 
-      <div className={cn(
-        "transition-all duration-500 ease-in-out overflow-hidden",
-        isExpanded ? "max-h-[800px] opacity-100" : "max-h-20 opacity-80"
-      )}>
-        {loading ? (
-          <p className="py-6 text-center text-[10px] font-black text-slate-300 uppercase italic tracking-widest">Reading records...</p>
-        ) : filteredActivities.length === 0 ? (
-          <p className="py-6 text-center text-[10px] font-black text-slate-300 uppercase italic tracking-widest">No activity found</p>
-        ) : isExpanded ? (
-          <div className="space-y-6 overflow-y-auto pr-4 no-scrollbar max-h-[500px] border-l border-slate-100 ml-3">
-            {filteredActivities.map((activity, idx) => {
-              const content = String(activity.content);
-              const isStatusChange = activity.activity_type === "status_change";
-              
-              return (
-                <div key={activity.id as string} className="relative pl-8 animate-in fade-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${idx * 40}ms` }}>
-                  <div className="absolute -left-[4.5px] top-1.5 h-2 w-2 rounded-full bg-indigo-600 ring-4 ring-white shadow-sm" />
-                  
-                  <div className="group rounded-xl border border-slate-100 bg-white p-3 hover:border-indigo-100 hover:shadow-md transition-all">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[12px] font-black text-slate-800 uppercase italic">
-                        {(activity.actor as { full_name: string })?.full_name || 'System'}
-                      </span>
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Clock className="h-3 w-3" />
-                        <span className="text-[9px] font-bold uppercase tracking-tight">
-                          {format(new Date(activity.created_at as string), 'MMM dd | HH:mm')}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="text-[12px] font-medium text-slate-600 leading-relaxed font-sans">
-                      {content}
-                    </div>
-
-                    {activity.new_value && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase italic border-indigo-100/50 rounded-lg px-2 py-0.5">
-                          {String(activity.new_value).replace(/_/g, ' ')}
-                        </Badge>
-                        {activity.metadata?.manual_activity && (
-                          <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest border-slate-200 text-slate-400 px-2 h-4">
-                            MANUAL RECORD
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div 
-            onClick={() => setIsExpanded(true)}
-            className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 cursor-pointer hover:bg-white hover:border-indigo-100 transition-all flex items-center justify-between group"
-          >
-            <div className="flex items-center gap-3">
-               <Activity className="h-3.5 w-3.5 text-indigo-400 group-hover:animate-pulse" />
-               <div className="flex flex-col">
-                 <p className="text-[10px] font-black text-slate-400 uppercase italic tracking-widest">Operational Journal</p>
-                 <p className="text-[11px] font-bold text-slate-700 line-clamp-1 truncate max-w-[400px]">
-                   Click to see Audit Trail
-                 </p>
-               </div>
-            </div>
-            <p className="text-[9px] font-black text-slate-300 uppercase italic">View System Logs</p>
-          </div>
-        )}
+      <div className="border border-slate-300 rounded-sm overflow-hidden bg-white shadow-sm">
+          <Table>
+              <TableHeader className="bg-[#D9EAF7] hover:bg-[#D9EAF7]">
+                  <TableRow className="h-12 border-b border-slate-300">
+                      <TableHead className="w-[180px] text-[13px] font-black text-slate-800 text-center uppercase border-r border-slate-300">Phase Status</TableHead>
+                      <TableHead className="w-[200px] text-[13px] font-black text-slate-800 text-center uppercase border-r border-slate-300">Lead Operative</TableHead>
+                      <TableHead className="w-[200px] text-[13px] font-black text-slate-800 text-center uppercase border-r border-slate-300">Timestamp</TableHead>
+                      <TableHead className="text-[13px] font-black text-slate-800 text-center uppercase">Remarks / Changes</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {filteredActivities.length > 0 ? filteredActivities.map((log) => {
+                      const logType = log.activity_type || "Transition";
+                      const logContent = log.content || "Status transition recorded";
+                      
+                      return (
+                          <TableRow key={log.id} className="h-24 border-b border-slate-200 hover:bg-slate-50/50">
+                              <TableCell className="text-center font-bold text-indigo-900 border-r border-slate-200 text-[11px] uppercase tracking-tight">
+                                  {logType.replace(/_/g, ' ')}
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-slate-700 border-r border-slate-200 text-[12px]">
+                                  {log.actor?.full_name || "System"}
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-slate-500 border-r border-slate-100 text-[11px] uppercase tracking-tighter">
+                                  {format(new Date(log.created_at), "MMM dd yyyy, HH:mm")}
+                              </TableCell>
+                              <TableCell className="p-4">
+                                  <div className="w-full h-full min-h-[60px] bg-[#F1F5F9] rounded-sm p-3 text-[12px] text-slate-700 font-medium relative group shadow-inner border border-slate-200">
+                                      {logContent}
+                                      {log.new_value && (
+                                        <div className="mt-1 text-[10px] text-indigo-600 font-bold uppercase tracking-widest">
+                                          → New Value: {String(log.new_value).replace(/_/g, ' ')}
+                                        </div>
+                                      )}
+                                      <div className="absolute bottom-1 right-1 opacity-20">
+                                          <div className="w-2 h-[1px] bg-slate-400 rotate-45 translate-y-1" />
+                                          <div className="w-2 h-[1px] bg-slate-400 rotate-45 translate-x-1" />
+                                      </div>
+                                  </div>
+                              </TableCell>
+                          </TableRow>
+                      );
+                  }) : (
+                    <TableRow className="h-24">
+                      <TableCell colSpan={4} className="text-center text-slate-400 font-black uppercase tracking-[0.3em] text-[10px]">
+                        INITIAL_STATE: No transitions recorded in registry
+                      </TableCell>
+                    </TableRow>
+                  )}
+              </TableBody>
+          </Table>
       </div>
     </div>
   );

@@ -21,6 +21,18 @@ Unified portal for internal issues and requests: **Help Desk**, **ERP**, and **G
 - **Database / Auth:** Supabase (PostgreSQL + Auth)  
 - **UI:** Shadcn/ui + Tailwind CSS  
 
+## Governance & Rules
+
+To maintain system integrity and prevent regressions, all development MUST adhere to the following mandates:
+
+- **[GOVERNANCE_MANDATES.md](GOVERNANCE_MANDATES.md)** — Core rules for Change Isolation and Mandatory Planning.
+- **[PERFORMANCE_MANDATES.md](PERFORMANCE_MANDATES.md)** — Rules for Database RLS, Parallelism, and UI Responsiveness.
+
+### Principal Rules:
+1. **Rule of Isolation**: New changes MUST NOT break existing features.
+2. **Rule of Planning**: Every non-trivial task MUST start with an `implementation_plan.md`.
+3. **Rule of Verification**: Manual and automated verification is required for all changes.
+
 ## Setup
 
 ### 1. Install dependencies

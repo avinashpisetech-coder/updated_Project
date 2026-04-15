@@ -1,0 +1,35 @@
+---
+description: Governance Rules - Change Isolation and Mandatory Planning
+globs: ["**/*"]
+---
+
+# Governance & Development Rules
+
+To ensure system stability, every change MUST follow these governance rules.
+
+## 1. Rule of Change Isolation (No Regression)
+- Before making any changes, analyze existing functionality to ensure NO regression.
+- New features MUST be isolated from existing stable logic.
+- Avoid modifying core components (`Navbar.tsx`, `Layout.tsx`, `lib/supabase/*`) unless absolutely necessary for the task.
+- ALWAYS verify that existing features still work after applying changes.
+
+## 2. Rule of Mandatory Planning (AI Workflow)
+- **THINK BEFORE YOU CODE**: For any non-trivial task, you MUST create an `implementation_plan.md` artifact first.
+- The plan MUST include:
+    - **Context**: Why are we doing this?
+    - **Proposed Changes**: Exact files to be modified/created.
+    - **Impact Analysis**: Will this break anything else?
+    - **Verification**: How will we prove it works and didn't break existing features?
+- Wait for explicit user approval before writing code.
+
+## 3. Rule of Documentation
+- Any new database changes MUST be added as a versioned SQL file in `db/`.
+- Document new features or architectural changes in the `docs/` directory.
+
+## 4. Design Standards
+- Follow the "Snow White" high-density design system.
+- Use premium aesthetics (HSL colors, smooth gradients, micro-animations).
+- No placeholder text or images.
+
+---
+FAILURE TO FOLLOW THESE RULES IS A BREACH OF PROJECT INTEGRITY.

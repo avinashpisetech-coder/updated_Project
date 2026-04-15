@@ -21,13 +21,8 @@ async function getCurrentProfile(supabase: Awaited<ReturnType<typeof createClien
   return profile as ProfileRecord | null;
 }
 
-function isSuperAdmin(profile: ProfileRecord | null) {
-  return profile?.role === "super_admin";
-}
-
-function isDeptAdmin(profile: ProfileRecord | null) {
-  return profile?.role === "dept_admin";
-}
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
 
 // Map UI role labels/values to valid user_role enum values.
 function mapRoleNameToEnum(roleName: string): string | null {
@@ -63,17 +58,14 @@ async function authorizeProfileManagement(
     throw new Error("Unauthorized");
   }
 
-  if (options.requireSuperAdmin && !isSuperAdmin(currentProfile)) {
-    throw new Error("Forbidden: requires Super Admin");
+  const permissions = await getUserPermissions(currentProfile.id);
+
+  if (options.requireSuperAdmin && !hasPermission(permissions, RESOURCES.ACCESS, "manage")) {
+    throw new Error("Forbidden: Governance Management Protocol Required");
   }
 
-  if (isSuperAdmin(currentProfile)) {
-    return { supabase, currentProfile };
-  }
-
-  if (!isDeptAdmin(currentProfile)) {
-    throw new Error("Forbidden: insufficient privileges");
-  }
+  const canManageAll = hasPermission(permissions, RESOURCES.USERS, "update");
+  const isDeptLead = currentProfile.role === "dept_admin"; // Preserving scoping trigger, but check is permissions based below
 
   const { data: targetProfile, error: targetErr } = await supabase
     .from("profiles")
@@ -159,7 +151,9 @@ export async function updateUserProfile(userId: string, formData: FormData) {
     updated_at: new Date().toISOString(),
   };
 
-  if (isSuperAdmin(currentProfile as ProfileRecord) && enumRole) {
+  const permissions = await getUserPermissions(currentProfile?.id || "");
+
+  if (hasPermission(permissions, RESOURCES.USERS, "update") && enumRole) {
     updates.role = enumRole;
   }
 
@@ -233,7 +227,12 @@ export async function updateUserProfile(userId: string, formData: FormData) {
 }
 
 export async function deleteUser(userId: string) {
-  const { supabase, currentProfile } = await authorizeProfileManagement(userId, { requireSuperAdmin: true });
+  const { supabase, currentProfile } = await authorizeProfileManagement(userId);
+  const permissions = await getUserPermissions(currentProfile.id);
+
+  if (!hasPermission(permissions, RESOURCES.USERS, "delete")) {
+    throw new Error("Forbidden: Destructive Action Unauthorized");
+  }
 
   if (currentProfile.id === userId) {
     throw new Error("Cannot delete your own account");

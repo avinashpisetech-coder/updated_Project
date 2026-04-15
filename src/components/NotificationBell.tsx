@@ -45,6 +45,19 @@ export function NotificationBell({ initial }: Props) {
     });
   };
 
+  if (!hasMounted) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="relative h-8 w-8 rounded-lg p-0"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4 w-4" />
+      </Button>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

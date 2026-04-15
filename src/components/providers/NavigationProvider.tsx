@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 interface NavigationContextType {
   isSidebarOpen: boolean;
@@ -12,21 +12,58 @@ interface NavigationContextType {
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
+// ── Sidebar width tokens ──────────────────────────────────────────────────────
+// These must exactly match the sidebar widths declared in Sidebar.tsx and
+// AssetSystemSidebar.tsx so that content areas are always true-full-screen.
+const SIDEBAR_EXPANDED_PX  = 256; // w-64 (ticketing Sidebar) / matches 288px asset sidebar via CSS var
+const ASSET_SIDEBAR_EXPANDED_PX = 288; // w-72 (AssetSystemSidebar)
+const SIDEBAR_COLLAPSED_PX = 64;  // w-16 (both sidebars in icon mode)
+
+/** Applies sidebar width CSS tokens to <html> so every layout can stay full-screen */
+function applySidebarTokens(open: boolean, mode: "horizontal" | "vertical", isAssetPage: boolean) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (mode === "horizontal") {
+    // Horizontal nav has no sidebar offset
+    root.style.setProperty("--sidebar-width", "0px");
+    root.style.setProperty("--sidebar-width-num", "0");
+  } else {
+    const expandedPx = isAssetPage ? ASSET_SIDEBAR_EXPANDED_PX : SIDEBAR_EXPANDED_PX;
+    const px = open ? expandedPx : SIDEBAR_COLLAPSED_PX;
+    root.style.setProperty("--sidebar-width", `${px}px`);
+    root.style.setProperty("--sidebar-width-num", String(px));
+  }
+}
+
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [navMode, setNavMode] = useState<"horizontal" | "vertical">("vertical");
 
-  // Load state from localStorage on mount
+  // Detect which system we're in (asset vs ticketing) to pick correct sidebar width
+  const getIsAssetPage = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return window.location.pathname.startsWith("/assets");
+  }, []);
+
+  // Apply tokens on every state change
+  useEffect(() => {
+    applySidebarTokens(isSidebarOpen, navMode, getIsAssetPage());
+  }, [isSidebarOpen, navMode, getIsAssetPage]);
+
+  // Load state from localStorage on mount and apply initial tokens
   useEffect(() => {
     const savedSidebar = localStorage.getItem("sidebar-open");
-    if (savedSidebar !== null) {
-      setIsSidebarOpen(savedSidebar === "true");
-    }
+    const open = savedSidebar !== null ? savedSidebar === "true" : true;
+    if (savedSidebar !== null) setIsSidebarOpen(open);
+
     const savedMode = localStorage.getItem("nav-mode");
-    if (savedMode === "horizontal" || savedMode === "vertical") {
-      setNavMode(savedMode);
-    }
-  }, []);
+    const mode: "horizontal" | "vertical" =
+      savedMode === "horizontal" || savedMode === "vertical" ? savedMode : "vertical";
+    if (savedMode) setNavMode(mode);
+
+    // Apply immediately so there is no layout flash on first paint
+    applySidebarTokens(open, mode, getIsAssetPage());
+  }, [getIsAssetPage]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prev) => {
@@ -58,8 +95,12 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
 
 export function useNavigation() {
   const context = useContext(NavigationContext);
-  if (context === undefined) {
-    throw new Error("useNavigation must be used within a NavigationProvider");
-  }
-  return context;
+  // Return a safe default instead of throwing to support standalone pages
+  return context || { 
+    isSidebarOpen: true, 
+    toggleSidebar: () => {}, 
+    setSidebarOpen: () => {},
+    navMode: "vertical",
+    toggleNavMode: () => {} 
+  };
 }

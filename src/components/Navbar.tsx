@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { 
   LayoutDashboard, 
   Ticket, 
@@ -15,7 +15,10 @@ import {
   Monitor,
   Layout,
   Fingerprint,
-  Zap
+  Zap,
+  Home,
+  Package,
+  Palette
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +32,7 @@ import {
 import { ProfileRow } from "@/lib/ensure-profile";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "./BackButton";
+import { DashboardVersionSwitcher } from "./dashboard/DashboardVersionSwitcher";
 
 interface NavItemProps {
   href: string;
@@ -43,6 +47,8 @@ function NavItem({ href, label, icon: Icon }: NavItemProps) {
   return (
     <Link
       href={href}
+      target={label === "Intelligence" ? "_blank" : undefined}
+      rel={label === "Intelligence" ? "noopener noreferrer" : undefined}
       className={cn(
         "flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 group relative",
         isActive 
@@ -62,25 +68,40 @@ function NavItem({ href, label, icon: Icon }: NavItemProps) {
   );
 }
 
+import { Permission, hasPermission, RESOURCES } from "@/lib/permissions";
+
 export function Navbar({ 
   canManageMasters, 
   isSuperAdmin,
-  profile
+  profile,
+  permissions = []
 }: { 
   canManageMasters: boolean; 
   isSuperAdmin: boolean;
   profile: ProfileRow | null;
+  permissions?: Permission[];
 }) {
   const { navMode, toggleNavMode } = useNavigation();
   const pathname = usePathname();
 
   if (navMode === "vertical") return null;
 
+  const searchParams = useSearchParams();
+  const isVersioned = searchParams.get("version") !== null;
+
+  // Standalone analytical view: hide navbar on main dashboards
+  if (pathname === "/service-analytics" || isVersioned) {
+    return null;
+  }
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-border/40 bg-background/80 backdrop-blur-md transition-all duration-500 font-sans antialiased">
       <div className="mx-auto max-w-7xl h-16 px-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="flex items-center gap-3 mr-4 select-none group">
+          <Link 
+            href="/dashboard" 
+            className="flex items-center gap-3 mr-4 select-none group"
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-lg shadow-primary/20 ring-1 ring-primary/20 transition-transform active:scale-95">
               E
             </div>
@@ -94,9 +115,12 @@ export function Navbar({
           <BackButton showLabel={true} variant="ghost" className="mr-2" />
 
           <div className="flex items-center gap-1 font-sans">
-            <NavItem href="/dashboard" label="Dashboard" icon={LayoutDashboard} />
-            <NavItem href="/tickets" label="Support Queue" icon={Ticket} />
-            <NavItem href="/tickets/new" label="Create Ticket" icon={PlusCircle} />
+            {hasPermission(permissions, RESOURCES.DASHBOARD) && <NavItem href="/dashboard" label="Home" icon={Home} />}
+            {hasPermission(permissions, RESOURCES.INTEL) && <NavItem href="/service-analytics" label="Intelligence" icon={BarChart3} />}
+            {hasPermission(permissions, RESOURCES.TICKETS) && <NavItem href="/tickets" label="Support Queue" icon={Ticket} />}
+            {hasPermission(permissions, RESOURCES.ASSETS) && <NavItem href="/assets" label="Assets" icon={Package} />}
+            {hasPermission(permissions, RESOURCES.THEMES) && <NavItem href="/settings?tab=themes" label="Themes" icon={Palette} />}
+            {hasPermission(permissions, RESOURCES.TICKETS, "create") && <NavItem href="/tickets/new" label="Create Ticket" icon={PlusCircle} />}
             
             {canManageMasters && (
               <DropdownMenu>
@@ -116,18 +140,26 @@ export function Navbar({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl border-border/40 bg-card/95 backdrop-blur shadow-2xl mt-1 animate-in fade-in slide-in-from-top-2 duration-300 font-sans">
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings/masters/users" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">User Directory</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings/masters/erp" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">ERP Systems</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings/masters/help-desk" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Help Desk Setup</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings/masters/organizations" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Org Entities</Link>
-                  </DropdownMenuItem>
+                  {hasPermission(permissions, RESOURCES.USERS) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings/masters/users" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">User Directory</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {hasPermission(permissions, RESOURCES.ERP) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings/masters/erp" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">ERP Systems</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {hasPermission(permissions, RESOURCES.HELP_DESK_MASTER) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings/masters/help-desk" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Help Desk Setup</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {hasPermission(permissions, RESOURCES.ORGS) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings/masters/organizations" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Org Entities</Link>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -150,16 +182,22 @@ export function Navbar({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl border-border/40 bg-card/95 backdrop-blur shadow-2xl mt-1 animate-in fade-in slide-in-from-top-2 duration-300 font-sans">
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Core Parameters</Link>
-                  </DropdownMenuItem>
+                  {hasPermission(permissions, RESOURCES.THEMES) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Core Parameters</Link>
+                    </DropdownMenuItem>
+                  )}
                   <div className="h-px bg-border/40 my-1 mx-1" />
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings/masters/access-control" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Security & IAM</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
-                    <Link href="/settings/mail" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Mail Protocol</Link>
-                  </DropdownMenuItem>
+                  {hasPermission(permissions, RESOURCES.ACCESS) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings/masters/access-control" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Security & IAM</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {hasPermission(permissions, RESOURCES.MAIL) && (
+                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
+                      <Link href="/settings/mail" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Mail Protocol</Link>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -169,6 +207,8 @@ export function Navbar({
         </div>
 
         <div className="flex items-center gap-4">
+          <DashboardVersionSwitcher />
+          
           {/* User Info */}
           <div className="hidden md:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-muted/20 border border-border/40 overflow-hidden font-sans">
             <div className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">

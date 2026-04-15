@@ -1,9 +1,11 @@
 import { createClient, getCachedUser } from "@/lib/supabase/server";
-import TicketListClient from "./TicketListClient";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { ensureProfile } from "@/lib/ensure-profile";
+import { ModuleHeader } from "@/components/ModuleHeader";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
+import TicketListClient from "./TicketListClient";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ export default async function TicketsPage(props: { searchParams: Promise<any> })
   const offset = (page - 1) * pageSize;
   const query = searchParams.q || "";
   const statusFilter = searchParams.status || "";
+  const requesterFilter = searchParams.requester || "";
   const sortField = searchParams.sort || "created_at";
   const sortDir = searchParams.dir === "asc" ? "asc" : "desc";
 
@@ -48,31 +51,43 @@ export default async function TicketsPage(props: { searchParams: Promise<any> })
     )
   `;
 
-  // Build high-performance query.
-  // Security scoping is now handled entirely at the Database RLS layer for 100% performance.
-  // Optimization: use 'estimated' count for large organizational datasets to avoid full scans.
-  let ticketQuery = supabase
-    .from("tickets")
-    .select(ticketSelect, { count: 'estimated' });
-
-  // Apply Filters (Search & State)
-  if (query) {
-    ticketQuery = ticketQuery.or(`subject.ilike.%${query}%,ticket_number.ilike.%${query}%`);
-  }
-  if (statusFilter) {
-    ticketQuery = ticketQuery.eq("status", statusFilter);
-  }
-
-  // Apply Ordering & Pagination
-  ticketQuery = ticketQuery
-    .order(sortField, { ascending: sortDir === "asc" })
-    .range(offset, offset + pageSize - 1);
-
-  const { data: tickets, count, error } = await ticketQuery;
+  // Performance: fetch profile and permissions in parallel
+  const [profile, permissions, { data, error }] = await Promise.all([
+    supabase.from("profiles").select("id, role, full_name").eq("id", user.id).single()
+      .then(res => res.data),
+    getUserPermissions(user.id),
+    supabase.rpc("get_tickets_matrix_v2", {
+      p_query: query,
+      p_status: statusFilter || 'all',
+      p_sort_field: sortField,
+      p_sort_dir: sortDir,
+      p_offset: offset,
+      p_limit: pageSize
+    })
+  ]);
 
   if (error) {
-    console.error("Supabase Error on Tickets Page:", error.message, error.details, error.hint);
+    console.error("Supabase RPC Error on Tickets Page:", error.message, error.details, error.hint);
   }
+
+  // Map RPC result to local state format
+  const tickets = (data || []).map((t: any) => ({
+    id: t.id,
+    ticket_number: t.ticket_number,
+    subject: t.subject,
+    status: t.status,
+    priority: t.priority,
+    created_at: t.created_at,
+    resolved_at: t.resolved_at,
+    module: { name: t.module_name },
+    category: { name: t.category_name },
+    requester: {
+      full_name: t.requester_name,
+      department: { name: t.department_name }
+    }
+  }));
+
+  const count = (data && data.length > 0) ? (data[0] as any).total_count : 0;
 
   const paginationMeta = {
     total: count || 0,
@@ -82,39 +97,33 @@ export default async function TicketsPage(props: { searchParams: Promise<any> })
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-8 font-sans overflow-hidden">
-      {/* Queue Header */}
-      <div className="flex justify-between items-end flex-wrap gap-6 pb-6 border-b border-border/40 relative">
-        <div className="technical-heading-node mb-0 border-primary/40">
-          <div className="flex items-center gap-2 mb-2">
-             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-             <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Live Queue Stream</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground leading-none m-0">Support Queue</h1>
-          <p className="text-sm font-medium text-muted-foreground/60 mt-2">
-            Comprehensive audit trail and operational state management for all system requests.
-          </p>
-        </div>
-        <div className="flex items-center gap-4 pb-2">
-          <Button
-            asChild
-            size="sm"
-            className="rounded-xl h-10 px-6 text-[11px] font-bold uppercase tracking-wider bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 active:scale-95 group"
-          >
-            <Link href="/tickets/new" className="flex items-center gap-2">
-              <PlusCircle className="h-4 w-4 transition-transform group-hover:rotate-90" />
-              Create Ticket
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <div className="flex flex-col h-screen overflow-hidden font-sans antialiased text-slate-900">
+      <ModuleHeader 
+        title="Support_Registry"
+        subtitle="Intelligence. Registry. Operations."
+        actions={
+          hasPermission(permissions, RESOURCES.TICKETS, "create") && (
+            <Button
+              asChild
+              size="sm"
+              className="rounded-xl h-10 px-6 text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95 group"
+            >
+              <Link href="/tickets/new" className="flex items-center gap-2">
+                <PlusCircle className="h-4 w-4 transition-transform group-hover:rotate-90" />
+                Log_Ticket
+              </Link>
+            </Button>
+          )
+        }
+      />
 
-      <div className="technical-card overflow-hidden border-border/40 bg-card/40">
+      {/* Main Registry Deck */}
+      <main className="flex-1 overflow-hidden bg-slate-50/40">
         <TicketListClient 
            tickets={(tickets || []) as any} 
            pagination={paginationMeta} 
         />
-      </div>
+      </main>
     </div>
   );
 }

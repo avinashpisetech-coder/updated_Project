@@ -48,6 +48,7 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     const erpModule = formData.get("erp_module") as string | null;
     const erpSubModule = formData.get("erp_sub_module") as string | null;
     const assignedToId = formData.get("assigned_to_id") as string | null;
+    const assetId = formData.get("asset_id") as string | null;
     let effectiveAssignedToId = (assignedToId && assignedToId !== "_default") ? assignedToId : null;
     let autoAssigned = false;
 
@@ -85,7 +86,8 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     if (effectiveAssignedToId) insertData.assigned_to_id = effectiveAssignedToId;
     if (subcategoryId) insertData.subcategory_id = subcategoryId;
     if (preferredResolutionDate) insertData.preferred_resolution_date = preferredResolutionDate;
-    if (affectedPerson) insertData.affected_person_id = affectedPerson;
+    if (affectedPerson && affectedPerson !== "_none") insertData.affected_person_id = affectedPerson;
+    if (assetId && assetId !== "_none") insertData.asset_id = assetId;
     
     const metadata: Record<string, unknown> = {};
     if (affectedAsset) metadata.affected_asset = affectedAsset;
@@ -106,7 +108,7 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
 
     if (error) {
       console.error("Error creating ticket:", error);
-      return { success: false, error: "Failed to create ticket" };
+      return { success: false, error: `Database Error: ${error.message}` };
     }
 
     // Email notification
@@ -910,7 +912,7 @@ export async function updateTicket(
 
     const { data: currentTicket } = await supabase
       .from("tickets")
-      .select("status, ticket_number, requester_id, assigned_to_id, metadata, sla_due_date")
+      .select("status, ticket_number, requester_id, assigned_to_id, metadata, sla_due_date, subject, description, priority, category_id, module_id")
       .eq("id", ticketId)
       .single();
 
@@ -919,12 +921,72 @@ export async function updateTicket(
     const updateData: Record<string, any> = {};
     const activities: any[] = [];
 
-    // 1. Status Update
+    // 1. Core Metadata Updates
+    if (payload.subject !== undefined && payload.subject !== currentTicket.subject) {
+      updateData.subject = payload.subject;
+      activities.push({
+        ticket_id: ticketId,
+        actor_id: user.id,
+        activity_type: "status_change",
+        content: `Subject modified: ${payload.subject}`,
+        old_value: currentTicket.subject,
+        new_value: payload.subject
+      });
+    }
+
+    if (payload.description !== undefined && payload.description !== currentTicket.description) {
+      updateData.description = payload.description;
+      activities.push({
+        ticket_id: ticketId,
+        actor_id: user.id,
+        activity_type: "status_change",
+        content: "Description updated",
+        old_value: "PRIOR_DESC",
+        new_value: "UPDATED_DESC"
+      });
+    }
+
+    if (payload.priority !== undefined && payload.priority !== currentTicket.priority) {
+      updateData.priority = payload.priority;
+      activities.push({
+        ticket_id: ticketId,
+        actor_id: user.id,
+        activity_type: "status_change",
+        content: `Priority shifted to ${payload.priority.toUpperCase()}`,
+        old_value: currentTicket.priority,
+        new_value: payload.priority
+      });
+    }
+
+    if (payload.category_id !== undefined && payload.category_id !== currentTicket.category_id) {
+      updateData.category_id = payload.category_id;
+      activities.push({
+        ticket_id: ticketId,
+        actor_id: user.id,
+        activity_type: "status_change",
+        content: "Category reclassified",
+        old_value: currentTicket.category_id,
+        new_value: payload.category_id
+      });
+    }
+
+    if (payload.module_id !== undefined && payload.module_id !== currentTicket.module_id) {
+      updateData.module_id = payload.module_id;
+      activities.push({
+        ticket_id: ticketId,
+        actor_id: user.id,
+        activity_type: "status_change",
+        content: "Module origin reassigned",
+        old_value: currentTicket.module_id,
+        new_value: payload.module_id
+      });
+    }
+
+    // 2. Status Update
     const isStatusChanging = payload.status && payload.status !== currentTicket.status;
     if (isStatusChanging) {
       updateData.status = payload.status;
       
-      // Prefix note with "Note: " for UI visibility filter in InteractionQueue
       const notePrefix = payload.note && payload.note.trim() ? `Note: ${payload.note.trim()}` : "";
       const defaultContent = `Status changed from ${currentTicket.status} to ${payload.status}`;
       
@@ -941,7 +1003,7 @@ export async function updateTicket(
       });
     }
 
-    // 2. Assignment Update
+    // 3. Assignment Update
     if (payload.assigned_to_id !== undefined && payload.assigned_to_id !== currentTicket.assigned_to_id) {
       updateData.assigned_to_id = payload.assigned_to_id;
       if (!updateData.status && currentTicket.status === "new" && payload.assigned_to_id) {
@@ -956,7 +1018,7 @@ export async function updateTicket(
       });
     }
 
-    // 3. Deadline Update
+    // 4. Deadline Update
     if (payload.sla_due_date !== undefined) {
       const newDeadline = payload.sla_due_date ? new Date(payload.sla_due_date).toISOString() : null;
       if (newDeadline !== currentTicket.sla_due_date) {
@@ -971,12 +1033,11 @@ export async function updateTicket(
       }
     }
 
-    // 4. Team Members Update (Metadata)
+    // 5. Team Members Update (Metadata)
     if (payload.team_members !== undefined) {
       const currentMetadata = currentTicket.metadata || {};
       const newMetadata = { ...currentMetadata, team_members: payload.team_members };
       
-      // Compare if team members actually changed
       const currentTeams = currentMetadata.team_members || [];
       if (JSON.stringify(currentTeams.sort()) !== JSON.stringify(payload.team_members.sort())) {
         updateData.metadata = newMetadata;
@@ -990,12 +1051,12 @@ export async function updateTicket(
       }
     }
 
-    // 5. Standalone Action Narrative (if no status change occurred)
-    if (!isStatusChanging && payload.note && payload.note.trim()) {
+    // 6. Standalone Action Narrative
+    if (!isStatusChanging && !updateData.subject && !updateData.description && payload.note && payload.note.trim()) {
       activities.push({
         ticket_id: ticketId,
         actor_id: user.id,
-        activity_type: "public_reply", // Use public_reply to bypass status_change filters in InteractionQueue
+        activity_type: "public_reply",
         content: payload.note.trim(),
         metadata: { manual_activity: true },
         old_value: currentTicket.status,
@@ -1005,10 +1066,9 @@ export async function updateTicket(
     }
 
     if (Object.keys(updateData).length === 0 && activities.length === 0) {
-      return { success: true }; // No changes to apply
+      return { success: true };
     }
 
-    // Perform Consolidated Ticket Update & Log Insertion in Parallel
     const operations = [];
 
     if (Object.keys(updateData).length > 0) {
@@ -1030,15 +1090,35 @@ export async function updateTicket(
       );
     }
 
-    // Execute all database writes in a single parallel block
     if (operations.length > 0) {
       await Promise.all(operations);
     }
 
-    // Consolidated Revalidation
-    revalidatePath(`/tickets/${ticketId}`);
-    revalidatePath("/tickets");
-    revalidatePath("/dashboard");
+    // 7. Background Notifications (Non-blocking)
+    if (payload.status) {
+       const emails = [];
+       if (currentTicket.requester_id) {
+         emails.push(supabase.from("profiles").select("email").eq("id", currentTicket.requester_id).single());
+       }
+       if (currentTicket.assigned_to_id) {
+         emails.push(supabase.from("profiles").select("email").eq("id", currentTicket.assigned_to_id).single());
+       }
+       
+       Promise.all(emails).then(res => {
+          const uniqueEmails = Array.from(new Set(res.map(r => r.data?.email).filter(Boolean)));
+          uniqueEmails.forEach(email => {
+            sendTicketUpdateNotification(email!, currentTicket.ticket_number, payload.status!, payload.note || "Ticket status modified.")
+              .catch(e => console.warn("Background notification failed:", e));
+          });
+       }).catch(e => console.warn("Email resolution failed:", e));
+    }
+
+    // 8. Parallel Revalidation
+    await Promise.all([
+      revalidatePath(`/tickets/${ticketId}`),
+      revalidatePath("/tickets"),
+      revalidatePath("/dashboard")
+    ]);
 
     return { success: true };
   } catch (err: any) {
@@ -1046,6 +1126,7 @@ export async function updateTicket(
     return { success: false, error: err.message || "Failed to update ticket" };
   }
 }
+
 
 export async function updateTicketDeadline(ticketId: string, deadline: string | null): Promise<{ success: boolean; error?: string }> {
   try {
@@ -1382,4 +1463,28 @@ export async function reopenTicket(
     console.error("Error in reopenTicket:", err);
     return { success: false, error: err.message || "Failed to re-open ticket" };
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 2B: Metadata Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getTicketMetadataOptions() {
+  const supabase = await createClient();
+  
+  const [modulesRes, categoriesRes] = await Promise.all([
+    supabase.from("modules").select("id, name").order("name"),
+    supabase.from("ticket_categories").select("id, name").order("name")
+  ]);
+
+  return {
+    modules: modulesRes.data || [],
+    categories: categoriesRes.data || [],
+    priorities: [
+      { id: "low", name: "LOW" },
+      { id: "medium", name: "MEDIUM" },
+      { id: "high", name: "HIGH" },
+      { id: "critical", name: "CRITICAL" }
+    ]
+  };
 }

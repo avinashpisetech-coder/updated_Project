@@ -17,17 +17,12 @@ export async function upsertModuleAccess(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  // authorization should be enforced by RLS; keep higher-level guard as well.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { hasPermission, RESOURCES } = await import("@/lib/permissions");
+  const { getUserPermissions } = await import("@/lib/permissions-server");
+  const permissions = await getUserPermissions(user.id);
 
-  if (!profile) throw new Error("Unauthorized");
-
-  if (profile.role !== "super_admin" && profile.role !== "dept_admin") {
-    throw new Error("Forbidden");
+  if (!hasPermission(permissions, RESOURCES.ACCESS, "update")) {
+    throw new Error("Forbidden: Unauthorized Governance Management");
   }
 
   // For dept_admin fallback: allow only same department
@@ -57,6 +52,40 @@ export async function upsertModuleAccess(
     }, { onConflict: "profile_id,module_id" });
 
   if (error) throw new Error("Failed to save access rights");
+
+  revalidatePath("/settings/masters/access-control");
+  return { success: true };
+}
+
+export async function updateRolePermissionMatrix(
+  roleId: string,
+  permissionId: string,
+  grant: boolean
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { hasPermission, RESOURCES } = await import("@/lib/permissions");
+  const { getUserPermissions } = await import("@/lib/permissions-server");
+  const permissions = await getUserPermissions(user.id);
+
+  if (!hasPermission(permissions, RESOURCES.ACCESS, "update")) {
+    throw new Error("Forbidden: Super Admin Matrix Access Required");
+  }
+
+  if (grant) {
+    const { error } = await supabase
+      .from("role_permissions")
+      .upsert({ role_id: roleId, permission_id: permissionId }, { onConflict: "role_id,permission_id" });
+    if (error) throw new Error("Failed to grant permission");
+  } else {
+    const { error } = await supabase
+      .from("role_permissions")
+      .delete()
+      .match({ role_id: roleId, permission_id: permissionId });
+    if (error) throw new Error("Failed to revoke permission");
+  }
 
   revalidatePath("/settings/masters/access-control");
   return { success: true };

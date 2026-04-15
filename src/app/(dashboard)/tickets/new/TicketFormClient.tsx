@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Monitor, FileSpreadsheet, HelpCircle, ArrowLeft, Send, Sparkles, Zap, Clock, UserPlus, Info, Activity } from "lucide-react";
+import { Monitor, FileSpreadsheet, HelpCircle, ArrowLeft, Send, Sparkles, Zap, Clock, UserPlus, Info, Activity, Paperclip, X, UploadCloud } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
-import { createTicket } from "@/app/(dashboard)/tickets/actions";
+import { createTicket, uploadTicketAttachment } from "@/app/(dashboard)/tickets/actions";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
   const [erpSubModulesList, setErpSubModulesList] = useState<{id:string, name:string}[]>([]);
   const [softwareSystems, setSoftwareSystems] = useState<SoftwareSystem[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
+  const [hardwareAssets, setHardwareAssets] = useState<{id: string, asset_code: string, brand: string, model: string}[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Form state
@@ -50,10 +51,13 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
   const [preferredResolutionDate, setPreferredResolutionDate] = useState("");
   const [affectedPerson, setAffectedPerson] = useState("");
   const [affectedAsset, setAffectedAsset] = useState("");
+  const [selectedAssetId, setSelectedAssetId] = useState("");
   const [selectedSoftwareSystemId, setSelectedSoftwareSystemId] = useState("");
   const [erpModule, setErpModule] = useState("");
   const [erpSubModule, setErpSubModule] = useState("");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   const agentRoles = ["super_admin", "dept_admin", "module_agent"];
   const isAgent = agentRoles.includes(String(userProfile?.role || ""));
@@ -96,6 +100,14 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
         );
       }
 
+      if (selectedScope === "IT") {
+        promises.push(
+          supabase.from("assets")
+            .select("id, asset_code, brand, model")
+            .order("asset_code") as any
+        );
+      }
+
       if (selectedScope === "ERP") {
         promises.push(supabase.from("erp_modules").select("id, name") as any);
       }
@@ -112,6 +124,10 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
       // Index 2 (if exists for ERP): ERP Modules
       const erpRes = selectedScope === "ERP" ? (results.length > 2 ? results[2] : results[1]) : null;
       if (erpRes?.data) setErpModulesList(erpRes.data);
+
+      // Index 2 (if exists for IT): Assets
+      const assetsRes = selectedScope === "IT" ? results[2] : null;
+      if (assetsRes?.data) setHardwareAssets(assetsRes.data);
     }
   };
 
@@ -148,6 +164,7 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
     if (preferredResolutionDate) formData.append("preferred_resolution_date", preferredResolutionDate);
     if (affectedPerson && affectedPerson !== "_none") formData.append("affected_person", affectedPerson);
     if (affectedAsset) formData.append("affected_asset", affectedAsset);
+    if (selectedAssetId && selectedAssetId !== "_none") formData.append("asset_id", selectedAssetId);
     if (selectedSoftwareSystemId) formData.append("software_system_id", selectedSoftwareSystemId);
     if (scope === 'ERP') {
       if (erpModule) formData.append("erp_module", erpModule);
@@ -157,7 +174,19 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
 
     try {
       const res = await createTicket(formData);
-      if (res.success) {
+      if (res.success && res.ticket) {
+        // Multi-stage commit: Upload attachments if any
+        if (selectedFiles.length > 0) {
+          toast.info(`Uploading ${selectedFiles.length} attachments...`);
+          const uploadPromises = selectedFiles.map(file => {
+            const fileData = new FormData();
+            fileData.append("file", file);
+            return uploadTicketAttachment(res.ticket.id, fileData);
+          });
+          
+          await Promise.all(uploadPromises);
+        }
+
         toast.success("Ticket Submitted Successfully");
         setTimeout(() => {
           router.refresh();
@@ -320,6 +349,37 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
                 </div>
               )}
 
+              {scope === 'IT' && (
+                <div className="space-y-4 p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 transition-all">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Monitor className="h-4 w-4 text-emerald-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Asset Context (ITAM)</span>
+                  </div>
+                  <div className="grid md:grid-cols-1 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Related Hardware Asset</Label>
+                      <Select value={selectedAssetId || undefined} onValueChange={(val) => {
+                        setSelectedAssetId(val);
+                        const asset = hardwareAssets.find(a => a.id === val);
+                        if (asset) setAffectedAsset(`${asset.asset_code} - ${asset.brand} ${asset.model}`);
+                      }}>
+                        <SelectTrigger className="h-10 rounded-xl bg-card border-border/40 text-xs font-semibold">
+                          <SelectValue placeholder="Link an Asset (Optional)" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-border/40 bg-card shadow-xl max-h-[250px]">
+                          <SelectItem value="_none" className="text-xs font-bold italic opacity-40">-- No Asset Linked --</SelectItem>
+                          {hardwareAssets.map((asset) => (
+                            <SelectItem key={asset.id} value={asset.id} className="text-xs font-medium">
+                              {asset.asset_code} <span className="ml-1 opacity-40">({asset.brand} {asset.model})</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
                   <Info className="h-3 w-3 text-primary" /> Subject
@@ -375,6 +435,59 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
                     onChange={e => setPreferredResolutionDate(e.target.value)}
                     className="h-10 rounded-xl bg-muted/20 border-border/40 text-[13px] font-semibold [color-scheme:dark] cursor-pointer"
                   />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-dashed border-border/60 bg-muted/5 transition-all">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+                      <Paperclip className="h-3 w-3 text-primary" /> Evidence Log (Attachments)
+                    </Label>
+                    <span className="text-[9px] font-bold text-muted-foreground/30 uppercase tracking-widest">Max 10MB per file</span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center w-full">
+                      <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-border/40 border-dashed rounded-2xl cursor-pointer bg-muted/10 hover:bg-muted/20 transition-all group">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <UploadCloud className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors mb-2" />
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest group-hover:text-foreground transition-colors">Select files for documentation</p>
+                        </div>
+                        <Input 
+                          type="file" 
+                          multiple 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            const validFiles = files.filter(f => f.size <= MAX_FILE_SIZE);
+                            if (validFiles.length < files.length) {
+                              toast.error("Some files exceed the 10MB limit.");
+                            }
+                            setSelectedFiles(prev => [...prev, ...validFiles]);
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {selectedFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 animate-in fade-in zoom-in duration-300">
+                        {selectedFiles.map((file, idx) => (
+                          <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary group">
+                            <Paperclip className="w-3 h-3" />
+                            <span className="text-[10px] font-bold truncate max-w-[120px]">{file.name}</span>
+                            <button 
+                              type="button"
+                              onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-primary hover:text-destructive transition-colors ml-1"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

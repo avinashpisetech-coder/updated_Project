@@ -13,6 +13,9 @@ import { getUnreadNotifications } from "@/app/(dashboard)/tickets/actions";
 import { NavigationProvider } from "@/components/providers/NavigationProvider";
 import { DashboardShell } from "@/components/DashboardShell";
 
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -23,10 +26,11 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  // Performance: fetch profile with explicit ID filter to bypass heavy RLS scans
-  const [profile, notifications] = await Promise.all([
+  // Performance: fetch profile and permissions in parallel
+  const [profile, permissions, notifications] = await Promise.all([
     supabase.from("profiles").select("id, force_password_change, role, full_name").eq("id", user.id).single()
       .then(res => res.data || ensureProfile(supabase, user, res.data)),
+    getUserPermissions(user.id),
     getUnreadNotifications().catch(() => [])
   ]);
 
@@ -34,16 +38,20 @@ export default async function DashboardLayout({
     redirect("/change-password");
   }
 
-  const userRole = profile?.role ?? "end_user";
-  const canManageMasters = userRole === "super_admin" || userRole === "dept_admin";
-  const isSuperAdmin = userRole === "super_admin";
+  // Dynamic Capability Resolution (Matrix-Backed)
+  const canAccessMasters = hasPermission(permissions, RESOURCES.USERS) || 
+                           hasPermission(permissions, RESOURCES.ERP) || 
+                           hasPermission(permissions, RESOURCES.HELP_DESK_MASTER);
+                           
+  const canAccessSecurity = hasPermission(permissions, RESOURCES.ACCESS) || 
+                       hasPermission(permissions, RESOURCES.MAIL);
 
   return (
     <NavigationProvider>
       <div className="relative min-h-screen flex flex-col text-foreground selection:bg-primary/30 selection:text-white overflow-x-hidden">
         <ThemeOrnaments />
-        <Navbar canManageMasters={canManageMasters} isSuperAdmin={isSuperAdmin} profile={profile} />
-        <Sidebar canManageMasters={canManageMasters} isSuperAdmin={isSuperAdmin} profile={profile} />
+        <Navbar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} />
+        <Sidebar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} />
         
         {/* Top right utility bar for notifications */}
         <div className="fixed top-6 right-[8%] z-[110] flex items-center gap-3">

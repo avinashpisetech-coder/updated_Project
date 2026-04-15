@@ -1,9 +1,12 @@
 import { createClient, getCachedUser } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { ModuleHeader } from "@/components/ModuleHeader";
 import UserManager from "./UserManager";
 import DepartmentManager from "./DepartmentManager";
 import DesignationManager from "./DesignationManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
 
 export default async function UserMasterPage() {
   const supabase = await createClient();
@@ -12,7 +15,6 @@ export default async function UserMasterPage() {
   if (!user) redirect("/login");
 
   // --- Tier 1: Parallel High-Performance Identity & Metadata Fetch ---
-  // Collapsing the identity check + all static master data into a single parallel block.
   const [
     profileResponse,
     profilesResponse,
@@ -20,7 +22,8 @@ export default async function UserMasterPage() {
     companiesResponse,
     projectsResponse,
     designationsResponse,
-    rolesResponse
+    rolesResponse,
+    permissions
   ] = await Promise.all([
     supabase.from("profiles").select("id, role, department_id").eq("id", user.id).single(),
     supabase.from("profiles").select(`
@@ -32,11 +35,12 @@ export default async function UserMasterPage() {
     supabase.from("companies").select("id, name").order("name"),
     supabase.from("projects").select("id, name, company_id").order("name"),
     supabase.from("designations").select("*").order("name"),
-    supabase.from("roles").select("id, name, is_system_role").order("name")
+    supabase.from("roles").select("id, name, is_system_role").order("name"),
+    getUserPermissions(user.id)
   ]);
 
   const currentProfile = profileResponse.data;
-  if (!currentProfile || (currentProfile.role !== "super_admin" && currentProfile.role !== "dept_admin")) {
+  if (!hasPermission(permissions, RESOURCES.USERS, "manage")) {
     redirect("/dashboard");
   }
 
@@ -99,10 +103,10 @@ export default async function UserMasterPage() {
       full_name: p.full_name,
       employee_id: p.employee_id,
       email: p.personal_email || "",
-      company: effectiveCompanyIds.map(id => companyMap[id]).filter(Boolean).join(", "),
+      company: effectiveCompanyIds.map((id: string) => companyMap[id]).filter(Boolean).join(", "),
       department: (Array.isArray(p.department) ? p.department[0]?.name : p.department?.name) || "",
       department_id: p.department_id || "",
-      project: effectiveProjectIds.map(id => projectMap[id]).filter(Boolean).join(", "),
+      project: effectiveProjectIds.map((id: string) => projectMap[id]).filter(Boolean).join(", "),
       designation: (Array.isArray(p.designation) ? p.designation[0]?.name : p.designation?.name) || "",
       designation_id: p.designation_id || "",
       company_id: p.company_id || "",
@@ -117,21 +121,11 @@ export default async function UserMasterPage() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-10 font-sans antialiased">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/40 pb-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-2 opacity-60">
-            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em]">User Management Hub</p>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Users <span className="text-primary/60 font-medium">Master</span>
-          </h1>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest opacity-60">
-            Manage system users, departments, and role designations
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-8 p-10 font-sans antialiased bg-slate-50/20">
+      <ModuleHeader 
+        title="USER_DIRECTORY"
+        subtitle="Identity Lifecycle Node"
+      />
 
       <Tabs defaultValue="users" className="space-y-8">
         <div className="flex items-center justify-between bg-muted/20 p-1.5 rounded-2xl border border-border/40 w-fit">

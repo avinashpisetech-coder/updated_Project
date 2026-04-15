@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateTicket, uploadTicketAttachment, registerTicketActivity, approveTicketClose, reopenTicket } from "../actions";
 import { toast } from "sonner";
@@ -85,6 +85,7 @@ export default function TicketActions({
   initialAssignableUsers = []
 }: Props) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
   const [activityType, setActivityType] = useState("update");
 
@@ -148,16 +149,20 @@ export default function TicketActions({
     attachmentFiles.length > 0 ||
     note.trim().length > 0;
 
-  const triggerSuccess = (type: string) => {
+  const triggerSuccess = (type: string, targetStatus?: string) => {
     setActivityType(type);
     
     const message = type === "resolve" ? "Ticket Resolved Successfully" : "Ticket Details Updated";
     toast.success(message);
 
+    // Dynamic redirect based on the updated status
+    const statusParam = targetStatus && targetStatus !== "all" ? `?status=${targetStatus}` : "";
+    
     setTimeout(() => {
-      router.refresh();
-      router.push("/tickets");
-    }, 1000);
+      startTransition(() => {
+        router.push(`/tickets${statusParam}`);
+      });
+    }, 500);
   };
 
   const handleRegisterActivity = async () => {
@@ -251,9 +256,10 @@ export default function TicketActions({
       });
 
       if (res.success) {
-        triggerSuccess("update");
+        triggerSuccess("update", nextStatus);
       } else {
         toast.error(res.error || "Update failed.");
+        setLoading(false); // Reset loading on error
       }
     } catch (e) {
       console.error(e);
@@ -527,9 +533,9 @@ export default function TicketActions({
                     : "bg-slate-100 text-slate-400 pointer-events-none"
                 )}
                 onClick={handleGlobalUpdate}
-                disabled={loading || !hasChanges}
+                disabled={loading || isPending || !hasChanges}
               >
-                {loading ? (
+                {loading || isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <div className="flex items-center gap-3">

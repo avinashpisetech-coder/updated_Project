@@ -17,24 +17,23 @@ import {
   Sun,
   Trees,
   Zap,
+  Globe,
+  Cpu,
+  Heart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ThemeId =
-  | "nova"
-  | "corporate-blue"
-  | "executive-navy"
-  | "forest-ledger"
-  | "crimson-boardroom"
-  | "amber-ledger"
-  | "slate-minimal"
-  | "midnight-executive"
-  | "emerald-night"
-  | "charcoal-gold"
-  | "plum-enterprise"
-  | "cyber-pulse"
-  | "indian"
-  | "eslinks";
+  | "astra"
+  | "divi"
+  | "minify"
+  | "oceanwp"
+  | "adios"
+  | "ana"
+  | "webify"
+  | "enfold"
+  | "gravity"
+  | "zelle-pro";
 
 type ThemeDef = {
   id: ThemeId;
@@ -45,23 +44,19 @@ type ThemeDef = {
 };
 
 const THEMES: ThemeDef[] = [
-  { id: "nova",               label: "Nova Blaze",      mode: "light", dot: "#4f6ef7", Icon: Sparkles  },
-  { id: "corporate-blue",     label: "Ocean Finance",   mode: "light", dot: "#3b7fde", Icon: Building2 },
-  { id: "executive-navy",     label: "Royal Navy",      mode: "light", dot: "#334da0", Icon: Shield    },
-  { id: "forest-ledger",      label: "Forest Ledger",   mode: "light", dot: "#2e7d52", Icon: Trees     },
-  { id: "crimson-boardroom",  label: "Crimson Edge",    mode: "light", dot: "#c0392b", Icon: Flame     },
-  { id: "amber-ledger",       label: "Amber Executive", mode: "light", dot: "#c97d1a", Icon: Sun       },
-  { id: "slate-minimal",      label: "Silver Minimal",  mode: "light", dot: "#607080", Icon: Layers3   },
-  { id: "midnight-executive", label: "Midnight Neon",   mode: "dark",  dot: "#5c7cfa", Icon: MoonStar  },
-  { id: "emerald-night",      label: "Emerald Aurora",  mode: "dark",  dot: "#2ecc71", Icon: Leaf      },
-  { id: "charcoal-gold",      label: "Obsidian Gold",   mode: "dark",  dot: "#d4a117", Icon: Crown     },
-  { id: "plum-enterprise",    label: "Violet Luxe",     mode: "dark",  dot: "#9b59b6", Icon: Crown     },
-  { id: "cyber-pulse",        label: "Cyber Pulse",     mode: "dark",  dot: "#00d4ff", Icon: Zap       },
-  { id: "indian",             label: "Indian Saffron",  mode: "light", dot: "#e07b22", Icon: Palette   },
-  { id: "eslinks",            label: "ESLinks",          mode: "light", dot: "#4f46e5", Icon: Link2     },
+  { id: "astra",      label: "Astra",      mode: "light", dot: "#0073AA", Icon: Sparkles  },
+  { id: "divi",       label: "Divi",       mode: "light", dot: "#A855F7", Icon: Crown     },
+  { id: "minify",     label: "Minify",     mode: "dark",  dot: "#FFFFFF", Icon: Cpu       },
+  { id: "oceanwp",    label: "OceanWP",    mode: "light", dot: "#00A0D2", Icon: Globe     },
+  { id: "adios",      label: "Adios",      mode: "light", dot: "#FF4A52", Icon: Flame     },
+  { id: "ana",        label: "Ana",        mode: "light", dot: "#FF8E9C", Icon: Heart     },
+  { id: "webify",     label: "Webify",     mode: "dark",  dot: "#00D4FF", Icon: Zap       },
+  { id: "enfold",     label: "Enfold",     mode: "light", dot: "#34495E", Icon: Shield    },
+  { id: "gravity",    label: "Gravity",    mode: "dark",  dot: "#FFC107", Icon: Sun       },
+  { id: "zelle-pro",  label: "Zelle PRO",  mode: "light", dot: "#E74C3C", Icon: Palette   },
 ];
 
-const DEFAULT_THEME: ThemeId = "nova";
+const DEFAULT_THEME: ThemeId = "astra";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);

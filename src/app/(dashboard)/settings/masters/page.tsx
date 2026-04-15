@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { ModuleHeader } from "@/components/ModuleHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -80,38 +81,14 @@ export default async function MastersHubPage() {
       icon: Building2,
       badge: "Enterprise",
     },
-    {
-      title: "Security & Access",
-      label: "Access Control",
-      description: "Manage system permissions and role-based access control.",
-      href: "/settings/masters/access-control",
-      cta: "Manage Security",
-      icon: ShieldCheck,
-      badge: "Security",
-    },
   ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-8 font-sans overflow-hidden">
-      {/* Masters Header */}
-      <div className="flex justify-between items-end flex-wrap gap-6 pb-6 border-b border-border/40 relative">
-        <div className="technical-heading-node mb-0 border-primary/40">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Administration Panel</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground leading-none m-0">System Masters</h1>
-          <p className="text-sm font-medium text-muted-foreground/60 mt-2">
-            Manage core system parameters and organizational data.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="h-12 px-6 rounded-2xl bg-muted/20 border border-border/40 flex items-center gap-3">
-            <Fingerprint className="h-4 w-4 text-primary opacity-40" />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Authorized Access</p>
-          </div>
-        </div>
-      </div>
+      <ModuleHeader 
+        title="SYSTEM_MASTERS"
+        subtitle="Administration Panel"
+      />
 
       {/* Grid Matrix */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

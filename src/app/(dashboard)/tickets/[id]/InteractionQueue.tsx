@@ -9,6 +9,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ActivityLogItem {
   id: string;
@@ -31,12 +32,10 @@ export default function InteractionQueue({ activities, ticketRequesterId, ticket
   const [localActivities, setLocalActivities] = useState<ActivityLogItem[]>(activities);
   const supabase = useMemo(() => createClient(), []);
 
-  // Sync with props when they change (initial load or page revalidation)
   useEffect(() => {
     setLocalActivities(activities);
   }, [activities]);
 
-  // Real-time listener for new interactions
   useEffect(() => {
     const channel = supabase
       .channel(`interaction-queue-${ticketId}`)
@@ -47,31 +46,19 @@ export default function InteractionQueue({ activities, ticketRequesterId, ticket
         filter: `ticket_id=eq.${ticketId}`
       }, async (payload) => {
         const newItem = payload.new as any;
-        
-        // Filter: only public_reply or status_change with content
         if (!["public_reply", "status_change"].includes(newItem.activity_type) || !newItem.content) return;
-        
         const content = newItem.content.trim();
-        // Skip noise
         if (content === "") return;
-        if (content === "Added ticket" && newItem.id !== "initial-" + ticketId) return; // Allow if it is the synthesis but not the literal activity log
-        
-        // For status changes, only allow if they have an embedded Note/Narration
-        if (newItem.activity_type === "status_change") {
-          if (!content.includes("Note:")) return;
-        }
-
+        if (newItem.activity_type === "status_change" && !content.includes("Note:")) return;
         if (content.startsWith("[EMAIL TRIGGER]") || content.startsWith("Deadline updated")) return;
-        if (content.startsWith("Ticket assigned") || content.startsWith("Ticket unassigned")) return;
 
-        // Fetch actor details
         const { data: actorProfile } = await supabase
           .from("profiles")
           .select("full_name")
           .eq("id", newItem.actor_id)
           .single();
 
-        setLocalActivities(prev => [{ ...newItem, actor: actorProfile, isNew: true }, ...prev]);
+        setLocalActivities(prev => [{ ...newItem, actor: actorProfile }, ...prev]);
       })
       .subscribe();
 
@@ -80,36 +67,18 @@ export default function InteractionQueue({ activities, ticketRequesterId, ticket
     };
   }, [ticketId, supabase]);
 
-  // Combined filter for display: Strictly Narration Only
   const interactionQueue = localActivities.filter((a, index, self) => {
-    // Unique by ID to prevent duplication between props and realtime
     if (self.findIndex(t => t.id === a.id) !== index) return false;
-
     const content = (a.content || "").trim();
     if (content === "") return false;
-
-    // 1. Explicit Narration Types
-    if (["public_reply", "internal_note"].includes(a.activity_type)) {
-      return true;
-    }
-
-    // 2. Initial Ticket Description (Synthesized)
-    if (a.id.startsWith("initial-")) {
-      return true;
-    }
-
-    // 3. Status Changes with Narration
-    if (a.activity_type === "status_change" && content.includes("Note:")) {
-      return true;
-    }
-    
-    // Everything else is system noise and remains in the Operational Journal
+    if (["public_reply", "internal_note"].includes(a.activity_type)) return true;
+    if (a.id.startsWith("initial-")) return true;
+    if (a.activity_type === "status_change" && content.includes("Note:")) return true;
     return false;
   });
 
   if (interactionQueue.length === 0) return null;
 
-  // Helper to extract narration from status change strings
   const getDisplayContent = (item: ActivityLogItem) => {
     if (!item.content) return "";
     if (item.activity_type === "status_change" && item.content.includes("Note:")) {
@@ -120,138 +89,134 @@ export default function InteractionQueue({ activities, ticketRequesterId, ticket
 
   const latestInteraction = interactionQueue[0];
 
-  if (!isExpanded) {
-    return (
-      <div className="group transition-all duration-300">
-        <div 
-          onClick={() => setIsExpanded(true)}
-          className="flex items-center justify-between cursor-pointer hover:bg-slate-50/50 p-6 rounded-3xl border border-slate-100 bg-white shadow-sm transition-all"
-        >
-          <div className="flex items-center gap-5">
-            <div className="h-10 w-10 rounded-2xl bg-indigo-950 flex items-center justify-center text-white shadow-sm">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 tracking-wider">COMMUNICATION REGISTRY</p>
-              <div className="flex items-center gap-2 mt-1">
-                 <p className="text-[13px] font-bold text-slate-900">
-                  {interactionQueue.length} Official Records
-                </p>
-                <div className="h-1 w-1 rounded-full bg-slate-200" />
-                <p className="text-[11px] font-semibold text-indigo-900 opacity-60 truncate max-w-[250px]">
-                  LATEST: {getDisplayContent(latestInteraction).substring(0, 45)}...
-                </p>
+  return (
+    <div className="w-full">
+      <AnimatePresence mode="wait">
+        {!isExpanded ? (
+          <motion.div 
+            key="collapsed"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setIsExpanded(true)}
+            className="group flex items-center justify-between cursor-pointer p-6 rounded-[2rem] border border-border/40 bg-white/60 backdrop-blur-xl shadow-premium hover:shadow-executive transition-all duration-500"
+          >
+            <div className="flex items-center gap-5">
+              <div className="h-12 w-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">NARRATIVE_STREAM</p>
+                <div className="flex items-center gap-2">
+                   <p className="text-sm font-black text-foreground whitespace-nowrap">
+                    {interactionQueue.length} Protocol Records
+                  </p>
+                  <div className="h-1 w-1 rounded-full bg-border" />
+                  <p className="text-[11px] font-bold text-muted-foreground truncate max-w-[300px] italic">
+                    &ldquo;{getDisplayContent(latestInteraction).substring(0, 50)}...&rdquo;
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-          <button className="h-9 w-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 group-hover:bg-indigo-950 group-hover:text-white transition-all">
-            <Maximize2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-3xl border border-slate-100 bg-white shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col max-h-[700px]">
-      <div 
-        onClick={() => setIsExpanded(false)}
-        className="flex items-center justify-between p-6 border-b border-slate-50 cursor-pointer hover:bg-slate-50/30 transition-all"
-      >
-        <div className="flex items-center gap-5">
-          <div className="h-12 w-12 rounded-2xl bg-indigo-950 flex items-center justify-center text-white shadow-sm">
-            <MessageSquare className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-slate-500 tracking-wider">TACTICAL NARRATIVE LEDGER</p>
-            <p className="text-[14px] font-bold text-slate-900 mt-0.5">Communication Chain Archive</p>
-          </div>
-        </div>
-        <button className="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-indigo-950 hover:text-white transition-all">
-          <Minimize2 className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-8 space-y-0 no-scrollbar scrolling-touch">
-        {interactionQueue.map((item, index) => {
-          const isRequester = item.actor_id === ticketRequesterId;
-          const isAgentReply = !isRequester;
-          const actorLabel = item.actor?.full_name || "System Record";
-          
-          return (
+            <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all">
+              <Maximize2 className="h-4 w-4" />
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="expanded"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="rounded-[2.5rem] border border-border/40 bg-white shadow-executive overflow-hidden flex flex-col max-h-[750px] relative"
+          >
+            <div className="absolute top-0 left-0 w-2 h-full bg-primary/10" />
+            
             <div 
-              key={item.id} 
-              className={cn(
-                "relative pl-10 pb-8 last:pb-0 animate-in fade-in slide-in-from-left-4 duration-500",
-                index < interactionQueue.length - 1 && "before:absolute before:left-[7px] before:top-4 before:bottom-0 before:w-[2px] before:bg-slate-100",
-              )}
-              style={{ animationDelay: `${index * 80}ms` }}
+              onClick={() => setIsExpanded(false)}
+              className="flex items-center justify-between p-8 border-b border-border/40 cursor-pointer hover:bg-muted/30 transition-all group"
             >
-              <div className={cn(
-                "absolute left-0 top-3 h-4 w-4 rounded-full border-4 border-white shadow-sm z-10",
-                isAgentReply ? "bg-indigo-950" : "bg-emerald-500",
-              )} />
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className={cn(
-                      "text-[14px] font-bold",
-                      isAgentReply ? "text-slate-900" : "text-emerald-950"
-                    )}>
-                      {actorLabel}
-                    </span>
-                    <Badge variant="outline" className={cn(
-                      "text-[9px] font-bold px-2 py-0 h-5 border-slate-100 rounded-md",
-                      isAgentReply ? "bg-indigo-50 text-indigo-900" : "bg-emerald-50 text-emerald-700"
-                    )}>
-                      {isAgentReply ? "OFFICER" : "REQUESTER"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-400 opacity-60">
-                    <Clock className="h-3 w-3" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider">{format(new Date(item.created_at), "MMM dd, HH:mm")}</span>
-                  </div>
+              <div className="flex items-center gap-6">
+                <div className="h-14 w-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20">
+                  <MessageSquare className="h-7 w-7" />
                 </div>
-                
-                <div className={cn(
-                  "text-[15px] font-medium leading-[1.7] whitespace-pre-wrap selection:bg-indigo-100 max-w-3xl",
-                  isAgentReply ? "text-slate-600" : "text-slate-900"
-                )}>
-                  {getDisplayContent(item)}
+                <div>
+                  <p className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1">TACTICAL_COMMS_LEDGER</p>
+                  <p className="text-lg font-black text-foreground tracking-tight">Chronological Narrative Registry</p>
                 </div>
               </div>
+              <button className="h-12 w-12 rounded-xl bg-muted border border-border/40 flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-all">
+                <Minimize2 className="h-6 w-6" />
+              </button>
             </div>
-          );
-        })}
-      </div>
-      
-      <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-center gap-4">
-         <div className="h-1 w-8 rounded-full bg-slate-200" />
-         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">End of Official Record</p>
-         <div className="h-1 w-8 rounded-full bg-slate-200" />
-      </div>
+
+            <div className="flex-1 overflow-y-auto p-10 space-y-0 no-scrollbar custom-scrollbar">
+              {interactionQueue.map((item, index) => {
+                const isRequester = item.actor_id === ticketRequesterId;
+                const isAgentReply = !isRequester;
+                const actorLabel = item.actor?.full_name || "SYSTEM_AUTH_GEN";
+                
+                return (
+                  <motion.div 
+                    key={item.id} 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={cn(
+                      "relative pl-12 pb-10 last:pb-0 group/item",
+                      index < interactionQueue.length - 1 && "before:absolute before:left-[7px] before:top-4 before:bottom-0 before:w-[2px] before:bg-muted/60",
+                    )}
+                  >
+                    <div className={cn(
+                      "absolute left-0 top-3 h-4 w-4 rounded-full border-4 border-white shadow-md z-10 transition-transform group-hover/item:scale-125",
+                      isAgentReply ? "bg-primary" : "bg-emerald-500",
+                    )} />
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className={cn(
+                            "text-sm font-black tracking-tight",
+                            isAgentReply ? "text-foreground" : "text-emerald-900"
+                          )}>
+                            {actorLabel}
+                          </span>
+                          <span className={cn(
+                            "text-[9px] font-black px-3 py-1 rounded-lg border uppercase tracking-[0.1em]",
+                            isAgentReply ? "bg-primary/5 text-primary border-primary/20" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          )}>
+                            {isAgentReply ? "STRATEGIC_OPERATOR" : "END_USER_STAKEHOLDER"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground/60">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">{format(new Date(item.created_at), "MMM dd, HH:mm:ss")}</span>
+                        </div>
+                      </div>
+                      
+                      <div className={cn(
+                        "text-[15px] font-medium leading-relaxed whitespace-pre-wrap p-6 rounded-3xl border transition-all",
+                        isAgentReply 
+                          ? "bg-muted/10 border-border/40 text-muted-foreground group-hover/item:bg-white group-hover/item:border-primary/20 group-hover/item:text-foreground" 
+                          : "bg-emerald-50/20 border-emerald-100 text-emerald-950 group-hover/item:bg-emerald-50/50"
+                      )}>
+                        {getDisplayContent(item)}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+            
+            <div className="p-8 bg-muted/20 border-t border-border/40 flex items-center justify-center gap-4">
+               <div className="h-[2px] w-12 rounded-full bg-border" />
+               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em]">REGISTRY_LOG_TERMINATED</p>
+               <div className="h-[2px] w-12 rounded-full bg-border" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  );
-}
-
-function Badge({ children, className, variant }: any) {
-  return (
-    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2", className)}>
-      {children}
-    </span>
-  );
-}
-
-function ShieldAlert({ className }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-      <path d="M12 8v4" />
-      <path d="M12 16h.01" />
-    </svg>
   );
 }

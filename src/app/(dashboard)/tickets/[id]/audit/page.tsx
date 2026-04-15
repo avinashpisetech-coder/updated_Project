@@ -1,22 +1,16 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { createClient, getCachedUser } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { createClient } from "@/lib/supabase/client";
 import { 
   ArrowLeft, 
-  History, 
-  User, 
-  Clock, 
-  Activity, 
   ShieldCheck, 
   ChevronRight,
-  Loader2,
   Calendar,
   FileText,
-  AlertCircle
+  History,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,101 +24,38 @@ type TicketActivity = {
   content?: string;
 };
 
-export default function AuditTrailPage({
-  params,
-}: {
-  params: Promise<{ id: string }> | { id: string };
+export const dynamic = "force-dynamic";
+
+export default async function AuditTrailPage(props: {
+  params: Promise<{ id: string }>;
 }) {
-  const [id, setId] = useState<string | null>(null);
-  const [ticket, setTicket] = useState<any>(null);
-  const [activities, setActivities] = useState<TicketActivity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const params = await props.params;
+  const routeId = decodeURIComponent(params.id);
 
-  useEffect(() => {
-    async function resolveParams() {
-      const resolvedParams = await params;
-      setId(decodeURIComponent(resolvedParams.id));
-    }
-    resolveParams();
-  }, [params]);
+  const supabase = await createClient();
+  const user = await getCachedUser();
+  if (!user) return <div>Unauthorized</div>;
 
-  useEffect(() => {
-    if (!id) return;
+  // Use parallel fetching for ticket and activities
+  const [{ data: ticket }, { data: rawActivities }] = await Promise.all([
+    supabase.rpc("get_ticket_detail_v2", { p_identifier: routeId }),
+    supabase.rpc("get_ticket_activities_v2", { p_identifier: routeId })
+  ]);
 
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const currentId = id;
-        if (!currentId) return;
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(currentId);
-        
-        console.log("ID Type:", isUuid ? "UUID" : "Ticket Number");
-
-        const { data: ticketData, error: ticketError } = isUuid
-          ? await supabase.from("tickets").select("*, module:modules(name), category:ticket_categories(name), requester:profiles!requester_id(full_name, email), assigned_to:profiles!assigned_to_id(full_name)").eq("id", id).maybeSingle()
-          : await supabase.from("tickets").select("*, module:modules(name), category:ticket_categories(name), requester:profiles!requester_id(full_name, email), assigned_to:profiles!assigned_to_id(full_name)").eq("ticket_number", id).maybeSingle();
-
-        if (ticketError) {
-          console.error("Ticket fetch error:", { message: ticketError.message, code: ticketError.code, details: ticketError.details });
-          throw new Error(`Ticket Fetch Error: ${ticketError.message}`);
-        }
-
-        if (!ticketData) {
-          console.warn("No ticket found for ID:", id);
-          throw new Error("Ticket not found in system repository.");
-        }
-
-        console.log("Ticket data located:", ticketData.ticket_number);
-        setTicket(ticketData);
-
-        const { data: activitiesData, error: activitiesError } = await supabase
-          .from("ticket_activity_log")
-          .select(`*, actor:profiles(full_name)`)
-          .eq("ticket_id", ticketData.id)
-          .order("created_at", { ascending: false });
-
-        if (activitiesError) {
-          console.error("Activities fetch error:", { message: activitiesError.message, code: activitiesError.code });
-          throw new Error(`Activities Fetch Error: ${activitiesError.message}`);
-        }
-
-        console.log("Activities synchronized:", activitiesData?.length || 0);
-        setActivities(activitiesData || []);
-      } catch (err: any) {
-        console.error("Audit log process failure:", err);
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        setError(errorMessage || "Failed to load audit trail.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [id, supabase]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
-        <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-slate-400">Synchronizing Audit Records...</p>
-      </div>
-    );
+  // Fallback for activities if RPC doesn't exist yet (though we should assume v2 is the standard now)
+  let activities = rawActivities;
+  if (!activities) {
+    const { data: ticketForId } = await supabase.from("tickets").select("id").eq("ticket_number", routeId).maybeSingle();
+    const tId = ticketForId?.id || routeId;
+    const { data } = await supabase
+      .from("ticket_activity_log")
+      .select(`*, actor:profiles(full_name)`)
+      .eq("ticket_id", tId)
+      .order("created_at", { ascending: false });
+    activities = data;
   }
 
-  if (error || !ticket) {
-    return (
-      <div className="mx-auto max-w-4xl mt-20 p-8 rounded-3xl border border-red-100 bg-red-50 text-center space-y-4">
-        <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
-        <h2 className="text-xl font-bold text-red-900">Access Restricted or Record Not Found</h2>
-        <p className="text-red-700 font-medium">Unable to retrieve the compliance trail for this ticket ID.</p>
-        <Link href="/tickets" className="inline-block mt-4 px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-sm">
-          Return to Dashboard
-        </Link>
-      </div>
-    );
-  }
+  if (!ticket) return notFound();
 
   const formatValue = (value?: string) => {
     if (!value || value.trim() === "" || value === "null") return "—";
@@ -148,7 +79,7 @@ export default function AuditTrailPage({
           </p>
         </div>
         <Link 
-          href={`/tickets/${id}`}
+          href={`/tickets/${routeId}`}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all font-bold text-[11px] uppercase tracking-widest group shadow-sm"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
@@ -191,13 +122,13 @@ export default function AuditTrailPage({
             <span className="text-[13px] font-bold uppercase tracking-widest text-slate-800">Historical Chain of Custody</span>
           </div>
           <Badge variant="outline" className="text-[10px] font-bold text-slate-400 border-slate-200">
-            {activities.length} Recorded Entries
+            {activities?.length || 0} Recorded Entries
           </Badge>
         </div>
 
         <div className="space-y-6">
-          {activities.length > 0 ? (
-            activities.map((activity, index) => (
+          {activities && activities.length > 0 ? (
+            activities.map((activity: any, index: number) => (
               <div 
                 key={activity.id} 
                 className={cn(
@@ -258,7 +189,7 @@ export default function AuditTrailPage({
                 </div>
 
                 {/* Timeline Connector Link style */}
-                {index < activities.length - 1 && (
+                {activities && index < activities.length - 1 && (
                   <div className="mt-6 flex justify-center opacity-20">
                      <ChevronRight className="h-5 w-5 rotate-90 text-slate-300" />
                   </div>

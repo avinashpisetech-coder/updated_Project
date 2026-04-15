@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ModuleHeader } from "@/components/ModuleHeader";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -89,22 +90,10 @@ export default function MailSettingsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 p-8 font-sans antialiased">
-
-      {/* Header Matrix */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border/40 pb-10">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-2 opacity-60">
-            <Send className="h-3.5 w-3.5 text-primary" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em]">Notification Engine Protocol</p>
-          </div>
-          <h1 className="text-5xl font-black italic uppercase tracking-tighter text-foreground">
-            Mail <span className="text-primary/60">Infrastructure</span>
-          </h1>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">
-            Configure SMTP nodes for enterprise telemetry and alerting
-          </p>
-        </div>
-      </div>
+      <ModuleHeader 
+        title="MAIL_INFRASTRUCTURE"
+        subtitle="Notification Control Node"
+      />
 
       <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">

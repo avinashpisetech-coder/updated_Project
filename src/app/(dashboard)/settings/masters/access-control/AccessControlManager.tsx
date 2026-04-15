@@ -1,774 +1,614 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import React, { useState, useMemo } from "react";
+import { 
+    Shield, 
+    CheckCircle2, 
+    Search, 
+    Lock, 
+    RefreshCw, 
+    Zap,
+    Box,
+    Users,
+    Plus,
+    Activity,
+    ChevronDown,
+    Save,
+    Layout,
+    ShieldCheck,
+    Fingerprint,
+    CheckSquare,
+    XCircle,
+    Edit3,
+    ArrowRightCircle,
+    Server,
+    Database,
+    LineChart
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { 
-  AlertTriangle, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Shield, 
-  Users, 
-  Settings, 
-  CheckCircle2, 
-  Search, 
-  UserCheck,
-  Layout,
-  Briefcase,
-  ChevronRight,
-  Cpu,
-  Activity,
-  Fingerprint,
-  Lock,
-  Zap,
-  RotateCcw
-} from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
-type ProfileType = {
-  id: string;
-  full_name: string;
-  email: string;
-  department_id?: string;
-  designation?: string;
-  role: string;
-};
+interface Props {
+    initialProfiles: any[];
+    initialModules: any[];
+    initialRoles: any[];
+    initialPermissions: any[];
+    initialUserRoles: Record<string, string[]>;
+    isSuperAdmin: boolean;
+    isDeptAdmin: boolean;
+    userDeptId?: string;
+}
 
-type RoleType = {
-  id: string;
-  name: string;
-  description: string;
-  is_system_role: boolean;
-  permissions: PermissionType[];
-};
+export default function AccessControlManager({ 
+    initialProfiles, 
+    initialModules, 
+    initialRoles, 
+    initialPermissions, 
+    initialUserRoles, 
+    isSuperAdmin,
+    isDeptAdmin,
+    userDeptId 
+}: Props) {
+    const router = useRouter();
+    const [activeTab, setActiveTab] = useState("initialize");
+    const [isSaving, setIsSaving] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [roleSearchTerm, setRoleSearchTerm] = useState("");
+    
+    // Global Data State
+    const [currentRoles, setCurrentRoles] = useState(initialRoles);
+    const [userRolesMap, setUserRolesMap] = useState(initialUserRoles);
+    
+    // New Role State (Tab 1)
+    const [newRoleForm, setNewRoleForm] = useState({ name: "", description: "" });
+    const [newRolePerms, setNewRolePerms] = useState<string[]>([]);
 
-type PermissionType = {
-  id: string;
-  name: string;
-  description: string;
-  resource: string;
-  action: string;
-};
+    // Edit Role State (Tab 2)
+    const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+    const [tempPerms, setTempPerms] = useState<string[]>([]);
 
-type ModuleType = {
-  id: string;
-  name: string;
-  slug: string;
-};
+    // Edit User Role State (Tab 3)
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [tempUserRoles, setTempUserRoles] = useState<string[]>([]);
 
-type AccessType = {
-  can_view: boolean;
-  can_create: boolean;
-  can_update: boolean;
-  can_delete: boolean;
-  access_scope: "global" | "department" | "self";
-};
+    const accessibleProfiles = useMemo(() => {
+        let filtered = initialProfiles;
+        if (!isSuperAdmin && isDeptAdmin) {
+            filtered = filtered.filter(p => p.department_id === userDeptId);
+        }
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase();
+            filtered = filtered.filter(p => 
+                p.full_name?.toLowerCase().includes(q) || 
+                p.email?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
+    }, [initialProfiles, isSuperAdmin, isDeptAdmin, userDeptId, searchTerm]);
 
-type SuccessActivity = "save" | "update" | "delete" | "submit";
+    // TAB 1: INITIALIZE ACTIONS
+    const toggleNewPerm = (id: string) => {
+        setNewRolePerms(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
 
-export default function AccessControlManager({
-  initialProfiles,
-  initialModules,
-  initialAccess,
-  initialRoles = [],
-  initialPermissions = [],
-  initialUserRoles = {},
-  isSuperAdmin,
-  isDeptAdmin,
-  userDeptId,
-}: {
-  initialProfiles: ProfileType[];
-  initialModules: ModuleType[];
-  initialAccess: Record<string, Record<string, AccessType>>;
-  initialRoles?: RoleType[];
-  initialPermissions?: PermissionType[];
-  initialUserRoles?: Record<string, string[]>;
-  isSuperAdmin: boolean;
-  isDeptAdmin: boolean;
-  userDeptId?: string;
-}) {
-  const router = useRouter();
-  const [selectedUserId, setSelectedUserId] = useState<string>(initialProfiles[0]?.id || "");
-  const [accessMap, setAccessMap] = useState(initialAccess);
-  const [busy, setBusy] = useState(false);
-  const [activityType, setActivityType] = useState<SuccessActivity>("save");
+    const handleSelectGroup = (filterFn: (m: any) => boolean, select: boolean) => {
+        const filteredModules = initialModules.filter(filterFn);
+        const allPermIds = filteredModules.flatMap(module => {
+            const raw = module.slug.toLowerCase().trim();
+            const withUnderscore = raw.replace(/[-]/g, "_");
+            const variants = [raw, withUnderscore, `module_${raw}`, `module_${withUnderscore}`];
 
-  const [moduleSearch, setModuleSearch] = useState("");
-  const [userSearch, setUserSearch] = useState("");
-  const [userRolesMap, setUserRolesMap] = useState<Record<string, string[]>>(initialUserRoles);
-  const [roles, setRoles] = useState<RoleType[]>(initialRoles);
-  const [permissions] = useState<PermissionType[]>(initialPermissions);
-  
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<RoleType | null>(null);
-  const [roleForm, setRoleForm] = useState({
-    name: "",
-    description: "",
-    selectedPermissions: [] as string[],
-  });
-
-  const triggerSuccess = (message: string, activity: SuccessActivity = "save") => {
-    setActivityType(activity);
-    toast.success(message);
-    setTimeout(() => {
-      router.refresh();
-    }, 1000);
-  };
-
-  const accessibleProfiles = useMemo(() => {
-    let filtered = initialProfiles;
-    if (!isSuperAdmin && isDeptAdmin) {
-      filtered = filtered.filter(p => p.department_id === userDeptId);
-    }
-    if (userSearch) {
-      const q = userSearch.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.full_name.toLowerCase().includes(q) || 
-        p.email.toLowerCase().includes(q)
-      );
-    }
-    return filtered;
-  }, [initialProfiles, isSuperAdmin, isDeptAdmin, userDeptId, userSearch]);
-
-  const selectedProfile = useMemo(() => 
-    initialProfiles.find(p => p.id === selectedUserId),
-    [initialProfiles, selectedUserId]
-  );
-
-  const onToggle = (moduleId: string, action: keyof AccessType) => {
-    setAccessMap((prev) => {
-      const userMap = prev[selectedUserId] ?? {};
-      const moduleAccess = userMap[moduleId] ?? {
-        can_view: false,
-        can_create: false,
-        can_update: false,
-        can_delete: false,
-        access_scope: "global",
-      };
-      return {
-        ...prev,
-        [selectedUserId]: {
-          ...userMap,
-          [moduleId]: {
-            ...moduleAccess,
-            [action]: !moduleAccess[action],
-          },
-        },
-      };
-    });
-  };
-
-  const saveAccess = async () => {
-    setBusy(true);
-    try {
-      const moduleAccesses = accessMap[selectedUserId] || {};
-      for (const moduleId of Object.keys(moduleAccesses)) {
-        const response = await fetch("/settings/masters/access-control/api/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profileId: selectedUserId,
-            moduleId,
-            access: moduleAccesses[moduleId],
-          }),
+            return initialPermissions.filter(p =>
+                variants.includes(p.resource)
+            ).map(p => p.id);
         });
 
-        if (!response.ok) throw new Error("Failed to save some access rules");
-      }
-      triggerSuccess(`Access permissions updated for ${selectedProfile?.full_name}`, "update");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save access controls");
-    } finally {
-      setBusy(false);
-    }
-  };
+        if (select) {
+            setNewRolePerms(prev => [...new Set([...prev, ...allPermIds])]);
+        } else {
+            setNewRolePerms(prev => prev.filter(id => !allPermIds.includes(id)));
+        }
+    };
 
-  const toggleUserRole = async (roleName: string) => {
-    if (!selectedUserId) return;
-    const current = userRolesMap[selectedUserId] || [];
-    const next = current.includes(roleName)
-      ? current.filter((r) => r !== roleName)
-      : [...current, roleName];
+    const handleSaveRole = async () => {
+        if (!newRoleForm.name.trim()) return toast.error("Protocol Name is required.");
+        setIsSaving(true);
+        try {
+            const response = await fetch('/settings/masters/access-control/api/roles/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...newRoleForm,
+                    permissionIds: newRolePerms
+                })
+            });
+            if (!response.ok) throw new Error("API Failure");
+            const finalRole = await response.json();
+            setCurrentRoles(prev => [...prev, finalRole]);
+            setNewRoleForm({ name: "", description: "" });
+            setNewRolePerms([]);
+            toast.success("Security Role Initialized.");
+            setActiveTab("registry");
+            router.refresh();
+        } catch (error) {
+            toast.error("Failed to initialize protocol.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-    setBusy(true);
-    try {
-      const response = await fetch("/settings/masters/access-control/api/user_roles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: selectedUserId, roleNames: next }),
-      });
+    // TAB 2: REGISTRY ACTIONS (MODIFIED)
+    const startEditingRole = (role: any) => {
+        setEditingRoleId(role.id);
+        const existingPermIds = role.permissions?.map((p: any) => p.id) || [];
+        setTempPerms(existingPermIds);
+    };
 
-      if (!response.ok) throw new Error("Failed to update roles");
+    const cancelEditingRole = () => {
+        setEditingRoleId(null);
+        setTempPerms([]);
+    };
 
-      setUserRolesMap(prev => ({ ...prev, [selectedUserId]: next }));
-      triggerSuccess(`User roles updated for ${selectedProfile?.full_name}`, "update");
-      router.refresh();
-    } catch (err) {
-      toast.error("Failed to update user roles");
-    } finally {
-      setBusy(false);
-    }
-  };
+    const toggleTempPermission = (permId: string) => {
+        setTempPerms(prev => prev.includes(permId) ? prev.filter(id => id !== permId) : [...prev, permId]);
+    };
 
-  const deleteRole = async (roleId: string) => {
-    if (!confirm("Delete this role? This might affect many users.")) return;
-    try {
-      const response = await fetch(`/settings/masters/access-control/api/roles/${roleId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete role");
-      setRoles(roles.filter(r => r.id !== roleId));
-      triggerSuccess("Role deleted from system", "delete");
-      router.refresh();
-    } catch (err) {
-      toast.error("Failed to delete role");
-    }
-  };
+    const commitRoleChanges = async (roleId: string) => {
+        setIsSaving(true);
+        try {
+            // Matrix API logic for batch updates
+            // For simplicity in this demo, we'll sync individual perms if the matrix API doesn't support batch
+            // But usually this would be a single batch call.
+            // We'll iterate the current permissions and find diffs.
+            const role = currentRoles.find(r => r.id === roleId);
+            const currentPermIds = role.permissions?.map((p: any) => p.id) || [];
+            
+            const toAdd = tempPerms.filter(id => !currentPermIds.includes(id));
+            const toRemove = currentPermIds.filter((id: string) => !tempPerms.includes(id));
 
-  const saveRole = async () => {
-    if (!roleForm.name.trim()) return;
-    setBusy(true);
-    try {
-      const url = selectedRole 
-        ? `/settings/masters/access-control/api/roles/${selectedRole.id}` 
-        : "/settings/masters/access-control/api/roles";
-      const method = selectedRole ? "PUT" : "POST";
+            // Syncing logic: Sequential or Batch perms
+            for (const id of toAdd) {
+                await fetch('/settings/masters/access-control/api/roles/matrix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roleId, permissionId: id, grant: true })
+                });
+            }
+            for (const id of toRemove) {
+                await fetch('/settings/masters/access-control/api/roles/matrix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roleId, permissionId: id, grant: false })
+                });
+            }
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: roleForm.name,
-          description: roleForm.description,
-          permissionIds: roleForm.selectedPermissions,
-        }),
-      });
+            setCurrentRoles(prev => prev.map(r => {
+                if (r.id !== roleId) return r;
+                const nextPerms = tempPerms.map(id => initialPermissions.find(p => p.id === id)).filter(Boolean);
+                return { ...r, permissions: nextPerms };
+            }));
 
-      if (!response.ok) throw new Error("Failed to save role");
+            toast.success("Protocol Matrix Hydrated.");
+            setEditingRoleId(null);
+            router.refresh();
+        } catch (error) {
+            toast.error("Sync Failure.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-      const savedRole = await response.json();
-      if (selectedRole) {
-        setRoles(roles.map(r => r.id === selectedRole.id ? savedRole : r));
-      } else {
-        setRoles([...roles, savedRole]);
-      }
-      setIsRoleDialogOpen(false);
-      triggerSuccess(`Role ${selectedRole ? "updated" : "created"} successfully`, selectedRole ? "update" : "save");
-      router.refresh();
-    } catch (err) {
-      toast.error("Failed to save role.");
-    } finally {
-      setBusy(false);
-    }
-  };
+    // TAB 3: ASSIGN ACTIONS (MODIFIED)
+    const startEditingUser = (userId: string) => {
+        setEditingUserId(userId);
+        setTempUserRoles(userRolesMap[userId] || []);
+    };
 
-  const openRoleDialog = (role?: RoleType) => {
-    setSelectedRole(role || null);
-    setRoleForm({
-      name: role?.name || "",
-      description: role?.description || "",
-      selectedPermissions: role?.permissions.map(p => p.id) || [],
-    });
-    setIsRoleDialogOpen(true);
-  };
+    const toggleTempUserRole = (roleName: string) => {
+        setTempUserRoles(prev => prev.includes(roleName) ? prev.filter(r => r !== roleName) : [...prev, roleName]);
+    };
 
-  const groupedPermissions = useMemo(() => {
-    return permissions.reduce((acc, perm) => {
-      if (!acc[perm.resource]) acc[perm.resource] = [];
-      acc[perm.resource].push(perm);
-      return acc;
-    }, {} as Record<string, PermissionType[]>);
-  }, [permissions]);
+    const commitUserRoles = async (userId: string) => {
+        setIsSaving(true);
+        try {
+            const response = await fetch('/settings/masters/access-control/api/user_roles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profileId: userId, roleNames: tempUserRoles })
+            });
+            if (!response.ok) throw new Error("API Failure");
+            setUserRolesMap(prev => ({ ...prev, [userId]: tempUserRoles }));
+            toast.success(`User Directives Synchronized.`);
+            setEditingUserId(null);
+        } catch (error) {
+            toast.error("Failed to update user roles.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-  const filteredModules = useMemo(() => {
-    if (!moduleSearch) return initialModules;
-    const q = moduleSearch.toLowerCase();
-    return initialModules.filter(m => 
-      m.name.toLowerCase().includes(q) || 
-      m.slug.toLowerCase().includes(q)
-    );
-  }, [initialModules, moduleSearch]);
+    return (
+        <div className="flex flex-col gap-10 pb-20 animate-in fade-in duration-700 font-sans antialiased text-slate-800">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="h-12 p-1 bg-slate-100/40 border border-slate-200/60 rounded-2xl gap-2 mb-8 w-full max-w-2xl backdrop-blur-sm">
+                    <TabsTrigger value="initialize" className="flex-1 rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                        Initialize
+                    </TabsTrigger>
+                    <TabsTrigger value="registry" className="flex-1 rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                        Role Registry
+                    </TabsTrigger>
+                    <TabsTrigger value="assign" className="flex-1 rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                        Assign Directives
+                    </TabsTrigger>
+                </TabsList>
 
-  return (
-    <div className="space-y-10 pb-20 font-sans antialiased">
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-3xl border border-border/40 bg-card/60 p-6 flex items-center gap-5 group hover:border-primary/30 transition-all duration-300">
-          <div className="p-4 bg-primary/10 rounded-2xl text-primary transition-transform group-hover:scale-110">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Total Users</p>
-            <p className="text-3xl font-bold tracking-tight text-foreground">{initialProfiles.length}</p>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-border/40 bg-card/60 p-6 flex items-center gap-5 group hover:border-primary/30 transition-all duration-300">
-          <div className="p-4 bg-primary/10 rounded-2xl text-primary transition-transform group-hover:scale-110">
-            <Layout className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Modules</p>
-            <p className="text-3xl font-bold tracking-tight text-foreground">{initialModules.length}</p>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-border/40 bg-card/60 p-6 flex items-center gap-5 group hover:border-primary/30 transition-all duration-300">
-          <div className="p-4 bg-primary/10 rounded-2xl text-primary transition-transform group-hover:scale-110">
-            <Shield className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Defined Roles</p>
-            <p className="text-3xl font-bold tracking-tight text-foreground">{roles.length}</p>
-          </div>
-        </div>
-      </div>
-
-      <Tabs defaultValue="user-access" className="w-full">
-        <TabsList className="h-14 bg-muted/20 border border-border/40 p-1.5 rounded-2xl mb-10 w-full max-w-md">
-          <TabsTrigger 
-            value="user-access" 
-            className="flex-1 rounded-xl font-bold uppercase tracking-wider text-[10px] data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
-          >
-            <UserCheck className="w-3.5 h-3.5 mr-2" />
-            User Permissions
-          </TabsTrigger>
-          <TabsTrigger 
-            value="manage-roles" 
-            className="flex-1 rounded-xl font-bold uppercase tracking-wider text-[10px] data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
-          >
-            <Settings className="w-3.5 h-3.5 mr-2" />
-            Role Management
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="user-access" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 outline-none">
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-            {/* Identity Node Registry */}
-            <div className="xl:col-span-4 space-y-6">
-              <div className="rounded-3xl border border-border/40 bg-card/60 p-6 shadow-sm space-y-4">
-                <div className="flex items-center gap-2 mb-2 opacity-60">
-                  <Search className="h-3.5 w-3.5 text-primary" />
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Search Users</p>
-                </div>
-                <div className="relative group">
-                  <Input 
-                    placeholder="Search by name or email..." 
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    className="h-12 pl-4 rounded-xl bg-muted/20 border-border/40 focus:border-primary/50 focus:ring-primary/20 font-medium text-xs transition-all placeholder:text-[10px] placeholder:uppercase placeholder:tracking-widest"
-                  />
-                </div>
-                <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                  {accessibleProfiles.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedUserId(p.id)}
-                      className={cn(
-                        "w-full flex items-center justify-between p-4 rounded-2xl transition-all duration-300 group text-left border border-transparent",
-                        selectedUserId === p.id 
-                          ? "bg-primary text-white shadow-xl shadow-primary/20 border-primary/20 scale-[1.02]" 
-                          : "hover:bg-muted/30 hover:border-border/40 text-foreground"
-                      )}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-all",
-                          selectedUserId === p.id 
-                            ? "bg-white/20" 
-                            : "bg-primary/5 text-primary group-hover:bg-primary/10"
-                        )}>
-                          {p.full_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="font-bold tracking-tight text-[11px] truncate leading-none mb-1">{p.full_name}</p>
-                          <p className={cn(
-                            "text-[9px] font-medium truncate tracking-wider opacity-60 uppercase",
-                            selectedUserId === p.id ? "text-white/70" : "text-muted-foreground"
-                          )}>{p.email}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className={cn(
-                        "w-4 h-4 transition-transform duration-300",
-                        selectedUserId === p.id ? "translate-x-0" : "-translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
-                      )} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Governance Configuration Panes */}
-            <div className="xl:col-span-8 space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
-              {selectedProfile ? (
-                <>
-                  {/* Identity Summary Node */}
-                  <div className="rounded-3xl border border-primary/20 bg-primary/5 p-8 flex flex-wrap items-center justify-between gap-6 shadow-sm">
-                    <div className="flex items-center gap-6">
-                      <div className="p-5 bg-primary/10 rounded-2xl text-primary shadow-inner">
-                        <UserCheck className="w-10 h-10" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 mb-1 opacity-60">
-                          <Fingerprint className="h-3 w-3 text-primary" />
-                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Profile Verified</p>
-                        </div>
-                        <h2 className="text-3xl font-bold tracking-tight text-foreground">{selectedProfile.full_name}</h2>
-                        <div className="flex flex-wrap items-center gap-3 mt-2">
-                          <Badge variant="outline" className="h-6 rounded-lg bg-background/50 border-primary/20 text-[9px] font-bold uppercase tracking-wider text-primary px-3">
-                            {selectedProfile.role === "super_admin" ? "Super Admin" : selectedProfile.role === "dept_admin" ? "Dept Admin" : "User"}
-                          </Badge>
-                          {selectedProfile.designation && (
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/20 px-3 py-1 rounded-lg border border-border/40">
-                              <Briefcase className="w-3.5 h-3.5 opacity-60" />
-                              {selectedProfile.designation}
+                {/* 1. INITIALIZE TAB */}
+                <TabsContent value="initialize" className="space-y-12 outline-none">
+                    <div className="bg-white/40 border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm space-y-8 backdrop-blur-xl">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-b border-slate-200/40 pb-8">
+                            <div className="space-y-2">
+                                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Protocol Name</Label>
+                                <Input 
+                                    value={newRoleForm.name}
+                                    onChange={(e) => setNewRoleForm({ ...newRoleForm, name: e.target.value })}
+                                    placeholder="SUPPORT_ADMIN_L1"
+                                    className="h-12 px-5 rounded-xl bg-slate-50 border-slate-200/60 focus:border-primary focus:ring-primary/10 font-black uppercase tracking-widest text-[11px]"
+                                />
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button 
-                        onClick={saveAccess} 
-                        disabled={busy}
-                        className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider shadow-xl shadow-primary/20 transition-all active:scale-[0.95] disabled:opacity-50 text-[10px]"
-                      >
-                        <Zap className={cn("w-4 h-4 mr-2", busy && "animate-spin")} />
-                        {busy ? "Saving..." : "Save Permissions"}
-                      </Button>
-                    </div>
-                  </div>
+                            <div className="space-y-2">
+                                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Mandate</Label>
+                                <Textarea 
+                                    value={newRoleForm.description}
+                                    onChange={(e) => setNewRoleForm({ ...newRoleForm, description: e.target.value })}
+                                    placeholder="Operational scope definition..."
+                                    className="min-h-[48px] px-5 py-3 rounded-xl bg-slate-50 border-slate-200/60 focus:border-primary focus:ring-primary/10 font-bold text-xs"
+                                />
+                            </div>
+                         </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Role Registry Matrix */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 opacity-60 px-1">
-                        <Shield className="h-3.5 w-3.5 text-primary" />
-                        <h3 className="text-[10px] font-bold uppercase tracking-wider">Assign Roles</h3>
-                      </div>
-                      <div className="rounded-3xl border border-border/40 bg-card/60 p-6 space-y-3 overflow-hidden">
-                        <div className="space-y-2 max-h-[480px] overflow-y-auto pr-2 custom-scrollbar">
-                          {roles.map((r) => {
-                            const isSelected = (userRolesMap[selectedProfile.id] || []).includes(r.name);
-                            return (
-                              <button
-                                key={r.id}
-                                onClick={() => toggleUserRole(r.name)}
-                                className={cn(
-                                  "w-full flex items-center justify-between p-5 rounded-2xl transition-all duration-300 border group",
-                                  isSelected 
-                                    ? "bg-primary/5 border-primary shadow-sm" 
-                                    : "bg-muted/10 border-transparent hover:border-border/60 hover:bg-muted/30"
-                                )}
-                              >
-                                <div className="text-left space-y-1">
-                                  <p className="text-[11px] font-bold uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">{r.name}</p>
-                                  <p className="text-[9px] font-medium text-muted-foreground uppercase opacity-60 line-clamp-1">{r.description}</p>
-                                </div>
-                                <div className={cn(
-                                  "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
-                                  isSelected ? "border-primary bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "border-border/60 group-hover:border-primary/40"
-                                )}>
-                                  {isSelected && <CheckCircle2 className="w-3 h-3" />}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                         <div className="space-y-12">
+                                {[
+                                    { label: "Core Service Support", icon: Server, filter: (m: any) => (m.slug === "help-desk" || m.slug === "tickets" || m.slug === "requisitions" || m.slug.includes("support")) && !m.slug.includes("asset") },
+                                    { label: "Structural Masters Hub", icon: Database, filter: (m: any) => m.slug.includes("masters") },
+                                    { label: "Enterprise Governance & Intel", icon: LineChart, filter: (m: any) => m.slug === "dashboard" || m.slug === "intelligence_hub" || m.slug === "reports" || m.slug === "mail" || m.slug === "themes" || m.slug === "settings" }
+                                ].map((group) => {
+                                    const filteredModules = initialModules.filter(group.filter);
+                                    if (filteredModules.length === 0) return null;
+
+                                    return (
+                                        <div key={group.label} className="space-y-5">
+                                            <div className="flex items-center justify-between px-2">
+                                                <div className="flex items-center gap-2">
+                                                    <group.icon size={14} className="text-primary/60" />
+                                                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">{group.label}</h3>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                     <Button 
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleSelectGroup(group.filter, true)}
+                                                        className="h-8 px-4 rounded-lg bg-primary/5 text-primary hover:bg-primary hover:text-white text-[8px] font-black uppercase tracking-widest transition-all"
+                                                     >
+                                                         Select_All
+                                                     </Button>
+                                                     <Button 
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleSelectGroup(group.filter, false)}
+                                                        className="h-8 px-4 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white text-[8px] font-black uppercase tracking-widest transition-all"
+                                                     >
+                                                         Clear_All
+                                                     </Button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-1">
+                                                {filteredModules.map(module => {
+                                                    const raw = module.slug.toLowerCase().trim();
+                                                    const withUnderscore = raw.replace(/[-]/g, "_");
+                                                    const variants = [raw, withUnderscore, `module_${raw}`, `module_${withUnderscore}`];
+
+                                                    const modulePerms = initialPermissions.filter(p => 
+                                                        variants.includes(p.resource)
+                                                    );
+                                                    return (
+                                                        <div key={module.id} className="bg-slate-50/50 border border-slate-200/60 p-6 rounded-3xl space-y-6 hover:border-primary/20 transition-all group relative overflow-hidden">
+                                                            <div className="flex items-center justify-between border-b border-slate-200/40 pb-3">
+                                                                <p className="text-[10px] font-black uppercase tracking-tighter text-slate-800">{module.name}</p>
+                                                                <div className="flex gap-2">
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            const raw = module.slug.toLowerCase().trim();
+                                                                            const withUnderscore = raw.replace(/[-]/g, "_");
+                                                                            const variants = [raw, withUnderscore, `module_${raw}`, `module_${withUnderscore}`];
+                                                                            const ids = initialPermissions.filter(p => variants.includes(p.resource)).map(p => p.id);
+                                                                            setNewRolePerms(prev => [...new Set([...prev, ...ids])]);
+                                                                        }}
+                                                                        className="text-[7px] font-black uppercase text-primary/40 hover:text-primary transition-colors"
+                                                                    >
+                                                                        All
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            const raw = module.slug.toLowerCase().trim();
+                                                                            const withUnderscore = raw.replace(/[-]/g, "_");
+                                                                            const variants = [raw, withUnderscore, `module_${raw}`, `module_${withUnderscore}`];
+                                                                            const ids = initialPermissions.filter(p => variants.includes(p.resource)).map(p => p.id);
+                                                                            setNewRolePerms(prev => prev.filter(id => !ids.includes(id)));
+                                                                        }}
+                                                                        className="text-[7px] font-black uppercase text-red-400/40 hover:text-red-500 transition-colors"
+                                                                    >
+                                                                        None
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-3">
+                                                                {[
+                                                                    { label: 'VIEW', key: 'can_view', action: 'read' },
+                                                                    { label: 'CREATE', key: 'can_create', action: 'create' },
+                                                                    { label: 'UPDATE', key: 'can_update', action: 'update' },
+                                                                    { label: 'DELETE', key: 'can_delete', action: 'delete' }
+                                                                ].map(attr => {
+                                                                    const perm = modulePerms.find(p => p.action === attr.action) || 
+                                                                                 modulePerms.find(p => p.action === attr.key.replace('can_', ''));
+                                                                    
+                                                                    const isChecked = perm ? newRolePerms.includes(perm.id) : false;
+                                                                    return (
+                                                                        <div key={attr.key} className="flex items-center justify-between">
+                                                                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 opacity-60">{attr.label}</span>
+                                                                            <Checkbox 
+                                                                                checked={isChecked}
+                                                                                disabled={!perm}
+                                                                                onCheckedChange={() => perm && toggleNewPerm(perm.id)}
+                                                                                className={cn(
+                                                                                    "h-5 w-5 rounded-md border-slate-200 data-[state=checked]:bg-primary",
+                                                                                    !perm && "opacity-20 cursor-not-allowed"
+                                                                                )}
+                                                                            />
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                         </div>
+
+                         <div className="pt-8 flex justify-end">
+                             <Button 
+                                onClick={handleSaveRole}
+                                disabled={isSaving || !newRoleForm.name}
+                                className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-primary/20 transition-all"
+                             >
+                                 Commit Security Protocol
+                             </Button>
+                         </div>
+                    </div>
+                </TabsContent>
+
+                {/* 2. REGISTRY TAB */}
+                <TabsContent value="registry" className="space-y-8 outline-none">
+                    <div className="max-w-md relative group">
+                        <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                            placeholder="SEARCH_PROTOCOL..." 
+                            className="h-12 pl-12 rounded-xl bg-white border-slate-200/60 text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            value={roleSearchTerm}
+                            onChange={(e) => setRoleSearchTerm(e.target.value)}
+                        />
                     </div>
 
-                    {/* Resource Access Control Matrix */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between opacity-60 px-1">
-                        <div className="flex items-center gap-2">
-                          <Lock className="h-3.5 w-3.5 text-primary" />
-                          <h3 className="text-[10px] font-bold uppercase tracking-wider">Module Permissions</h3>
-                        </div>
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground opacity-40" />
-                          <Input 
-                            placeholder="Filter Modules..." 
-                            value={moduleSearch}
-                            onChange={(e) => setModuleSearch(e.target.value)}
-                            className="w-32 h-8 pl-7 rounded-xl bg-muted/20 border-border/40 text-[9px] font-bold uppercase tracking-widest"
-                          />
-                        </div>
-                      </div>
-                      <div className="rounded-3xl border border-border/40 bg-card/60 p-6 space-y-4 overflow-hidden">
-                        <div className="space-y-4 max-h-[480px] overflow-y-auto pr-2 custom-scrollbar">
-                          {filteredModules.map((m: ModuleType) => {
-                            const access = (accessMap[selectedProfile.id] || {})[m.id] || { 
-                              can_view: false, can_create: false, can_update: false, can_delete: false, access_scope: "global" 
-                            };
+                    <div className="grid grid-cols-1 gap-6">
+                        {currentRoles.filter(r => r.name.toLowerCase().includes(roleSearchTerm.toLowerCase())).map(role => {
+                            const isEditing = editingRoleId === role.id;
                             return (
-                              <div key={m.id} className="p-5 rounded-2xl border border-border/40 bg-muted/10 space-y-4 group hover:border-primary/20 transition-all duration-300">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Activity className="h-3.5 w-3.5 text-primary opacity-40 group-hover:opacity-100 transition-opacity" />
-                                    <p className="text-[11px] font-bold uppercase tracking-tight text-primary truncate">{m.name}</p>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                  {[
-                                    { key: "can_view", label: "Read" },
-                                    { key: "can_create", label: "Create" },
-                                    { key: "can_update", label: "Edit" },
-                                    { key: "can_delete", label: "Delete" },
-                                  ].map((act) => (
-                                    <div key={act.key} className="flex items-center gap-3">
-                                      <Checkbox
-                                        id={`${m.id}-${act.key}`}
-                                        checked={(access as any)[act.key]}
-                                        onCheckedChange={() => onToggle(m.id, act.key as any)}
-                                        className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all"
-                                      />
-                                      <Label 
-                                        htmlFor={`${m.id}-${act.key}`}
-                                        className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground cursor-pointer select-none group-hover:text-foreground transition-colors"
-                                      >
-                                        {act.label}
-                                      </Label>
+                            <div key={role.id} className="bg-white/40 border border-slate-200/60 rounded-[2rem] overflow-hidden backdrop-blur-xl">
+                                <div className="p-6 flex items-center justify-between bg-slate-100/30 border-b border-slate-200/40">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                                            <Shield size={18} />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 leading-none mb-1">{role.name}</h3>
+                                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest opacity-60">{role.description || 'Enterprise Security Directive'}</p>
+                                        </div>
                                     </div>
-                                  ))}
+                                    <div className="flex items-center gap-3">
+                                         {isEditing ? (
+                                             <>
+                                                 <Button 
+                                                    onClick={cancelEditingRole}
+                                                    variant="ghost"
+                                                    className="h-8 rounded-lg text-slate-400 text-[9px] font-black uppercase px-4"
+                                                 >
+                                                     Cancel
+                                                 </Button>
+                                                 <Button 
+                                                    onClick={() => commitRoleChanges(role.id)}
+                                                    disabled={isSaving}
+                                                    className="h-9 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-black uppercase px-6 shadow-lg shadow-emerald-500/20"
+                                                 >
+                                                     {isSaving ? <RefreshCw className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
+                                                     Save Changes
+                                                 </Button>
+                                             </>
+                                         ) : (
+                                             <Button 
+                                                onClick={() => startEditingRole(role)}
+                                                variant="outline"
+                                                className="h-9 rounded-xl border-slate-200 text-slate-600 hover:bg-primary hover:text-white hover:border-primary text-[9px] font-black uppercase px-6 transition-all"
+                                             >
+                                                 <Edit3 className="h-3 w-3 mr-2" />
+                                                 Modify Protocol
+                                             </Button>
+                                         )}
+                                    </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                  <div className="h-[600px] flex flex-col items-center justify-center text-center p-12 rounded-3xl border border-dashed border-border/40 bg-muted/5">
-                    <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center mb-6 border border-primary/10 shadow-inner">
-                      <Fingerprint className="w-10 h-10 text-primary opacity-40" />
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground">Select a User</h3>
-                    <p className="text-xs text-muted-foreground mt-2 max-w-sm leading-relaxed">
-                      Select a user from the list to manage their roles and module permissions.
-                    </p>
-                  </div>
-              )}
-            </div>
-          </div>
-        </TabsContent>
+                                <div className="p-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                    {initialModules.map(module => {
+                                        const raw = module.slug.toLowerCase().trim();
+                                        const withUnderscore = raw.replace(/[-]/g, "_");
+                                        const variants = [raw, withUnderscore, `module_${raw}`, `module_${withUnderscore}`];
 
-        <TabsContent value="manage-roles" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 outline-none">
-          <div className="rounded-3xl border border-border/40 bg-card/60 p-8 shadow-sm space-y-8">
-            <div className="flex items-center justify-between border-b border-border/40 pb-8">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 mb-1 opacity-60">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Role Definitions</p>
-                </div>
-                <h3 className="text-3xl font-bold tracking-tight text-foreground">System Roles</h3>
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">Manage role-based access control and permissions</p>
-              </div>
-              <Button 
-                onClick={() => openRoleDialog()}
-                className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider shadow-xl shadow-primary/20 transition-all active:scale-[0.95] text-[10px]"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Role
-              </Button>
-            </div>
+                                        const modulePerms = initialPermissions.filter(p => 
+                                            variants.includes(p.resource)
+                                        );
+                                        return (
+                                            <div key={module.id} className={cn(
+                                                "p-4 rounded-2xl bg-white/40 border border-slate-100 transition-all",
+                                                isEditing && "border-primary/10 ring-1 ring-primary/5"
+                                            )}>
+                                                <p className="text-[8px] font-black uppercase tracking-[0.1em] text-primary/40 truncate mb-3">{module.name}</p>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {[
+                                                        { label: 'VIEW', key: 'can_view', action: 'read' },
+                                                        { label: 'CREATE', key: 'can_create', action: 'create' },
+                                                        { label: 'UPDATE', key: 'can_update', action: 'update' },
+                                                        { label: 'DELETE', key: 'can_delete', action: 'delete' }
+                                                    ].map(attr => {
+                                                        const perm = modulePerms.find(p => p.action === attr.action) || 
+                                                                     modulePerms.find(p => p.action === attr.key.replace('can_', ''));
+                                                        
+                                                        const hasPerm = perm ? (
+                                                            isEditing 
+                                                                ? tempPerms.includes(perm.id)
+                                                                : role.permissions?.some((p: any) => p.id === perm.id)
+                                                        ) : false;
 
-            <div className="rounded-2xl border border-border/40 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow className="hover:bg-transparent border-border/40">
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest py-4 pl-6 text-muted-foreground">Role Name</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest py-4 text-muted-foreground">Description</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest py-4 text-muted-foreground">Permissions</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest py-4 text-muted-foreground">Type</TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest py-4 pr-6 text-muted-foreground">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {roles.map((r) => (
-                    <TableRow key={r.id} className="hover:bg-muted/20 transition-colors border-border/40">
-                      <TableCell className="font-bold tracking-tight text-[11px] py-5 pl-6 text-primary">{r.name}</TableCell>
-                      <TableCell className="text-[10px] font-bold text-muted-foreground uppercase opacity-60 max-w-xs truncate">{r.description}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="h-6 rounded-lg bg-primary/5 border-primary/20 text-[9px] font-bold uppercase tracking-wider text-primary px-3">
-                          {r.permissions?.length || 0} Permissions
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {r.is_system_role ? (
-                          <div className="flex items-center gap-2 text-[9px] font-bold text-primary uppercase tracking-widest">
-                            <Cpu className="w-3 h-3" /> System
-                          </div>
-                        ) : (
-                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">Custom</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right py-5 pr-6">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-9 w-9 rounded-xl border-border/40 hover:bg-primary hover:text-white hover:border-primary transition-all group"
-                            onClick={() => openRoleDialog(r)}
-                          >
-                            <Edit2 className="w-3.5 h-3.5 group-hover:scale-110" />
-                          </Button>
-                          {!r.is_system_role && (
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="h-9 w-9 rounded-xl border-border/40 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-all group"
-                              onClick={() => deleteRole(r.id)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5 group-hover:scale-110" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Identity Role Configuration Pane */}
-      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-border/40 bg-card p-10 shadow-2xl custom-scrollbar font-sans antialiased">
-          <DialogHeader className="mb-10">
-            <div className="flex items-center gap-2 mb-2 opacity-60">
-              <Settings className="h-4 w-4 text-primary" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Role Configuration</p>
-            </div>
-            <DialogTitle className="text-4xl font-bold tracking-tight text-foreground font-sans">
-              {selectedRole ? "Edit" : "Create"} <span className="text-primary/60">System Role</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Role Name</Label>
-                <Input 
-                  value={roleForm.name}
-                  onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
-                  placeholder="e.g. Administrator"
-                  className="h-14 px-5 rounded-2xl bg-muted/20 border-border/40 focus:border-primary/50 focus:ring-primary/20 font-bold tracking-tight text-base"
-                  disabled={selectedRole?.is_system_role}
-                />
-              </div>
-              <div className="space-y-3">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Description</Label>
-                <Textarea 
-                  value={roleForm.description}
-                  onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
-                  placeholder="Describe the responsibilities of this role..."
-                  className="min-h-[160px] p-5 rounded-2xl bg-muted/20 border-border/40 focus:border-primary/50 focus:ring-primary/20 font-medium text-sm transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between ml-1 opacity-60 mb-2">
-                <div className="flex items-center gap-2">
-                  <Lock className="h-3.5 w-3.5 text-primary" />
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Permissions Matrix</p>
-                </div>
-                <Badge variant="outline" className="h-5 rounded-lg text-[8px] font-bold tracking-widest">
-                  {roleForm.selectedPermissions.length} / {permissions.length} Active
-                </Badge>
-              </div>
-              <div className="rounded-3xl border border-border/40 bg-muted/5 p-6 h-[400px] overflow-y-auto custom-scrollbar">
-                <div className="space-y-6">
-                  {Object.entries(groupedPermissions).map(([resource, perms]) => (
-                    <div key={resource} className="space-y-3">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-primary border-b border-primary/10 pb-2 italic opacity-60">{resource}</p>
-                      <div className="space-y-2">
-                        {perms.map((p) => (
-                          <div 
-                            key={p.id} 
-                            className={cn(
-                              "flex items-center gap-4 p-4 rounded-xl transition-all duration-300 group cursor-pointer border",
-                              roleForm.selectedPermissions.includes(p.id) 
-                                ? "bg-primary/5 border-primary/40 shadow-sm" 
-                                : "hover:bg-muted/30 border-transparent hover:border-border/40"
-                            )}
-                            onClick={() => {
-                              const cur = roleForm.selectedPermissions;
-                              const next = cur.includes(p.id) ? cur.filter(id => id !== p.id) : [...cur, p.id];
-                              setRoleForm({ ...roleForm, selectedPermissions: next });
-                            }}
-                          >
-                            <Checkbox
-                              checked={roleForm.selectedPermissions.includes(p.id)}
-                              onCheckedChange={() => {}} // Handle in div click
-                              className="rounded-lg h-5 w-5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all"
-                            />
-                            <div className="space-y-0.5">
-                              <p className="text-[11px] font-bold tracking-tight text-foreground uppercase group-hover:text-primary transition-colors">{p.name}</p>
-                              <p className="text-[9px] font-medium text-muted-foreground opacity-60 line-clamp-1">{p.description}</p>
+                                                        return (
+                                                            <div key={attr.key} className="flex items-center justify-between gap-2">
+                                                                <span className="text-[7px] font-bold uppercase tracking-widest text-slate-400 opacity-60 italic">{attr.label}</span>
+                                                                <Checkbox 
+                                                                    checked={hasPerm}
+                                                                    disabled={!isEditing || !perm}
+                                                                    onCheckedChange={() => perm && toggleTempPermission(perm.id)}
+                                                                    className={cn(
+                                                                        "h-3.5 w-3.5 rounded-md border-slate-200",
+                                                                        (!isEditing || !perm) && "opacity-20 cursor-not-allowed"
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                        )})}
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+                </TabsContent>
 
-          <div className="flex items-center justify-end gap-4 mt-12 border-t border-border/40 pt-10">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsRoleDialogOpen(false)}
-              className="h-14 px-8 rounded-2xl border-border/40 hover:bg-muted/50 font-bold uppercase tracking-wider text-[10px]"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={saveRole} 
-              disabled={busy || !roleForm.name.trim()}
-              className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider shadow-xl shadow-primary/20 transition-all active:scale-[0.95] disabled:opacity-50 text-[10px]"
-            >
-              {busy ? <RotateCcw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-              {busy ? "Saving..." : "Save Role"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+                {/* 3. ASSIGN TAB */}
+                <TabsContent value="assign" className="space-y-8 outline-none">
+                    <div className="max-w-md relative group">
+                        <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                            placeholder="SEARCH_IDENTITY..." 
+                            className="h-12 pl-12 rounded-xl bg-white border-slate-200/60 text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {accessibleProfiles.map(user => {
+                            const isEditing = editingUserId === user.id;
+                            return (
+                            <div key={user.id} className="bg-white/40 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col gap-6 hover:shadow-xl hover:shadow-primary/5 transition-all group backdrop-blur-xl relative overflow-hidden">
+                                {isEditing && <div className="absolute top-0 right-0 p-2"><Badge className="bg-emerald-500/10 text-emerald-600 border-none text-[7px] font-black uppercase tracking-[0.2em] italic">Editing_Active</Badge></div>}
+                                
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-[1.2rem] bg-primary text-white flex items-center justify-center font-black text-xs shadow-lg shadow-primary/10">
+                                            {user.full_name?.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <h4 className="text-[11px] font-black uppercase tracking-tight text-slate-900 leading-none truncate">{user.full_name}</h4>
+                                            <p className="text-[8px] font-bold text-slate-400 uppercase opacity-40 tracking-widest truncate">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    {isEditing ? (
+                                         <div className="flex gap-1">
+                                             <Button 
+                                                onClick={() => setEditingUserId(null)}
+                                                variant="ghost"
+                                                className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-red-500"
+                                             >
+                                                 <XCircle size={14} />
+                                             </Button>
+                                             <Button 
+                                                onClick={() => commitUserRoles(user.id)}
+                                                className="h-7 w-7 p-0 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/10"
+                                             >
+                                                 <Save size={14} />
+                                             </Button>
+                                         </div>
+                                     ) : (
+                                         <Button 
+                                            onClick={() => startEditingUser(user.id)}
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0 rounded-xl bg-slate-50 text-slate-400 hover:bg-primary hover:text-white transition-all shadow-sm"
+                                         >
+                                             <Edit3 size={14} />
+                                         </Button>
+                                     )}
+                                </div>
+
+                                <div className="space-y-4 flex-1">
+                                    <div className="flex items-center gap-2 opacity-60">
+                                        <ShieldCheck size={10} className="text-primary" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Directives</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {currentRoles.map(role => {
+                                            const roleIsAssigned = isEditing 
+                                                ? tempUserRoles.includes(role.name)
+                                                : (userRolesMap[user.id] || []).includes(role.name);
+                                            
+                                            return (
+                                                <button
+                                                    key={role.id}
+                                                    disabled={!isEditing}
+                                                    onClick={() => toggleTempUserRole(role.name)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
+                                                        roleIsAssigned 
+                                                            ? "bg-primary text-white shadow-md shadow-primary/10" 
+                                                            : "bg-slate-100/50 text-slate-400 border border-transparent hover:bg-slate-200/50",
+                                                        !isEditing && "opacity-60 cursor-not-allowed"
+                                                    )}
+                                                >
+                                                    {role.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-100/60 flex items-center justify-between">
+                                     <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-300">Operational Profile</span>
+                                     <ArrowRightCircle size={10} className="text-slate-200" />
+                                </div>
+                            </div>
+                        )})}
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}

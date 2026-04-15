@@ -5,6 +5,7 @@ import ErpModuleManager from "./ErpModuleManager";
 import { createClient, getCachedUser } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import SoftwareSystemManager from "../SoftwareSystemManager";
+import { ModuleHeader } from "@/components/ModuleHeader";
 import { Database, Hexagon, Fingerprint, Box } from "lucide-react";
 
 export default async function ErpMasterPage() {
@@ -28,27 +29,11 @@ export default async function ErpMasterPage() {
   const softwareSystems = systemsRes.data || [];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 p-8 font-sans antialiased">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border/40 pb-10">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-2 opacity-60">
-            <Hexagon className="h-3.5 w-3.5 text-primary" />
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">System Configuration</p>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
-            ERP <span className="text-primary/60">Module Management</span>
-          </h1>
-          <p className="text-sm text-muted-foreground font-medium opacity-80">
-            Configure ERP modules, sub-modules and software system visibility
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 px-4 rounded-xl bg-muted/20 border border-border/40 flex items-center gap-3">
-            <Fingerprint className="h-4 w-4 text-primary opacity-40" />
-            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">Administrator Access</p>
-          </div>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-8 p-10 font-sans antialiased bg-slate-50/20">
+      <ModuleHeader 
+        title="ERP_ECOSYSTEM"
+        subtitle="Global_Structure_Protocol"
+      />
 
       <ErpModuleManager initialModules={initialModules || []} />
       

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { 
   LayoutDashboard, 
   Ticket, 
@@ -15,11 +15,27 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Layout,
+  BarChart3,
+  FileText,
+  ExternalLink,
   ChevronDown,
   Settings,
   LogOut,
   Fingerprint,
-  Zap
+  Zap,
+  Home,
+  Package,
+  Box,
+  ReceiptIndianRupee,
+  Building2,
+  Database,
+  Boxes,
+  FileCode,
+  Percent,
+  Ruler,
+  PackageSearch,
+  History,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigation } from "./providers/NavigationProvider";
@@ -36,22 +52,53 @@ interface SidebarItemProps {
   isOpen: boolean;
   isActive?: boolean;
   onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
   hasSubItems?: boolean;
   isSubItemExpanded?: boolean;
   variant?: "default" | "destructive";
+  subItems?: { href: string; label: string; icon?: React.ElementType }[];
 }
 
-function SidebarItem({ href, label, icon: Icon, isOpen, isActive: propActive, onClick, hasSubItems, isSubItemExpanded, variant = "default" }: SidebarItemProps) {
+function SidebarItem({ 
+  href, 
+  label, 
+  icon: Icon, 
+  isOpen, 
+  isActive: propActive, 
+  onClick, 
+  onMouseEnter,
+  onMouseLeave,
+  hasSubItems, 
+  isSubItemExpanded, 
+  variant = "default",
+  subItems
+}: SidebarItemProps) {
   const pathname = usePathname();
   const isActive = propActive ?? (href ? (pathname === href || (href !== "/dashboard" && pathname.startsWith(href))) : false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    onMouseEnter?.();
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    onMouseLeave?.();
+  };
 
   const content = (
-    <div className={cn(
-      "flex items-center gap-3 w-full px-3 py-1.5 rounded-lg transition-all duration-200 group relative",
-      isActive && !hasSubItems 
-        ? "text-primary bg-primary/5 shadow-sm shadow-primary/5" 
-        : (variant === "destructive" ? "text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
-    )}>
+    <div 
+      className={cn(
+        "flex items-center gap-3 w-full px-3 py-1.5 rounded-lg transition-all duration-200 group relative",
+        isActive && !hasSubItems 
+          ? "text-primary bg-primary/5 shadow-sm shadow-primary/5" 
+          : (variant === "destructive" ? "text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
+      )}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <Icon className={cn(
         "h-4 w-4 shrink-0 transition-colors duration-200",
         isActive ? "text-primary" : (variant === "destructive" ? "text-destructive" : "text-muted-foreground group-hover:text-primary")
@@ -61,34 +108,65 @@ function SidebarItem({ href, label, icon: Icon, isOpen, isActive: propActive, on
           {label}
         </span>
       )}
+
       {isOpen && hasSubItems && (
-        <ChevronDown className={cn(
-          "h-3 w-3 shrink-0 opacity-50 transition-transform duration-200 ml-auto",
-          isSubItemExpanded && "rotate-180"
-        )} />
+        <div 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick?.();
+          }}
+          className="p-1 hover:bg-muted rounded-md transition-colors ml-auto"
+        >
+          <ChevronDown className={cn(
+            "h-3 w-3 shrink-0 opacity-50 transition-transform duration-200",
+            isSubItemExpanded && "rotate-180"
+          )} />
+        </div>
       )}
       {isActive && !hasSubItems && (
         <div className="absolute left-0 top-1 bottom-1 w-1 bg-primary rounded-r-full animate-in slide-in-from-left duration-300" />
       )}
+
+      {/* FLY-OUT MENU (Collapsed Mode) */}
+      {!isOpen && hasSubItems && isHovered && subItems && (
+        <div className="absolute left-full top-0 ml-2 py-2 px-1 bg-background border border-border/60 shadow-xl rounded-xl min-w-[180px] z-[200] animate-in fade-in slide-in-from-left-2 duration-200 backdrop-blur-md">
+          <div className="px-3 py-1.5 mb-1 border-b border-border/40">
+             <span className="text-[10px] font-black text-primary uppercase tracking-widest">{label}</span>
+          </div>
+          <div className="space-y-0.5">
+            {subItems.map((si, idx) => (
+              <Link
+                key={idx}
+                href={si.href}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {si.icon && <si.icon size={12} className="opacity-60" />}
+                {si.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
-  if (hasSubItems) {
-    return (
-      <button type="button" onClick={onClick} className="w-full text-left">
-        {content}
-      </button>
-    );
-  }
+  const isExternalIdentifier = label === "Tactical Command Center" || label === "Intelligence Hub";
 
   return (
-    <Link href={href || "#"} className="w-full">
+    <Link 
+      href={href || "#"} 
+      target={isExternalIdentifier ? "_blank" : undefined}
+      rel={isExternalIdentifier ? "noopener noreferrer" : undefined}
+      className="w-full"
+    >
       {content}
     </Link>
   );
 }
 
-function SidebarSubItem({ href, label, isOpen }: { href: string; label: string; isOpen: boolean }) {
+function SidebarSubItem({ href, label, isOpen, icon: Icon }: { href: string; label: string; isOpen: boolean; icon?: React.ElementType }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
@@ -98,36 +176,60 @@ function SidebarSubItem({ href, label, isOpen }: { href: string; label: string; 
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 py-1 pl-10 pr-3 rounded-lg text-[12px] font-medium transition-colors",
+        "flex items-center gap-3 py-1 pl-10 pr-3 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-colors",
         isActive 
-          ? "text-primary bg-primary/5 font-semibold" 
+          ? "text-primary bg-primary/5 shadow-sm" 
           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
       )}
     >
+      {Icon && <Icon size={12} className={cn("shrink-0", isActive ? "text-primary" : "text-muted-foreground/50")} />}
       <span className="truncate">{label}</span>
-      {isActive && <div className="h-1 w-1 rounded-full bg-primary" />}
+      {isActive && <div className="ml-auto animate-pulse h-1 w-1 rounded-full bg-primary" />}
     </Link>
   );
 }
 
+
+import { Permission, hasPermission, RESOURCES } from "@/lib/permissions";
+
 export function Sidebar({ 
-  canManageMasters, 
-  isSuperAdmin,
-  profile
+  canAccessMasters, 
+  canAccessSecurity,
+  profile,
+  permissions = []
 }: { 
-  canManageMasters: boolean; 
-  isSuperAdmin: boolean;
+  canAccessMasters: boolean; 
+  canAccessSecurity: boolean;
   profile: ProfileRow | null;
+  permissions?: Permission[];
 }) {
   const { isSidebarOpen, toggleSidebar, navMode, toggleNavMode } = useNavigation();
   const pathname = usePathname();
-  const [expandedGroup, setExpandedGroup] = useState<string | null>("masters");
+  const searchParams = useSearchParams();
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    if (pathname.startsWith("/assets")) setExpandedGroup("assets");
+    else if (pathname.startsWith("/settings/masters")) setExpandedGroup("masters");
+    else if (pathname.startsWith("/tickets")) setExpandedGroup("support");
+    else if (pathname.startsWith("/settings") || pathname.includes("/settings/mail")) setExpandedGroup("settings");
+  }, [pathname]);
+
+  const isVersioned = searchParams.get("version") !== null;
 
   if (navMode === "horizontal") return null;
+  if (!mounted) return null; // Prevent hydration mismatch on gated items
 
   const toggleGroup = (group: string) => {
     setExpandedGroup(expandedGroup === group ? null : group);
   };
+
+  // Standalone analytical view: hide sidebar on main dashboards
+  if (pathname === "/service-analytics" || isVersioned) {
+    return null;
+  }
 
   return (
     <aside
@@ -151,7 +253,10 @@ export function Sidebar({
       <div className="flex flex-col h-full py-4">
         {/* Branding */}
         <div className="px-5 mb-6 flex items-center gap-3 select-none overflow-hidden h-10 shrink-0">
-          <Link href="/dashboard" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg shadow-lg shadow-primary/20 ring-1 ring-primary/20 transition-transform active:scale-95">
+          <Link 
+            href="/dashboard" 
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg shadow-lg shadow-primary/20 ring-1 ring-primary/20 transition-transform active:scale-95"
+          >
             E
           </Link>
           {isSidebarOpen && (
@@ -169,69 +274,108 @@ export function Sidebar({
 
         {/* Navigation */}
         <div className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar">
-          <SidebarItem 
-            href="/dashboard" 
-            label="Dashboard" 
-            icon={LayoutDashboard} 
-            isOpen={isSidebarOpen} 
-            isActive={pathname === "/dashboard"} 
-          />
-          <SidebarItem 
-            label="Support Queue" 
-            icon={Ticket} 
-            isOpen={isSidebarOpen} 
-            isActive={pathname.startsWith("/tickets") && pathname !== "/tickets/new"} 
-            onClick={() => toggleGroup("support")}
-            hasSubItems
-            isSubItemExpanded={expandedGroup === "support"}
-          />
-          {expandedGroup === "support" && isSidebarOpen && (
-            <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
-              <SidebarSubItem href="/tickets" label="All Tickets" isOpen={isSidebarOpen} />
-              <SidebarSubItem href="/tickets?status=new" label="New Tickets" isOpen={isSidebarOpen} />
-              <SidebarSubItem href="/tickets?status=assigned" label="Assigned" isOpen={isSidebarOpen} />
-              <SidebarSubItem href="/tickets?status=in_progress" label="In Progress" isOpen={isSidebarOpen} />
-              <SidebarSubItem href="/tickets?status=pending_user" label="Pending (User)" isOpen={isSidebarOpen} />
-              <SidebarSubItem href="/tickets?status=resolved" label="Resolved" isOpen={isSidebarOpen} />
-              <SidebarSubItem href="/tickets?status=closed" label="Closed Archive" isOpen={isSidebarOpen} />
-            </div>
+          {hasPermission(permissions, RESOURCES.DASHBOARD) && (
+            <SidebarItem 
+              href="/dashboard" 
+              label="Home" 
+              icon={Home} 
+              isOpen={isSidebarOpen} 
+              isActive={pathname === "/dashboard"} 
+            />
           )}
-          <SidebarItem 
-            href="/tickets/new" 
-            label="Create Ticket" 
-            icon={PlusCircle} 
-            isOpen={isSidebarOpen} 
-            isActive={pathname === "/tickets/new"} 
-          />
+          {hasPermission(permissions, RESOURCES.INTEL) && (
+            <SidebarItem 
+              href="/service-analytics" 
+              label="Intelligence Hub" 
+              icon={BarChart3} 
+              isOpen={isSidebarOpen} 
+              isActive={pathname === "/service-analytics"} 
+            />
+          )}
+          {hasPermission(permissions, RESOURCES.REPORTS) && (
+            <SidebarItem 
+              href="/service-analytics/reports" 
+              label="Analytical Reports" 
+              icon={FileText} 
+              isOpen={isSidebarOpen} 
+              isActive={pathname === "/service-analytics/reports"} 
+            />
+          )}
 
-          {canManageMasters && (
+          {(hasPermission(permissions, RESOURCES.TICKETS) || hasPermission(permissions, RESOURCES.SUPPORT_QUEUE)) && (
+            <>
+              <SidebarItem 
+                label="Support Queue" 
+                icon={Ticket} 
+                isOpen={isSidebarOpen} 
+                isActive={pathname.startsWith("/tickets") && !pathname.includes("catalog") && pathname !== "/tickets/new"} 
+                onClick={() => toggleGroup("support")}
+                hasSubItems
+                isSubItemExpanded={expandedGroup === "support"}
+              />
+              {expandedGroup === "support" && isSidebarOpen && (
+                <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <SidebarSubItem href="/tickets" label="All Tickets" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/tickets?status=new" label="New Tickets" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/tickets?status=assigned" label="Assigned" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/tickets?status=in_progress" label="In Progress" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/tickets?status=pending_user" label="Pending (User)" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/tickets?status=resolved" label="Resolved" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/tickets?status=closed" label="Closed Archive" isOpen={isSidebarOpen} />
+                </div>
+              )}
+            </>
+          )}
+          {hasPermission(permissions, RESOURCES.ASSETS) && (
+            <SidebarItem 
+              href="/assets" 
+              label="Assets" 
+              icon={Package} 
+              isOpen={isSidebarOpen} 
+              isActive={pathname.startsWith("/assets")} 
+            />
+          )}
+
+          {hasPermission(permissions, RESOURCES.TICKETS, "create") && (
+            <SidebarItem 
+              href="/tickets/new" 
+              label="Create Ticket" 
+              icon={PlusCircle} 
+              isOpen={isSidebarOpen} 
+              isActive={pathname === "/tickets/new"} 
+            />
+          )}
+          
+
+          {canAccessMasters && (
             <div className="py-1">
               {isSidebarOpen && (
                 <div className="px-4 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40 font-sans">
                   Administration
                 </div>
               )}
+              
               <SidebarItem 
                 label="Master Data" 
                 icon={Settings2} 
                 isOpen={isSidebarOpen} 
-                isActive={pathname.startsWith("/settings/masters") && !pathname.includes("access-control")}
+                isActive={pathname.startsWith("/settings/masters") && !pathname.includes("access-control") && !pathname.includes("assets")}
                 onClick={() => toggleGroup("masters")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "masters"}
               />
               {expandedGroup === "masters" && isSidebarOpen && (
                 <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <SidebarSubItem href="/settings/masters/users" label="User Directory" isOpen={isSidebarOpen} />
-                  <SidebarSubItem href="/settings/masters/erp" label="ERP Systems" isOpen={isSidebarOpen} />
-                  <SidebarSubItem href="/settings/masters/help-desk" label="Help Desk Setup" isOpen={isSidebarOpen} />
-                  <SidebarSubItem href="/settings/masters/organizations" label="Org Entities" isOpen={isSidebarOpen} />
+                  {hasPermission(permissions, RESOURCES.USERS) && <SidebarSubItem href="/settings/masters/users" label="User Directory" isOpen={isSidebarOpen} />}
+                  {hasPermission(permissions, RESOURCES.ERP) && <SidebarSubItem href="/settings/masters/erp" label="ERP Systems" isOpen={isSidebarOpen} />}
+                  {hasPermission(permissions, RESOURCES.HELP_DESK_MASTER) && <SidebarSubItem href="/settings/masters/help-desk" label="Help Desk Setup" isOpen={isSidebarOpen} />}
+                  {hasPermission(permissions, RESOURCES.ORGS) && <SidebarSubItem href="/settings/masters/organizations" label="Org Entities" isOpen={isSidebarOpen} />}
                 </div>
               )}
             </div>
           )}
 
-          {isSuperAdmin && (
+          {canAccessSecurity && (
             <div className="py-1">
               {isSidebarOpen && (
                 <div className="px-4 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40 font-sans">
@@ -239,21 +383,37 @@ export function Sidebar({
                 </div>
               )}
               <SidebarItem 
-                label="Infrastructure" 
-                icon={Settings} 
+                label="Security & Mail" 
+                icon={Shield} 
                 isOpen={isSidebarOpen} 
-                isActive={pathname.startsWith("/settings") && (!pathname.includes("masters") || pathname.includes("access-control"))}
+                isActive={pathname.includes("access-control") || pathname.includes("mail")}
                 onClick={() => toggleGroup("settings")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "settings"}
               />
               {expandedGroup === "settings" && isSidebarOpen && (
                 <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <SidebarSubItem href="/settings" label="Core Parameters" isOpen={isSidebarOpen} />
-                  <SidebarSubItem href="/settings/masters/access-control" label="Security & IAM" isOpen={isSidebarOpen} />
-                  <SidebarSubItem href="/settings/mail" label="Mail Protocol" isOpen={isSidebarOpen} />
+                  {hasPermission(permissions, RESOURCES.ACCESS) && <SidebarSubItem href="/settings/masters/access-control" label="Permissions & Roles" isOpen={isSidebarOpen} />}
+                  {hasPermission(permissions, RESOURCES.MAIL) && <SidebarSubItem href="/settings/mail" label="Mail Protocol" isOpen={isSidebarOpen} />}
                 </div>
               )}
+            </div>
+          )}
+
+          {hasPermission(permissions, RESOURCES.THEMES) && (
+            <div className="py-1">
+               {isSidebarOpen && (
+                  <div className="px-4 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40 font-sans">
+                    Preferences
+                  </div>
+                )}
+                <SidebarItem 
+                  href="/settings?tab=themes"
+                  label="Settings & Themes" 
+                  icon={Settings} 
+                  isOpen={isSidebarOpen} 
+                  isActive={pathname === "/settings"} 
+                />
             </div>
           )}
 

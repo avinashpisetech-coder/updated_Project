@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Ticket, PlusCircle, Settings2, User } from "lucide-react";
+import { LayoutDashboard, Ticket, PlusCircle, Settings2, User, BarChart3, ExternalLink, Home, FileText, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function NavItem({
@@ -18,10 +18,13 @@ function NavItem({
 }) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
+  const isExternal = href === "/service-analytics";
 
   return (
     <Link
       href={href}
+      target={isExternal ? "_blank" : undefined}
+      rel={isExternal ? "noopener noreferrer" : undefined}
       className={cn(
         "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-150 whitespace-nowrap select-none",
         isActive
@@ -31,6 +34,7 @@ function NavItem({
     >
       <span className="flex-shrink-0">{icon}</span>
       <span className="hidden sm:inline">{label}</span>
+      {isExternal && <ExternalLink size={10} className="ml-1 opacity-50" />}
     </Link>
   );
 }
@@ -38,8 +42,11 @@ function NavItem({
 export function NavItems({ canManageMasters }: { canManageMasters: boolean }) {
   return (
     <nav className="flex items-center gap-0.5 bg-muted/30 border border-border/50 rounded-2xl px-1 py-1 backdrop-blur-sm">
-      <NavItem href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={13} />} exact />
+      <NavItem href="/dashboard" label="Home" icon={<Home size={13} />} exact />
+      <NavItem href="/service-analytics" label="Analytics" icon={<BarChart3 size={13} />} exact />
+      <NavItem href="/service-analytics/reports" label="Analytical Reports" icon={<FileText size={13} />} />
       <NavItem href="/tickets" label="Tickets" icon={<Ticket size={13} />} />
+      <NavItem href="/assets" label="Assets" icon={<Package size={13} />} />
       <NavItem href="/tickets/new" label="New Ticket" icon={<PlusCircle size={13} />} exact />
       {canManageMasters && (
         <NavItem href="/settings/masters" label="Masters" icon={<Settings2 size={13} />} />

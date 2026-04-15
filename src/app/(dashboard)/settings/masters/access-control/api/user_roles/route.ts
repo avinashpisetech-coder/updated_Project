@@ -30,10 +30,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!["super_admin", "dept_admin"].includes(currentProfile.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const { hasPermission, RESOURCES } = await import("@/lib/permissions");
+    const { getUserPermissions } = await import("@/lib/permissions-server");
+    const permissions = await getUserPermissions(user.id);
+
+    if (!hasPermission(permissions, RESOURCES.ACCESS, "update")) {
+      return NextResponse.json({ error: "Forbidden: Matrix Access Refused" }, { status: 403 });
     }
 
+    // Preserve department scoping for designated admins
     if (currentProfile.role === "dept_admin") {
       const { data: targetProfile, error: targetError } = await supabase
         .from("profiles")
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
         .single();
 
       if (targetError || !targetProfile || targetProfile.department_id !== currentProfile.department_id) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json({ error: "Forbidden: Department Scope Violation" }, { status: 403 });
       }
     }
 
