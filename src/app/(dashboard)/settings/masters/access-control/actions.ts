@@ -25,20 +25,22 @@ export async function upsertModuleAccess(
     throw new Error("Forbidden: Unauthorized Governance Management");
   }
 
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("role, department_id")
+    .eq("id", user.id)
+    .single();
+
   // For dept_admin fallback: allow only same department
-  if (profile.role === "dept_admin") {
+  if (currentProfile?.role === "dept_admin") {
     const { data: target } = await supabase
       .from("profiles")
       .select("department_id")
       .eq("id", profileId)
       .single();
-    const { data: currentUserProfile } = await supabase
-      .from("profiles")
-      .select("department_id")
-      .eq("id", user.id)
-      .single();
-    if (!target || target.department_id !== currentUserProfile?.department_id) {
-      throw new Error("Forbidden");
+    
+    if (!target || target.department_id !== currentProfile.department_id) {
+      throw new Error("Forbidden: Departmental isolation breach");
     }
   }
 
