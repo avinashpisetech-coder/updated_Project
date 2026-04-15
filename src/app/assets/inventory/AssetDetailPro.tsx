@@ -23,7 +23,8 @@ import {
   X,
   Layers,
   ShieldCheck,
-  Activity
+  Activity,
+  Printer
 } from "lucide-react";
 import { 
     Tabs, 
