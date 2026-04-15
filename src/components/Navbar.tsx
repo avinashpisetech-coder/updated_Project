@@ -18,7 +18,8 @@ import {
   Zap,
   Home,
   Package,
-  Palette
+  Palette,
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,13 +72,13 @@ function NavItem({ href, label, icon: Icon }: NavItemProps) {
 import { Permission, hasPermission, RESOURCES } from "@/lib/permissions";
 
 export function Navbar({ 
-  canManageMasters, 
-  isSuperAdmin,
+  canAccessMasters, 
+  canAccessSecurity,
   profile,
   permissions = []
 }: { 
-  canManageMasters: boolean; 
-  isSuperAdmin: boolean;
+  canAccessMasters: boolean; 
+  canAccessSecurity: boolean;
   profile: ProfileRow | null;
   permissions?: Permission[];
 }) {
@@ -122,7 +123,7 @@ export function Navbar({
             {hasPermission(permissions, RESOURCES.THEMES) && <NavItem href="/settings?tab=themes" label="Themes" icon={Palette} />}
             {hasPermission(permissions, RESOURCES.TICKETS, "create") && <NavItem href="/tickets/new" label="Create Ticket" icon={PlusCircle} />}
             
-            {canManageMasters && (
+            {canAccessMasters && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
@@ -164,7 +165,7 @@ export function Navbar({
               </DropdownMenu>
             )}
 
-            {isSuperAdmin && (
+            {canAccessSecurity && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
