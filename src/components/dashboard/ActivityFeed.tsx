@@ -96,10 +96,9 @@ export async function ActivityFeed() {
 
   const recentActivityRows = (unifiedActivities ?? []).map((a: any) => ({
     ...a,
-    // Map unified actor fields back to the structure expected by getActivityMessage
     actor: { full_name: a.actor_full_name, avatar_url: a.actor_avatar_url },
-    // Ensure both activity type fields are handled correctly
-    activity_type: a.activity_type
+    activity_type: a.activity_type,
+    action_type: a.task_id ? a.activity_type : undefined
   })) as RecentActivity[];
 
   if (!recentActivityRows || recentActivityRows.length === 0) {

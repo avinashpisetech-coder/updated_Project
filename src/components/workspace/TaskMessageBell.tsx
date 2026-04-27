@@ -92,29 +92,42 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
               No new messages
             </p>
           ) : (
-            notifications.map((n) => (
-              <Link
-                key={n.id}
-                href={`/workspace/${n.tasks?.workspace_projects?.workspace_id}/project/${n.tasks?.project_id}/task/${n.task_id}`}
-                onClick={() => {
-                  startTransition(async () => {
-                    await markTaskNotificationsRead(n.task_id);
-                    setNotifications(prev => prev.filter(notif => notif.task_id !== n.task_id));
-                  });
-                }}
-                className="flex flex-col gap-0.5 border-b border-border/40 px-4 py-3 text-sm transition-colors hover:bg-muted/50 last:border-0"
-              >
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">
-                  {n.tasks?.title || "TASK_UPDATE"}
-                </span>
-                <span className="text-xs font-medium text-foreground">
-                  {n.message}
-                </span>
-                <span className="text-[8px] font-bold text-muted-foreground uppercase">
-                  {format(new Date(n.created_at), "MMM dd, HH:mm")}
-                </span>
-              </Link>
-            ))
+            notifications.map((n) => {
+              // Safely extract workspace and project IDs
+              const tasksData = n.tasks as any;
+              const wp = tasksData?.workspace_projects;
+              const workspaceId = Array.isArray(wp) ? wp[0]?.workspace_id : wp?.workspace_id;
+              const projectId = tasksData?.project_id;
+              
+              // Fallback to a safe route if IDs are missing to avoid 404
+              const targetHref = (workspaceId && projectId) 
+                ? `/workspace/${workspaceId}/project/${projectId}/task/${n.task_id}`
+                : `/workspace`;
+
+              return (
+                <Link
+                  key={n.id}
+                  href={targetHref}
+                  onClick={() => {
+                    startTransition(async () => {
+                      await markTaskNotificationsRead(n.task_id);
+                      setNotifications(prev => prev.filter(notif => notif.task_id !== n.task_id));
+                    });
+                  }}
+                  className="flex flex-col gap-0.5 border-b border-border/40 px-4 py-3 text-sm transition-colors hover:bg-muted/50 last:border-0"
+                >
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">
+                    {n.tasks?.title || "TASK_UPDATE"}
+                  </span>
+                  <span className="text-xs font-medium text-foreground">
+                    {n.message}
+                  </span>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">
+                    {format(new Date(n.created_at), "MMM dd, HH:mm")}
+                  </span>
+                </Link>
+              );
+            })
           )}
         </div>
       </DropdownMenuContent>

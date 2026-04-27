@@ -15,27 +15,22 @@ export function transformDashboardData(analytics: any, tickets: any[] = [], page
 
   return {
     myTickets: {
+      total: analytics.task_stats?.total || 0,
+      new: analytics.task_stats?.todo || 0,
+      assigned: analytics.task_stats?.in_progress || 0,
+      in_progress: analytics.task_stats?.in_progress || 0,
+      pending: 0,
+      pending_user: 0,
+      scheduled: 0,
+      escalated: 0,
+      resolved: analytics.task_stats?.completed || 0,
+      closed: 0,
+      other: 0
+    },
+    // ... existing ticket logic mapping if needed, but the user specifically asked for tasks ...
+    ticketStats: {
       total: total_tickets,
-      new: Number(statusDist.new) || 0,
-      assigned: Number(statusDist.assigned) || 0,
-      in_progress: Number(statusDist.in_progress) || 0,
-      pending: (Number(statusDist.pending_dept) || 0) + 
-               (Number(statusDist.pending_third_party) || 0) + 
-               (Number(statusDist.pending) || 0),
-      pending_user: Number(statusDist.pending_user) || 0,
-      scheduled: Number(statusDist.scheduled) || 0,
-      escalated: Number(statusDist.escalated) || 0,
-      resolved: Number(statusDist.resolved) || 0,
-      closed: Number(statusDist.closed) || 0,
-      other: total_tickets - (
-        (Number(statusDist.new) || 0) + 
-        (Number(statusDist.assigned) || 0) + 
-        (Number(statusDist.in_progress) || 0) + 
-        (Number(statusDist.pending) || 0) + 
-        (Number(statusDist.pending_user) || 0) + 
-        (Number(statusDist.resolved) || 0) + 
-        (Number(statusDist.closed) || 0)
-      )
+      status_distribution: statusDist,
     },
     myPerformance: {
       resolutionRate: {

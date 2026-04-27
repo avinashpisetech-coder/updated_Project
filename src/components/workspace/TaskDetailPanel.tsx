@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActivityPanel } from "./ActivityPanel";
 import { UserSelector } from "./UserSelector";
+import { TeamSelector } from "./TeamSelector";
 import { updateTaskStatus, updateTaskField, updateTaskFull, updateTaskAssignees } from "@/app/(dashboard)/workspace/actions";
 import { toast } from "sonner";
 import { 
   CheckCircle2, Users, Calendar, Flag,
   ChevronDown, ChevronRight, ChevronUp, FolderKanban,
   Minimize2, Maximize2, MoreHorizontal,
-  Plus, MessageSquare, Trash2, User
+  Plus, MessageSquare, Trash2, User, UserPlus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,7 +102,7 @@ export function TaskDetailPanel({ task }: { task: any }) {
             
             {/* Status */}
             <div className="flex items-center text-zinc-500 text-sm py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 cursor-pointer px-2 -ml-2 rounded">
-              <CheckCircle2 className="w-4 h-4 mr-2" /> Status
+              <CheckCircle2 className="w-4 h-4 mr-2" /> Current Status
             </div>
             <div className="flex items-center py-1.5">
               <div className="flex items-center relative group">
@@ -109,59 +110,69 @@ export function TaskDetailPanel({ task }: { task: any }) {
                   value={status}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   className={cn(
-                    "flex items-center px-3 py-1 text-[10px] font-black rounded-lg cursor-pointer uppercase transition-all shadow-sm border-0 focus:ring-1 focus:ring-primary/20 appearance-none pr-8",
-                    status === 'COMPLETE' ? 'bg-emerald-600/10 text-emerald-600 border border-emerald-500/20' : 
-                    status === 'IN_PROGRESS' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 
-                    'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700'
+                    "flex items-center px-4 py-1.5 text-[11px] font-bold rounded-xl cursor-pointer uppercase transition-all shadow-sm border focus:ring-2 focus:ring-primary/20 appearance-none pr-10",
+                    status === 'COMPLETE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                    status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                    'bg-zinc-50 text-zinc-700 border-zinc-200'
                   )}
                 >
-                  <option value="TODO">TODO_INGESTION</option>
-                  <option value="IN_PROGRESS">ACTIVE_PROCESSING</option>
-                  <option value="REVIEW">REVIEW_REQUIRED</option>
-                  <option value="COMPLETE">ARCHIVE_SUCCESS</option>
+                  <option value="TODO">To Do</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="REVIEW">Under Review</option>
+                  <option value="COMPLETE">Completed</option>
                 </select>
-                <ChevronDown className="w-3 h-3 absolute right-2 pointer-events-none opacity-40" />
+                <ChevronDown className="w-3.5 h-3.5 absolute right-3 pointer-events-none opacity-40" />
               </div>
             </div>
 
             {/* Assignees */}
-            <div className="flex items-center text-zinc-500 text-[10px] font-black uppercase tracking-[0.1em] py-1.5 px-2 -ml-2 rounded">
-              <Users className="w-3.5 h-3.5 mr-2 text-primary" /> Lead_Operatives
+            <div className="flex items-center text-zinc-500 text-[10px] font-bold uppercase tracking-wider py-1.5 px-2 -ml-2 rounded">
+              <Users className="w-3.5 h-3.5 mr-2 text-primary" /> Assignees
             </div>
-            <div className="flex items-center py-1.5">
+            <div className="flex items-center py-1.5 gap-3">
               <UserSelector 
                 value={assignees} 
                 onChange={(val) => setAssignees(val)} 
                 customTrigger={
-                  <div className="flex items-center gap-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50 p-2 rounded-xl border border-zinc-100 dark:border-zinc-800 transition-all min-w-[200px] bg-white dark:bg-zinc-900 shadow-sm">
+                  <div className="flex items-center gap-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50 p-2 rounded-xl border border-zinc-100 dark:border-zinc-800 transition-all min-w-[180px] bg-white dark:bg-zinc-900 shadow-sm">
                     {assignees.length > 0 ? (
                       <>
                         <div className="flex -space-x-2">
-                          {assignees.slice(0, 3).map((id, idx) => (
-                            <div key={idx} className="h-7 w-7 rounded-lg ring-2 ring-white dark:ring-zinc-950 bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-black text-primary uppercase">
-                              {id.slice(0, 2)}
+                          {task.task_assignees?.slice(0, 3).map((ta: any, idx: number) => (
+                            <div 
+                              key={idx} 
+                              title={ta.profiles?.full_name}
+                              className="h-7 w-7 rounded-full ring-2 ring-white dark:ring-zinc-950 bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary uppercase"
+                            >
+                              {ta.profiles?.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || "U"}
                             </div>
                           ))}
                           {assignees.length > 3 && (
-                            <div className="h-7 w-7 rounded-lg ring-2 ring-white dark:ring-zinc-950 bg-zinc-100 flex items-center justify-center text-[10px] font-black text-zinc-500">
+                            <div className="h-7 w-7 rounded-full ring-2 ring-white dark:ring-zinc-950 bg-zinc-100 flex items-center justify-center text-[9px] font-bold text-zinc-500">
                               +{assignees.length - 3}
                             </div>
                           )}
                         </div>
-                        <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
-                          {assignees.length} NODE(S)_ACTIVE
+                        <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">
+                          {task.task_assignees?.length || 0} Assigned
                         </span>
                       </>
                     ) : (
                       <div className="flex items-center gap-2 text-zinc-400">
-                        <div className="h-7 w-7 rounded-lg border border-dashed border-zinc-300 flex items-center justify-center">
-                          <User className="w-3 h-3 opacity-30" />
+                        <div className="h-7 w-7 rounded-full border border-dashed border-zinc-300 flex items-center justify-center">
+                          <UserPlus className="w-3 h-3 opacity-30" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest italic">Protocol_Standby</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest italic">Assign User</span>
                       </div>
                     )}
                   </div>
                 }
+              />
+              <TeamSelector 
+                onTeamSelected={(memberIds) => {
+                  const newSet = new Set([...assignees, ...memberIds]);
+                  setAssignees(Array.from(newSet));
+                }}
               />
             </div>
 
@@ -262,7 +273,7 @@ export function TaskDetailPanel({ task }: { task: any }) {
                 }}
                 className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-[10px] h-10 px-8 rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-95"
               >
-                Update_Protocol
+                Update Task
               </Button>
             </div>
           </div>

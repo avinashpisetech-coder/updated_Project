@@ -45,32 +45,32 @@ export default async function ProjectTasksPage({ params }: { params: { workspace
       </div>
 
       <Tabs defaultValue="list" className="w-full">
-        <TabsList className="mb-8 bg-transparent border-b border-zinc-200 dark:border-zinc-800 rounded-none p-0 h-auto w-full justify-start gap-10">
+        <TabsList className="mb-10 bg-transparent border-b border-zinc-200 dark:border-zinc-800 rounded-none p-0 h-auto w-full justify-start gap-10">
           <TabsTrigger 
             value="list" 
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-zinc-900 rounded-none px-0 pb-4 font-bold text-[10px] uppercase tracking-[0.2em] text-zinc-400 transition-all border-b-2 border-transparent"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-zinc-900 rounded-none px-0 pb-4 font-bold text-[11px] uppercase tracking-[0.1em] text-zinc-400 transition-all border-b-2 border-transparent"
           >
-            <ListTodo className="w-3.5 h-3.5 mr-2 opacity-50" /> List_Protocol
+            <ListTodo className="w-4 h-4 mr-2" /> Task List
           </TabsTrigger>
           <TabsTrigger 
             value="milestones" 
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-zinc-900 rounded-none px-0 pb-4 font-bold text-[10px] uppercase tracking-[0.2em] text-zinc-400 transition-all border-b-2 border-transparent"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-zinc-900 rounded-none px-0 pb-4 font-bold text-[11px] uppercase tracking-[0.1em] text-zinc-400 transition-all border-b-2 border-transparent"
           >
-            <Flag className="w-3.5 h-3.5 mr-2 opacity-50" /> Milestones_Node
+            <Flag className="w-4 h-4 mr-2" /> Milestones & Roadmap
           </TabsTrigger>
         </TabsList>
         
         <TabsContent value="list" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-500">
           <div className="bg-white dark:bg-zinc-950 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/20 overflow-hidden">
             <table className="w-full text-sm text-left">
-              <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+              <thead className="bg-zinc-50/80 dark:bg-zinc-900/80 border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                 <tr>
-                  <th className="px-8 py-5">Task_Identity</th>
-                  <th className="px-6 py-5">Status</th>
-                  <th className="px-6 py-5">Priority</th>
-                  <th className="px-6 py-5">Assigned_Agents</th>
-                  <th className="px-6 py-5">Due_Date</th>
-                  <th className="px-8 py-5 text-right">Protocol</th>
+                  <th className="px-8 py-4">Task Name</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Priority</th>
+                  <th className="px-6 py-4">Assignees</th>
+                  <th className="px-6 py-4">Due Date</th>
+                  <th className="px-8 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
@@ -114,8 +114,8 @@ export default async function ProjectTasksPage({ params }: { params: { workspace
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col">
-                        <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-tighter">
-                           {task.due_date ? format(new Date(task.due_date), "MMM d, yyyy") : "OPEN_TIMELINE"}
+                        <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+                           {task.due_date ? format(new Date(task.due_date), "MMM dd, yyyy") : "No due date"}
                         </span>
                       </div>
                     </td>
@@ -124,9 +124,9 @@ export default async function ProjectTasksPage({ params }: { params: { workspace
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border border-transparent hover:border-primary/20 hover:bg-primary/5 hover:text-primary transition-all group/btn"
+                          className="h-8 px-4 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-zinc-200 hover:border-primary hover:bg-primary/5 hover:text-primary transition-all group/btn"
                         >
-                          Execute_Protocol <ArrowRight className="ml-2 w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
+                          View Details <ArrowRight className="ml-2 w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
                         </Button>
                       </Link>
                     </td>
@@ -135,9 +135,9 @@ export default async function ProjectTasksPage({ params }: { params: { workspace
                 {tasks.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-8 py-20 text-center">
-                      <div className="flex flex-col items-center gap-3 opacity-20">
-                        <ListTodo size={40} />
-                        <p className="text-[10px] font-black uppercase tracking-[0.5em]">No_Tasks_Identified</p>
+                      <div className="flex flex-col items-center gap-4 opacity-40">
+                        <ListTodo size={48} className="text-zinc-200" />
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">No tasks found in this project</p>
                       </div>
                     </td>
                   </tr>

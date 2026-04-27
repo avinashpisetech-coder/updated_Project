@@ -2,17 +2,17 @@ import { Badge } from "@/components/ui/badge";
 
 const statusConfig: Record<string, { label: string; className: string; dot: string }> = {
   TODO: { 
-    label: "TODO_QUEUE", 
+    label: "To Do", 
     className: "bg-zinc-100 text-zinc-900 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800",
     dot: "bg-zinc-400"
   },
   IN_PROGRESS: { 
-    label: "PROCESSING", 
-    className: "bg-sky-50 text-sky-700 border-sky-100 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-900/30",
-    dot: "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]"
+    label: "In Progress", 
+    className: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/30",
+    dot: "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
   },
   COMPLETE: { 
-    label: "SYNC_COMPLETE", 
+    label: "Completed", 
     className: "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/30",
     dot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
   },

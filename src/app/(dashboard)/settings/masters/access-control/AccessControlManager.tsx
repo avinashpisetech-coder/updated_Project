@@ -278,7 +278,7 @@ export default function AccessControlManager({
                                 {[
                                     { label: "Core Service Support", icon: Server, filter: (m: any) => (m.slug === "help-desk" || m.slug === "tickets" || m.slug === "requisitions" || m.slug.includes("support")) && !m.slug.includes("asset") },
                                     { label: "Structural Masters Hub", icon: Database, filter: (m: any) => m.slug.includes("masters") },
-                                    { label: "Enterprise Governance & Intel", icon: LineChart, filter: (m: any) => m.slug === "dashboard" || m.slug === "intelligence_hub" || m.slug === "reports" || m.slug === "mail" || m.slug === "themes" || m.slug === "settings" }
+                                    { label: "Enterprise Governance & Intel", icon: LineChart, filter: (m: any) => m.slug === "dashboard" || m.slug === "intelligence_hub" || m.slug === "reports" || m.slug === "mail" || m.slug === "themes" || m.slug === "settings" || m.slug === "workspace" }
                                 ].map((group) => {
                                     const filteredModules = initialModules.filter(group.filter);
                                     if (filteredModules.length === 0) return null;

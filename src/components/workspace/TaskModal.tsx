@@ -95,8 +95,8 @@ export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { pr
             <Input 
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
-              placeholder="Task Name (Protocol Title)"
-              className="border border-zinc-200 dark:border-zinc-800 shadow-sm px-4 text-2xl font-black uppercase tracking-tight placeholder:text-zinc-300 dark:placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl bg-white dark:bg-zinc-900 h-14"
+              placeholder="Task Title"
+              className="border border-zinc-200 dark:border-zinc-800 shadow-sm px-4 text-2xl font-bold tracking-tight placeholder:text-zinc-300 dark:placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl bg-white dark:bg-zinc-900 h-14"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') e.preventDefault();
@@ -127,17 +127,21 @@ export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { pr
                 className="h-8 text-xs font-semibold bg-zinc-100/50 dark:bg-zinc-800 border-zinc-200"
                 onClick={() => setShowStatusSelect(!showStatusSelect)}
               >
-                {formData.status.replace("_", " ")}
+                {formData.status === "TODO" ? "To Do" : formData.status === "IN_PROGRESS" ? "In Progress" : "Completed"}
               </Button>
               {showStatusSelect && (
-                <div className="absolute top-full mt-1 left-0 z-50 w-32 bg-white dark:bg-zinc-900 border rounded-md shadow-lg p-1">
-                  {["TODO", "IN_PROGRESS", "COMPLETE"].map(s => (
+                <div className="absolute top-full mt-1 left-0 z-50 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-1 animate-in fade-in zoom-in-95 duration-200">
+                  {[
+                    { val: "TODO", label: "To Do" },
+                    { val: "IN_PROGRESS", label: "In Progress" },
+                    { val: "COMPLETE", label: "Completed" }
+                  ].map(s => (
                     <div 
-                      key={s} 
-                      className="px-2 py-1.5 text-xs rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
-                      onClick={() => { setFormData({...formData, status: s}); setShowStatusSelect(false); }}
+                      key={s.val} 
+                      className="px-3 py-2 text-xs font-medium rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
+                      onClick={() => { setFormData({...formData, status: s.val}); setShowStatusSelect(false); }}
                     >
-                      {s.replace("_", " ")}
+                      {s.label}
                     </div>
                   ))}
                 </div>

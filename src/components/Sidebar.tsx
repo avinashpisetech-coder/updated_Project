@@ -36,7 +36,9 @@ import {
   PackageSearch,
   History,
   CreditCard,
-  Kanban
+  Kanban,
+  ListTodo,
+  CheckSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigation } from "./providers/NavigationProvider";
@@ -219,6 +221,7 @@ export function Sidebar({
     if (pathname.startsWith("/assets")) setExpandedGroup("assets");
     else if (pathname.startsWith("/settings/masters")) setExpandedGroup("masters");
     else if (pathname.startsWith("/tickets")) setExpandedGroup("support");
+    else if (pathname.startsWith("/workspace")) setExpandedGroup("workspace");
     else if (pathname.startsWith("/settings") || pathname.includes("/settings/mail")) setExpandedGroup("settings");
   }, [pathname]);
 
@@ -306,14 +309,30 @@ export function Sidebar({
               isActive={pathname === "/service-analytics/reports"} 
             />
           )}
-          {hasPermission(permissions, RESOURCES.DASHBOARD) && (
-            <SidebarItem 
-              href="/workspace" 
-              label="Workspace" 
-              icon={Kanban} 
-              isOpen={isSidebarOpen} 
-              isActive={pathname.startsWith("/workspace")} 
-            />
+          {hasPermission(permissions, RESOURCES.WORKSPACE) && (
+            <>
+              <SidebarItem 
+                label="Workspace" 
+                icon={Kanban} 
+                isOpen={isSidebarOpen} 
+                isActive={pathname.startsWith("/workspace") && !pathname.includes("my-tasks")}
+                onClick={() => toggleGroup("workspace")}
+                hasSubItems
+                isSubItemExpanded={expandedGroup === "workspace"}
+                subItems={[
+                  { href: "/workspace", label: "All Workspaces", icon: Kanban },
+                  { href: "/workspace/my-tasks", label: "My Tasks", icon: CheckSquare },
+                  { href: "/workspace/tasks", label: "Add Task", icon: ListTodo },
+                ]}
+              />
+              {expandedGroup === "workspace" && isSidebarOpen && (
+                <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <SidebarSubItem href="/workspace" label="All Workspaces" isOpen={isSidebarOpen} icon={Kanban} />
+                  <SidebarSubItem href="/workspace/my-tasks" label="My Tasks" isOpen={isSidebarOpen} icon={CheckSquare} />
+                  <SidebarSubItem href="/workspace/tasks" label="Add Task" isOpen={isSidebarOpen} icon={ListTodo} />
+                </div>
+              )}
+            </>
           )}
 
           {(hasPermission(permissions, RESOURCES.TICKETS) || hasPermission(permissions, RESOURCES.SUPPORT_QUEUE)) && (

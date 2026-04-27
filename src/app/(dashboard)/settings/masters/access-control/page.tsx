@@ -104,7 +104,8 @@ export default async function AccessControlPage() {
   const ADIOS_WHITELIST = [
     "help-desk", "support-queue",
     "users_master", "help_desk_master", "access_control", "organizations",
-    "dashboard", "intelligence_hub", "reports", "mail", "themes"
+    "dashboard", "intelligence_hub", "reports", "mail", "themes",
+    "workspace"
   ];
 
   const systemNodes = [
@@ -118,6 +119,7 @@ export default async function AccessControlPage() {
     { id: "node_help_desk_master", name: "Help Desk Master", slug: "help_desk_master" },
     { id: "node_access", name: "Security & IAM", slug: "access_control" },
     { id: "node_organizations", name: "Organization Registry", slug: "organizations" },
+    { id: "node_workspace", name: "Workspace & Tasks", slug: "workspace" },
   ];
 
   const mergedModules = [

@@ -41,4 +41,5 @@ export const RESOURCES = {
   ORGS: "organizations",
   ACCESS: "access_control",
   SUPPORT_QUEUE: "support-queue",
+  WORKSPACE: "workspace",
 };

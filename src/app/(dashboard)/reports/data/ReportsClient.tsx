@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useMemo, useState } from "react";
 import { 
@@ -20,7 +21,9 @@ import {
   RefreshCw,
   Zap,
   Tag,
-  Flag
+  Flag,
+  Kanban,
+  ListTodo
 } from "lucide-react";
 import { 
   Table, 
@@ -51,6 +54,7 @@ export default function ReportsClient({
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'tickets' | 'workspace'>('tickets');
 
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
@@ -125,6 +129,25 @@ export default function ReportsClient({
   return (
     <div className="space-y-6 pb-20 font-sans antialiased animate-in fade-in slide-in-from-bottom-4 duration-700">
       
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 p-1 rounded-2xl bg-muted/30 border border-border/40 w-fit">
+        <button
+          onClick={() => setActiveTab('tickets')}
+          className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'tickets' ? 'bg-indigo-500 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <FileText className="w-3.5 h-3.5 inline-block mr-2" />
+          Ticket Reports
+        </button>
+        <button
+          onClick={() => setActiveTab('workspace')}
+          className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'workspace' ? 'bg-violet-500 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Kanban className="w-3.5 h-3.5 inline-block mr-2" />
+          Workspace Tasks
+        </button>
+      </div>
+
+      {activeTab === 'tickets' && (<>
       {/* Header Intelligence Node */}
       <div className="flex flex-col md:flex-row items-end justify-between gap-6 pb-6 border-b border-border/40 relative">
         <div className="space-y-1">
@@ -369,6 +392,66 @@ export default function ReportsClient({
            </div>
         </div>
       </div>
+      </>)}
+
+      {/* Workspace Tasks Panel */}
+      {activeTab === 'workspace' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col md:flex-row items-end justify-between gap-6 pb-6 border-b border-border/40">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
+                <span className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">Workspace Intelligence</span>
+              </div>
+              <h2 className="text-4xl font-black tracking-tighter text-foreground leading-none">
+                TASKS_<span className="text-violet-500/60">REGISTRY</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/workspace/tasks" className="h-10 px-6 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-[10px] font-bold uppercase tracking-widest transition-all shadow-xl shadow-violet-500/20 flex items-center gap-2">
+                <PlusCircle className="w-3.5 h-3.5" /> Add New Task
+              </Link>
+              <Link href="/workspace" className="h-10 px-6 rounded-xl bg-muted/30 border border-border/40 text-[10px] font-bold uppercase tracking-widest transition-all hover:bg-violet-500/10 hover:text-violet-500 flex items-center gap-2">
+                <Kanban className="w-3.5 h-3.5" /> Open Workspace
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Add Task', icon: ListTodo, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-500/10', href: '/workspace/tasks' },
+              { label: 'My Tasks', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10', href: '/workspace/my-tasks' },
+              { label: 'All Workspaces', icon: Kanban, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10', href: '/workspace' },
+              { label: 'Task History', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10', href: '/workspace/tasks' },
+            ].map((item, i) => (
+              <Link key={i} href={item.href} className="block group">
+                <div className="p-6 rounded-2xl bg-card border border-border/40 hover:border-violet-500/20 hover:shadow-lg transition-all group-hover:-translate-y-0.5">
+                  <div className={`inline-flex p-2.5 rounded-xl ${item.bg} mb-3 group-hover:scale-110 transition-transform`}>
+                    <item.icon className={`w-5 h-5 ${item.color}`} />
+                  </div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+                  <p className="text-xs font-bold text-foreground mt-1 flex items-center gap-1">Go <ArrowUpDown className="w-3 h-3 opacity-40 rotate-45" /></p>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between p-8 rounded-3xl border border-violet-500/20 bg-violet-500/5">
+            <div className="flex items-center gap-6">
+              <div className="h-14 w-14 rounded-2xl bg-violet-500/20 border border-violet-500/40 flex items-center justify-center">
+                <Kanban className="h-7 w-7 text-violet-500" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Workspace Module</p>
+                <p className="text-base font-black text-foreground tracking-tight">Task Management & Project Tracking</p>
+              </div>
+            </div>
+            <Link href="/workspace" className="h-10 px-6 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2">
+              Open Workspace
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

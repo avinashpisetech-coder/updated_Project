@@ -23,7 +23,9 @@ import {
   Layers,
   Archive,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  ListTodo,
+  Kanban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,7 +91,7 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
   const shortcuts = [
     { label: "Support Queue", href: "/tickets", icon: Ticket, color: "sky" },
     { label: "Live Analytics", href: "/service-analytics", icon: BarChart3, color: "violet", isVersion: true },
-    { label: "System Setup", href: "/settings/masters", icon: Settings2, color: "teal" },
+    { label: "Workspace", href: "/workspace", icon: Kanban, color: "teal" },
     { label: "User Directory", href: "/settings/masters/users", icon: Users, color: "rose" },
   ];
 
@@ -105,7 +107,13 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
           <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">Workplace Hub</h1>
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest pl-0.5">Role-based Analytical Feed · {data?.scope || 'Standard'}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Button asChild size="lg" variant="outline" className="rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50 px-5 h-11 transition-all duration-300 hover:scale-[1.02] active:scale-95 group">
+            <Link href="/workspace/tasks" className="flex items-center gap-2.5">
+              <ListTodo className="h-4 w-4 text-violet-500 transition-transform group-hover:scale-110 duration-300" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Add Task</span>
+            </Link>
+          </Button>
           <Button asChild size="lg" className="rounded-2xl bg-[#f97316] hover:bg-[#ea580c] text-white px-6 h-11 shadow-[0_10px_20px_rgba(249,115,22,0.15)] hover:shadow-[0_15px_30px_rgba(249,115,22,0.25)] border-none transition-all duration-500 hover:scale-[1.02] active:scale-95 group">
             <Link href="/tickets/new" className="flex items-center gap-2.5">
               <PlusCircle className="h-4 w-4 transition-transform group-hover:rotate-90 duration-500" />

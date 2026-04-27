@@ -53,14 +53,40 @@ export async function createWorkspace(data: { name: string; description?: string
 
 export async function getProjects(workspaceId: string) {
   const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  // Fetch projects where user is a member OR has an assigned task
   const { data, error } = await supabase
     .from("workspace_projects")
-    .select("*")
+    .select(`
+      *,
+      tasks:tasks(
+        id,
+        task_assignees(profile_id)
+      )
+    `)
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data;
+
+  // Filter in memory for simplicity or use a complex RPC if performance is an issue
+  // For now, if user is admin or creator of project, or has an assignee record in any task
+  const { data: adminCheck } = await supabase.rpc("is_admin_safe_v2", { p_profile_id: userData.user.id });
+  
+  if (adminCheck) return data;
+
+  return data.filter(project => {
+    if (project.created_by === userData.user.id) return true;
+    
+    // Check if user is an assignee in any task of this project
+    const isAssignee = project.tasks?.some((task: any) => 
+      task.task_assignees?.some((ta: any) => ta.profile_id === userData.user.id)
+    );
+    
+    return isAssignee;
+  });
 }
 
 export async function createProject(workspaceId: string, data: { name: string; description?: string }) {
@@ -144,13 +170,21 @@ export async function createTask(projectId: string, taskData: any) {
           .in("id", assignees);
         
         if (assigneeProfiles) {
-          // In-app notifications (Direct to Bell Icon)
-          const notificationInserts = assigneeProfiles.map(ap => ({
+          // In-app notifications (Bell Icon - General Alerts)
+          const generalNotifications = assigneeProfiles.map(ap => ({
             task_id: task.id,
             user_id: ap.id,
             message: `You have been assigned to a new task: ${task.title}`
           }));
-          await supabase.from("ticket_notifications").insert(notificationInserts);
+          await supabase.from("ticket_notifications").insert(generalNotifications);
+
+          // In-app notifications (Message Icon - Specific Task Activity)
+          const taskNotifications = assigneeProfiles.map(ap => ({
+            task_id: task.id,
+            profile_id: ap.id,
+            message: `New Task Assignment: ${task.title}`
+          }));
+          await supabase.from("task_notifications").insert(taskNotifications);
 
           // Emails
           for (const profile of assigneeProfiles) {
@@ -220,6 +254,8 @@ export async function updateTaskStatus(taskId: string, status: string) {
     }
   })();
 
+  revalidatePath("/workspace");
+  revalidatePath("/dashboard");
   return task;
 }
 
@@ -287,6 +323,8 @@ export async function updateTaskField(taskId: string, field: string, value: any)
     }
   })();
 
+  revalidatePath("/workspace");
+  revalidatePath("/dashboard");
   return task;
 }
 
@@ -417,13 +455,15 @@ export async function addTaskComment(taskId: string, content: string) {
         const stakeholderIds = new Set<string>();
         stakeholders?.forEach(s => stakeholderIds.add(s.profile_id));
         stakeholderIds.add(taskDetails.created_by);
+        
+        // Remove current user from notifications
         stakeholderIds.delete(userData.user.id);
 
         if (stakeholderIds.size > 0) {
           const notificationInserts = Array.from(stakeholderIds).map(pid => ({
             task_id: taskId,
             profile_id: pid,
-            message: `New message on task: ${taskDetails.title}`
+            message: `${userData.user.user_metadata?.full_name || 'Someone'} commented on: ${taskDetails.title}`
           }));
           await supabase.from("task_notifications").insert(notificationInserts);
         }
@@ -693,11 +733,35 @@ export async function getMyTasks() {
 
 export async function getAllTasks() {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  const { data: isAdmin } = await supabase.rpc("is_admin_safe_v2", { p_profile_id: userData.user.id });
+
+  let query = supabase
     .from("tasks")
-    .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), task_assignees(profile_id, profiles(full_name, email))")
+    .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), task_assignees!inner(profile_id), profiles:task_assignees(profile_id, profiles(full_name, email))")
     .order("created_at", { ascending: false });
 
+  if (!isAdmin) {
+    // If not admin, filter by creator or assignee
+    // Note: Filtering by creator and assignee simultaneously in a single select query 
+    // with !inner join can be tricky. We'll use a more flexible approach or an RPC.
+    // For now, let's use a simpler check:
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), task_assignees(profile_id, profiles(full_name, email))")
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return data.filter(task => 
+      task.created_by === userData.user.id || 
+      task.task_assignees?.some((ta: any) => ta.profile_id === userData.user.id)
+    );
+  }
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data;
 }
@@ -797,4 +861,21 @@ export async function updateTaskAssignees(taskId: string, assignees: string[]) {
   })();
 
   return { success: true };
+}
+
+export async function getTeams() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("teams").select("*").order("name");
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getTeamMembers(teamId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("team_members")
+    .select("profile_id")
+    .eq("team_id", teamId);
+  if (error) throw new Error(error.message);
+  return data.map(m => m.profile_id);
 }

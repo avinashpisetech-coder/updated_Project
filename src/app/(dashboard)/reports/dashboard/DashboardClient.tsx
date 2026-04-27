@@ -8,7 +8,13 @@ import {
   Activity,
   Layout,
   Home,
-  Package
+  Package,
+  Kanban,
+  ListTodo,
+  CheckSquare,
+  Clock,
+  AlertCircle,
+  Users
 } from "lucide-react";
 import { 
   Select, 
@@ -65,7 +71,7 @@ export default function DashboardClient({
   initialData: any;
   _myTasks?: any[];
 }) {
-  const [activeProtocol, setActiveProtocol] = useState<"alpha" | "beta" | "gamma" | "delta">("alpha");
+  const [activeProtocol, setActiveProtocol] = useState<"alpha" | "beta" | "gamma" | "delta" | "epsilon">("alpha");
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -646,12 +652,126 @@ export default function DashboardClient({
     </div>
   );
 
+
+  const renderEpsilon = () => (
+    <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1500">
+      {/* Workspace Intelligence Header */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        {[
+          { label: 'WORKSPACE_NODES', count: _myTasks?.length || 0, color: 'text-violet-400', glow: 'shadow-[0_0_50px_rgba(167,139,250,0.2)]', sub: 'TOTAL_TASKS' },
+          { label: 'IN_PROGRESS_SYNC', count: _myTasks?.filter((t: any) => t.status === 'in_progress').length || 0, color: 'text-cyan-400', glow: 'shadow-[0_0_50px_rgba(34,211,238,0.2)]', sub: 'ACTIVE_TASKS' },
+          { label: 'COMPLETED_NET', count: _myTasks?.filter((t: any) => t.status === 'completed').length || 0, color: 'text-emerald-400', glow: 'shadow-[0_0_50px_rgba(16,185,129,0.2)]', sub: 'DONE_TASKS' },
+          { label: 'PENDING_BUF', count: _myTasks?.filter((t: any) => t.status === 'todo' || !t.status).length || 0, color: 'text-amber-400', glow: 'shadow-[0_0_50px_rgba(245,158,11,0.2)]', sub: 'TODO_TASKS' },
+        ].map((node, i) => (
+          <Card key={i} className={`border-white/5 bg-[#0a0a0f]/95 backdrop-blur-3xl rounded-[3.5rem] overflow-hidden relative group p-12 flex flex-col items-center justify-center text-center shadow-2xl transition-all hover:scale-105 border-2 ${node.glow}`}>
+            <h3 className={`text-[5rem] font-black tracking-tighter mb-4 leading-none drop-shadow-2xl ${node.color}`}>
+              {node.count}
+            </h3>
+            <p className="text-[12px] font-black uppercase tracking-[0.4em] text-white/40">{node.label}</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 mt-2">{node.sub}</p>
+          </Card>
+        ))}
+      </div>
+
+      {/* Task Registry Table */}
+      <Card className="border-white/5 bg-[#0a0a0f]/95 backdrop-blur-3xl rounded-[4rem] overflow-hidden relative shadow-2xl border-2">
+        <TacticalCorner />
+        <CardHeader className="p-16 pb-8">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-[16px] font-black uppercase tracking-[0.8em] text-white/20">WORKSPACE_TASK_REGISTRY</CardTitle>
+            <Link href="/workspace/tasks" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-[11px] font-black text-violet-400 uppercase tracking-[0.3em] hover:bg-violet-500/20 transition-all">
+              <Kanban className="w-4 h-4" /> VIEW_ALL_TASKS
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-white/[0.03] border-y border-white/5">
+                <th className="p-8 text-[11px] font-black uppercase tracking-widest text-white/40 text-left pl-16">TASK_TITLE</th>
+                <th className="p-8 text-[11px] font-black uppercase tracking-widest text-white/40 text-center">STATUS</th>
+                <th className="p-8 text-[11px] font-black uppercase tracking-widest text-white/40 text-center">PRIORITY</th>
+                <th className="p-8 text-[11px] font-black uppercase tracking-widest text-white/40 text-center">PROJECT</th>
+                <th className="p-8 text-[11px] font-black uppercase tracking-widest text-white/40 text-center pr-16">DUE_DATE</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {(_myTasks || []).slice(0, 8).map((task: any, i: number) => {
+                const statusColors: Record<string, string> = {
+                  completed: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+                  in_progress: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+                  todo: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                };
+                const priorityColors: Record<string, string> = {
+                  high: 'text-rose-400',
+                  medium: 'text-amber-400',
+                  low: 'text-emerald-400',
+                };
+                return (
+                  <tr key={i} className="hover:bg-white/[0.03] transition-colors group/row">
+                    <td className="p-8 pl-16 text-[14px] font-black uppercase text-white/80 group-hover/row:text-violet-400 transition-colors tracking-tight max-w-[260px] truncate">{task.title}</td>
+                    <td className="p-8 text-center">
+                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full border ${statusColors[task.status] || 'text-white/30 bg-white/5 border-white/10'}`}>
+                        {task.status || 'todo'}
+                      </span>
+                    </td>
+                    <td className={`p-8 text-center text-[14px] font-black uppercase ${priorityColors[task.priority] || 'text-white/20'}`}>
+                      {task.priority || '—'}
+                    </td>
+                    <td className="p-8 text-center text-[12px] font-black text-violet-400/60 uppercase tracking-[0.2em]">
+                      {task.workspace_projects?.name || '—'}
+                    </td>
+                    <td className="p-8 pr-16 text-center text-[12px] font-black text-white/30 tabular-nums">
+                      {task.due_date ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+              {(!_myTasks || _myTasks.length === 0) && (
+                <tr>
+                  <td colSpan={5} className="p-20 text-center">
+                    <div className="flex flex-col items-center gap-6 opacity-20">
+                      <ListTodo className="w-16 h-16 text-white animate-pulse" />
+                      <p className="text-[12px] font-black uppercase tracking-[0.4em] text-white">NO_TASKS_IN_REGISTRY</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      {/* Workspace Access CTA */}
+      <div className="flex items-center justify-between p-16 rounded-[4rem] border-2 border-violet-500/20 bg-violet-500/5 shadow-inner">
+        <div className="flex items-center gap-10">
+          <div className="h-20 w-20 rounded-[2rem] bg-violet-500/20 border-2 border-violet-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(167,139,250,0.3)] animate-pulse">
+            <Kanban className="h-10 w-10 text-violet-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[14px] font-black uppercase text-white/30 tracking-[0.4em] leading-none mb-1">WORKSPACE_PROTOCOL</p>
+            <p className="text-3xl font-black text-white uppercase tracking-tighter drop-shadow-lg">TASK_INTELLIGENCE_HUB</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <Link href="/workspace/tasks" className="px-10 py-5 rounded-[2.5rem] bg-violet-500 hover:bg-violet-600 text-white text-[12px] font-black uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(167,139,250,0.3)] hover:shadow-[0_0_50px_rgba(167,139,250,0.5)]">
+            ADD_TASK
+          </Link>
+          <Link href="/workspace" className="px-10 py-5 rounded-[2.5rem] bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white/60 text-[12px] font-black uppercase tracking-[0.3em] transition-all hover:border-violet-500/40">
+            OPEN_WORKSPACE
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderProtocol = () => {
     switch(activeProtocol) {
       case 'alpha': return renderAlpha();
       case 'beta': return renderBeta();
       case 'gamma': return renderGamma();
       case 'delta': return renderDelta();
+      case 'epsilon': return renderEpsilon();
       default: return renderAlpha();
     }
   };
@@ -679,6 +799,7 @@ export default function DashboardClient({
               {activeProtocol === 'beta' && "Circular Registry"}
               {activeProtocol === 'gamma' && "Sharepoint Tactical"}
               {activeProtocol === 'delta' && "Centraverse Intelligence"}
+              {activeProtocol === 'epsilon' && "Workspace Task Intel"}
             </h1>
           </div>
           

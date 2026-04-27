@@ -158,10 +158,10 @@ export function MilestoneBoard({ projectId }: { projectId: string }) {
           );
         })}
         {milestones.length === 0 && (
-          <div className="text-center py-12 border border-dashed rounded-xl border-zinc-300">
-            <Flag className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
-            <h3 className="font-medium text-zinc-900">No Milestones</h3>
-            <p className="text-sm text-zinc-500 mt-1">Group tasks by milestones to track major progress points.</p>
+          <div className="text-center py-20 border border-dashed rounded-3xl border-zinc-200 bg-zinc-50/30">
+            <Flag className="w-12 h-12 text-zinc-200 mx-auto mb-4" />
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">No milestones defined</h3>
+            <p className="text-xs text-zinc-500 mt-2">Group tasks by milestones to track major progress points.</p>
           </div>
         )}
       </div>
