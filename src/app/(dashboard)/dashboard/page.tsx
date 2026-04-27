@@ -5,6 +5,7 @@ import { DashboardV2 } from "@/components/dashboard/v2/DashboardV2";
 import { HomeDashboard } from "@/components/dashboard/HomeDashboard";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { transformDashboardData } from "@/lib/dashboard-transformer";
+import { getMyTasks } from "../workspace/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,13 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     redirect("/login");
   }
 
-  const [awaitedSearchParams, { data: analytics, error }] = await Promise.all([
+  const [awaitedSearchParams, { data: analytics, error }, myTasks] = await Promise.all([
     searchParams,
     supabase.rpc("get_advanced_analytics", {
       p_profile_id: user.id,
       p_filters: {}
-    })
+    }),
+    getMyTasks().catch(() => [])
   ]);
 
   const version = awaitedSearchParams.version as string;
@@ -39,7 +41,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     if (version === "v2") return <DashboardV2 initialData={data} />;
     if (version === "v1") return <DashboardClient initialData={data} />;
     return (
-      <HomeDashboard initialData={data}>
+      <HomeDashboard initialData={data} myTasks={myTasks}>
         <ActivityFeed />
       </HomeDashboard>
     );
@@ -48,16 +50,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const data = analytics ? transformDashboardData(analytics) : {};
 
   if (version === "v2") {
-    return <DashboardV2 initialData={data} />;
+    return <DashboardV2 initialData={data} _myTasks={myTasks} />;
   }
   
   if (version === "v1") {
-    return <DashboardClient initialData={data} />;
+    return <DashboardClient initialData={data} _myTasks={myTasks} />;
   }
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-6 font-sans overflow-hidden">
-      <HomeDashboard initialData={data}>
+      <HomeDashboard initialData={data} myTasks={myTasks}>
         <ActivityFeed />
       </HomeDashboard>
     </div>

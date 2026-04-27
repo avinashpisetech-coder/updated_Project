@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
+import { format } from "date-fns";
 import Link from "next/link";
 import { 
   PlusCircle, 
@@ -12,13 +13,10 @@ import {
   Timer, 
   ArrowUpRight,
   LayoutDashboard,
-  Zap,
   BarChart3,
-  ShieldCheck,
   Settings2,
   Users,
   Bell,
-  Scale,
   UserCheck,
   Radio,
   Calendar,
@@ -63,7 +61,7 @@ const EliteKPI = ({ label, value, icon: Icon, color, subLabel, href }: any) => (
   </Link>
 );
 
-export function HomeDashboard({ initialData, children }: { initialData: any, children: React.ReactNode }) {
+export function HomeDashboard({ initialData, myTasks, children }: { initialData: any, myTasks?: any[], children: React.ReactNode }) {
   const emptyFilters = React.useMemo(() => ({}), []);
   const { data: dashboardData, loading } = useDashboardDataV2(emptyFilters, 1, 5);
   const data = dashboardData || initialData;
@@ -180,6 +178,51 @@ export function HomeDashboard({ initialData, children }: { initialData: any, chi
 
         {/* Tactical Monitor */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+          {/* My Active Tasks */}
+          <Card className="rounded-[30px] bg-white border-none shadow-[0_15px_30px_rgba(100,116,139,0.04)] overflow-hidden">
+             <CardHeader className="px-6 py-5 border-b border-slate-50">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-lg bg-orange-500 flex items-center justify-center">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <CardTitle className="text-[9px] font-black text-slate-900 uppercase tracking-[0.2em]">My Active Tasks</CardTitle>
+                  </div>
+                  <Link href="/workspace/tasks" className="text-[8px] font-black text-slate-400 hover:text-primary transition-colors">VIEW_ALL</Link>
+                </div>
+             </CardHeader>
+             <CardContent className="p-4 space-y-2 max-h-[300px] overflow-y-auto">
+                {myTasks?.slice(0, 5).map((task) => (
+                  <Link 
+                    key={task.id} 
+                    href={`/workspace/${task.workspace_projects?.workspace_id}/project/${task.project_id}/task/${task.id}`}
+                    className="flex flex-col p-3 rounded-[18px] bg-slate-50/50 hover:bg-white hover:shadow-lg border border-transparent hover:border-slate-100 transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter truncate max-w-[180px]">{task.title}</span>
+                      <div className={cn(
+                        "px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest",
+                        task.status === 'completed' ? "bg-emerald-100 text-emerald-600" :
+                        task.status === 'in_progress' ? "bg-blue-100 text-blue-600" : "bg-slate-200 text-slate-600"
+                      )}>
+                        {task.status}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">{task.workspace_projects?.name || "Project"}</span>
+                      <span className="h-1 w-1 rounded-full bg-slate-300" />
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">Due: {task.due_date ? format(new Date(task.due_date), "MMM dd, yyyy") : 'N/A'}</span>
+                    </div>
+                  </Link>
+                ))}
+                {(!myTasks || myTasks.length === 0) && (
+                  <div className="py-8 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-100">
+                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">No Active Assignments</p>
+                  </div>
+                )}
+             </CardContent>
+          </Card>
+
           {/* Shortcuts */}
           <Card className="rounded-[30px] bg-white border-none shadow-[0_15px_30px_rgba(100,116,139,0.04)] overflow-hidden">
              <CardHeader className="px-6 py-5 border-b border-slate-50">

@@ -85,7 +85,7 @@ export async function getTasks(projectId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tasks")
-    .select("*, task_assignees(profile_id)")
+    .select("*, task_assignees(profile_id, profiles(full_name, avatar_url))")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
@@ -136,14 +136,23 @@ export async function createTask(projectId: string, taskData: any) {
         await sendTaskNotification(userData.user.email, task.title, task.description || "No description provided");
       }
 
-      // Send assignment emails
+      // Send assignment emails and in-app notifications
       if (assignees && assignees.length > 0) {
         const { data: assigneeProfiles } = await supabase
           .from("profiles")
-          .select("email")
+          .select("id, email")
           .in("id", assignees);
         
         if (assigneeProfiles) {
+          // In-app notifications (Direct to Bell Icon)
+          const notificationInserts = assigneeProfiles.map(ap => ({
+            task_id: task.id,
+            user_id: ap.id,
+            message: `You have been assigned to a new task: ${task.title}`
+          }));
+          await supabase.from("ticket_notifications").insert(notificationInserts);
+
+          // Emails
           for (const profile of assigneeProfiles) {
             if (profile.email) {
               await sendTaskAssignmentNotification(profile.email, task.title);
@@ -185,25 +194,25 @@ export async function updateTaskStatus(taskId: string, status: string) {
   // Background Notifications
   (async () => {
     try {
-      // Get task details and assignees
-      const { data: taskWithAssignees } = await supabase
+      const { data: taskDetails } = await supabase
         .from("tasks")
-        .select("title, created_by, task_assignees(profiles(email))")
+        .select("title, created_by, task_assignees(profile_id)")
         .eq("id", taskId)
         .single();
       
-      if (taskWithAssignees) {
-        const recipients = new Set<string>();
-        // Add assignees
-        taskWithAssignees.task_assignees?.forEach((ta: any) => {
-          if (ta.profiles?.email) recipients.add(ta.profiles.email);
-        });
-        // Add creator
-        const { data: creatorProfile } = await supabase.from("profiles").select("email").eq("id", taskWithAssignees.created_by).single();
-        if (creatorProfile?.email) recipients.add(creatorProfile.email);
+      if (taskDetails) {
+        const recipientIds = new Set<string>();
+        taskDetails.task_assignees?.forEach((ta: any) => recipientIds.add(ta.profile_id));
+        recipientIds.add(taskDetails.created_by);
+        recipientIds.delete(userData.user.id);
 
-        for (const email of recipients) {
-          await sendTaskUpdateNotification(email, taskWithAssignees.title, status, `Status changed by ${userData.user.email}`);
+        if (recipientIds.size > 0) {
+          const notifications = Array.from(recipientIds).map(pid => ({
+            task_id: taskId,
+            user_id: pid,
+            message: `Task Status Updated: ${taskDetails.title} is now ${status}`
+          }));
+          await supabase.from("ticket_notifications").insert(notifications);
         }
       }
     } catch (err) {
@@ -267,10 +276,10 @@ export async function updateTaskField(taskId: string, field: string, value: any)
         if (recipientIds.size > 0) {
           const notifications = Array.from(recipientIds).map(pid => ({
             task_id: taskId,
-            profile_id: pid,
+            user_id: pid,
             message: `Task Updated: ${taskDetails.title} (${field} changed)`
           }));
-          await supabase.from("task_notifications").insert(notifications);
+          await supabase.from("ticket_notifications").insert(notifications);
         }
       }
     } catch (err) {
@@ -700,7 +709,7 @@ export async function getUnreadTaskNotifications() {
 
   const { data, error } = await supabase
     .from("task_notifications")
-    .select("*, tasks(title)")
+    .select("*, tasks(title, project_id, workspace_projects(workspace_id))")
     .eq("profile_id", userData.user.id)
     .eq("is_read", false)
     .order("created_at", { ascending: false });
@@ -773,9 +782,9 @@ export async function updateTaskAssignees(taskId: string, assignees: string[]) {
             for (const p of profiles) {
               if (p.email) await sendTaskAssignmentNotification(p.email, taskDetails.title);
               
-              await supabase.from("task_notifications").insert([{
+              await supabase.from("ticket_notifications").insert([{
                 task_id: taskId,
-                profile_id: p.id,
+                user_id: p.id,
                 message: `You have been assigned to: ${taskDetails.title}`
               }]);
             }

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { Layout, RefreshCcw, Home, Package } from "lucide-react";
 import Link from "next/link";
 
-export function DashboardV2({ initialData }: { initialData: any }) {
+export function DashboardV2({ initialData, _myTasks }: { initialData: any, _myTasks?: any[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();

@@ -11,14 +11,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { markNotificationsRead } from "@/app/(dashboard)/tickets/actions";
+import { createClient } from "@/lib/supabase/client";
 
 interface Notification {
   id: string;
   ticket_id: string | null;
+  task_id?: string | null;
   message: string;
   is_read: boolean;
   created_at: string;
   ticket?: { ticket_number: string } | null;
+  tasks?: { 
+    title: string; 
+    project_id: string; 
+    workspace_projects?: { workspace_id: string } | null 
+  } | null;
 }
 
 interface Props {
@@ -27,11 +34,33 @@ interface Props {
 
 export function NotificationBell({ initial }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>(initial);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMounted(true);
+    const supabase = createClient();
+    
+    // Subscribe to new notifications
+    const channel = supabase
+      .channel('ticket_notifications_realtime')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'ticket_notifications' 
+      }, (payload) => {
+        // Since we need joined data (ticket/task), we re-fetch unread notifications
+        // Actually, for simplicity we can just add the message if we don't need complex links
+        // but it's better to stay consistent.
+        // We can't easily call server action here without refreshing, but we can update local state.
+        setNotifications(prev => [payload.new as Notification, ...prev]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -77,14 +106,13 @@ export function NotificationBell({ initial }: Props) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-80 p-0 shadow-xl rounded-xl border-border/60"
+        className="w-80 p-0 shadow-xl rounded-xl border-border/60 z-[200]"
       >
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <span className="text-sm font-semibold text-foreground">Notifications</span>
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
-              disabled={isPending}
               className="text-xs text-primary hover:underline disabled:opacity-50"
             >
               Mark all read
@@ -101,7 +129,11 @@ export function NotificationBell({ initial }: Props) {
             notifications.map((n) => (
               <Link
                 key={n.id}
-                href={n.ticket_id ? `/tickets/${n.ticket_id}` : "#"}
+                href={
+                  n.task_id 
+                    ? `/workspace/${n.tasks?.workspace_projects?.workspace_id}/project/${n.tasks?.project_id}/task/${n.task_id}`
+                    : n.ticket_id ? `/tickets/${n.ticket_id}` : "#"
+                }
                 onClick={() => {
                   if (!n.is_read) {
                     startTransition(async () => {
@@ -123,11 +155,16 @@ export function NotificationBell({ initial }: Props) {
                     {n.ticket.ticket_number}
                   </span>
                 )}
+                {n.task_id && (
+                  <span className="text-[10px] font-black text-primary uppercase tracking-tighter">
+                    TASK: {n.tasks?.title || "WORKSPACE_EVENT"}
+                  </span>
+                )}
                 <span className={n.is_read ? "text-muted-foreground" : "text-foreground font-medium"}>
                   {n.message}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(n.created_at).toLocaleString()}
+                  {format(new Date(n.created_at), "MMM dd, yyyy HH:mm")}
                 </span>
               </Link>
             ))

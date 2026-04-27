@@ -8,11 +8,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 type RecentActivity = {
   id: string;
   ticket_id?: string | null;
+  task_id?: string | null;
   actor?: { full_name?: string, avatar_url?: string } | Array<{ full_name?: string, avatar_url?: string }>;
   created_at?: string;
   activity_type?: string;
   content?: string;
   new_value?: string;
+  // Task specific
+  action_type?: string;
+  task_title?: string;
+  workspace_id?: string;
+  project_id?: string;
 };
 
 const getActorFromActivity = (activity: RecentActivity) =>
@@ -62,6 +68,15 @@ const getActivityMessage = (activity: RecentActivity) => {
     case "internal_note":
       return <span>INTERNAL NOTE ON {ticketRef}</span>;
     default:
+      if (activity.task_id) {
+        const taskRef = <span className="text-orange-600 font-black hover:underline">{activity.task_title || "TASK"}</span>;
+        switch (activity.action_type) {
+          case 'created': return <span>CREATED TASK {taskRef}</span>;
+          case 'status_changed': return <span>UPDATED STATUS OF {taskRef}</span>;
+          case 'commented': return <span>COMMENTED ON {taskRef}</span>;
+          default: return <span>{activity.action_type?.toUpperCase().replace(/_/g, ' ') || "ACTIVITY"} ON {taskRef}</span>;
+        }
+      }
       return <span>{activity.content?.toUpperCase() || "EVENT"} ON {ticketRef}</span>;
   }
 };
@@ -72,19 +87,22 @@ export async function ActivityFeed() {
 
   if (!user) return null;
 
-  // Update RPC to return actor_avatar_url
-  const { data: recentActivities, error } = await supabase.rpc("get_system_activities_v3", { p_limit: 10 });
+  // Fetch Unified Activities (Tickets + Tasks) in a single optimized RPC call
+  const { data: unifiedActivities, error } = await supabase.rpc("get_unified_dashboard_activities", { 
+    p_limit: 15 
+  });
 
-  if (error) {
-    console.error("Supabase Error on Activity Feed:", error.message);
-  }
+  if (error) console.error("Activity Feed Error:", error.message);
 
-  const recentActivityRows = (recentActivities ?? []).map((a: any) => ({
+  const recentActivityRows = (unifiedActivities ?? []).map((a: any) => ({
     ...a,
-    actor: { full_name: a.actor_full_name, avatar_url: a.actor_avatar_url }
+    // Map unified actor fields back to the structure expected by getActivityMessage
+    actor: { full_name: a.actor_full_name, avatar_url: a.actor_avatar_url },
+    // Ensure both activity type fields are handled correctly
+    activity_type: a.activity_type
   })) as RecentActivity[];
 
-  if (!recentActivities || recentActivities.length === 0) {
+  if (!recentActivityRows || recentActivityRows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-24 text-center">
         <div className="h-16 w-16 rounded-3xl bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm mb-6">
@@ -105,7 +123,11 @@ export async function ActivityFeed() {
         return (
           <Link
             key={activity.id}
-            href={ticketId ? `/tickets/${ticketId}/audit` : "/tickets"}
+            href={
+              activity.task_id 
+                ? `/workspace/${activity.workspace_id}/project/${activity.project_id}/task/${activity.task_id}`
+                : ticketId ? `/tickets/${ticketId}/audit` : "/tickets"
+            }
             className="block group hover:bg-slate-50/50 transition-all duration-300"
           >
             <div className="px-6 py-4 flex items-center gap-4 relative overflow-hidden">

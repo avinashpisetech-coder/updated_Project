@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getUnreadTaskNotifications, markTaskNotificationsRead } from "@/app/(dashboard)/workspace/actions";
+import { createClient } from "@/lib/supabase/client";
+import { format } from "date-fns";
 
 interface TaskNotification {
   id: string;
@@ -17,22 +19,42 @@ interface TaskNotification {
   message: string;
   is_read: boolean;
   created_at: string;
-  tasks?: { title: string } | null;
+  tasks?: { 
+    title: string; 
+    project_id: string;
+    workspace_projects?: { workspace_id: string } | null;
+  } | null;
 }
 
 export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[] }) {
   const [notifications, setNotifications] = useState<TaskNotification[]>(initial);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMounted(true);
-    // Poll for new task messages every 30 seconds
-    const interval = setInterval(async () => {
-      const fresh = await getUnreadTaskNotifications();
-      setNotifications(fresh as any);
-    }, 30000);
-    return () => clearInterval(interval);
+    const supabase = createClient();
+    
+    // Initial fetch to be sure
+    getUnreadTaskNotifications().then(fresh => setNotifications(fresh as any));
+
+    // Subscribe to new notifications
+    const channel = supabase
+      .channel('task_notifications_realtime')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'task_notifications' 
+      }, async () => {
+        const fresh = await getUnreadTaskNotifications();
+        setNotifications(fresh as any);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const unreadCount = notifications.length;
@@ -58,7 +80,7 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-80 p-0 shadow-xl rounded-xl border-border/60"
+        className="w-80 p-0 shadow-xl rounded-xl border-border/60 z-[200]"
       >
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <span className="text-sm font-semibold text-foreground tracking-tight uppercase">Task Messages</span>
@@ -73,7 +95,7 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
             notifications.map((n) => (
               <Link
                 key={n.id}
-                href={`/workspace/project/project/task/${n.task_id}`} // Note: using dummy projectId for now if not available
+                href={`/workspace/${n.tasks?.workspace_projects?.workspace_id}/project/${n.tasks?.project_id}/task/${n.task_id}`}
                 onClick={() => {
                   startTransition(async () => {
                     await markTaskNotificationsRead(n.task_id);
@@ -89,7 +111,7 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
                   {n.message}
                 </span>
                 <span className="text-[8px] font-bold text-muted-foreground uppercase">
-                  {new Date(n.created_at).toLocaleString()}
+                  {format(new Date(n.created_at), "MMM dd, HH:mm")}
                 </span>
               </Link>
             ))

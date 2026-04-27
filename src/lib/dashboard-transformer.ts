@@ -1,4 +1,5 @@
 import { DashboardV2Data } from "@/components/dashboard/v2/types";
+import { format } from "date-fns";
 
 export function transformDashboardData(analytics: any, tickets: any[] = [], page: number = 1, pageSize: number = 10): DashboardV2Data {
   if (!analytics) return {} as DashboardV2Data;
@@ -51,12 +52,12 @@ export function transformDashboardData(analytics: any, tickets: any[] = [], page
       }
     },
     openTicketsOverview: analytics.volume_trend?.slice(-10).map((v: any) => ({
-      date: new Date(v.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
+      date: format(new Date(v.date), "dd/MM"),
       Open: v.count,
       New: Math.floor(v.count * 0.4)
     })) || [],
     monthwisePerformance: analytics.monthwise_performance?.map((m: any) => ({
-      date: new Date(m.month).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
+      date: format(new Date(m.month), "MMM yy"),
       Raised: m.raised,
       Resolved: m.resolved
     })) || [],

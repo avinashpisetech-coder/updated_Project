@@ -1226,7 +1226,7 @@ export async function getUnreadNotifications() {
 
   const { data, error } = await supabase
     .from("ticket_notifications")
-    .select("id, ticket_id, message, is_read, created_at, tickets!ticket_notifications_ticket_id_fkey(ticket_number)")
+    .select("*, tickets(ticket_number), tasks(title, project_id, workspace_projects(workspace_id))")
     .eq("user_id", user.id)
     .eq("is_read", false)
     .order("created_at", { ascending: false })

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { DashboardV2Data, TicketSummary } from "@/components/dashboard/v2/types";
+import { DashboardV2Data } from "@/components/dashboard/v2/types";
 import { transformDashboardData } from "@/lib/dashboard-transformer";
 
 export function useDashboardDataV2(
@@ -52,30 +52,15 @@ export function useDashboardDataV2(
 
       if (analyticsError) throw analyticsError;
 
-      // 2. Fetch Tickets for the table
-      let ticketQuery = supabase
-        .from("tickets")
-        .select(`
-          id,
-          subject,
-          status,
-          priority,
-          created_at,
-          requester:profiles!tickets_requester_id_fkey!inner(full_name, avatar_url, department_id),
-          assigned_tech:profiles!tickets_assigned_to_id_fkey(full_name, avatar_url)
-        `, { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range((page - 1) * pageSize, page * pageSize - 1);
-
-      if (filters.deptId) {
-        ticketQuery = ticketQuery.eq("requester.department_id", filters.deptId);
-      }
-      if (filters.moduleId) ticketQuery = ticketQuery.eq("module_id", filters.moduleId);
-      if (filters.categoryId) ticketQuery = ticketQuery.eq("category_id", filters.categoryId);
-      if (filters.userId) ticketQuery = ticketQuery.or(`requester_id.eq.${filters.userId},assigned_to_id.eq.${filters.userId}`);
-      if (filters.status) ticketQuery = ticketQuery.eq("status", filters.status);
-
-      const { data: tickets, count: totalCount, error: ticketError } = await ticketQuery;
+      // 2. Fetch Tickets for the table (Using optimized RPC)
+      const { data: tickets, error: ticketError } = await supabase.rpc("get_tickets_matrix_v2", {
+        p_query: "",
+        p_status: filters.status || "all",
+        p_sort_field: "created_at",
+        p_sort_dir: "desc",
+        p_offset: (page - 1) * pageSize,
+        p_limit: pageSize
+      });
 
       if (ticketError) throw ticketError;
 

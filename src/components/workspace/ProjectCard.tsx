@@ -18,7 +18,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const router = useRouter();
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
       try {
         await deleteProject(project.id);
@@ -53,7 +56,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
               <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
                 <Edit2 className="mr-2 h-4 w-4" /> Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDelete} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
+              <DropdownMenuItem onClick={(e) => handleDelete(e as any)} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50">
                 <Trash2 className="mr-2 h-4 w-4" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

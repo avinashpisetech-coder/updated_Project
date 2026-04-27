@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Clock, 
-  Layers, 
   Zap, 
   Fingerprint,
   Info,
@@ -61,9 +59,11 @@ interface AnalyticsData {
 }
 
 export default function DashboardClient({ 
-  initialData
+  initialData,
+  _myTasks
 }: { 
   initialData: any;
+  _myTasks?: any[];
 }) {
   const [activeProtocol, setActiveProtocol] = useState<"alpha" | "beta" | "gamma" | "delta">("alpha");
   const [mounted, setMounted] = useState(false);
