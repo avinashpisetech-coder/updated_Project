@@ -27,11 +27,7 @@ export function transformDashboardData(analytics: any, tickets: any[] = [], page
       closed: 0,
       other: 0
     },
-    // ... existing ticket logic mapping if needed, but the user specifically asked for tasks ...
-    ticketStats: {
-      total: total_tickets,
-      status_distribution: statusDist,
-    },
+
     myPerformance: {
       resolutionRate: {
         label: "Raised vs Resolved",
