@@ -97,12 +97,18 @@ export default async function InventoryPage() {
     .select("*")
     .order("name");
 
+  // Format purchases to ensure project is a single object (Supabase returns array for some relations)
+  const formattedPurchases = (purchases || []).map(p => ({
+    ...p,
+    project: Array.isArray(p.project) ? p.project[0] : (p.project as any)
+  }));
+
   return (
     <div className="w-full h-full min-h-screen">
         <InventoryClient 
             initialAssets={assets || []} 
             subTypes={subTypes || []} 
-            purchases={purchases || []}
+            purchases={formattedPurchases}
             profiles={profiles || []}
             stores={stores || []}
             companies={companies || []}

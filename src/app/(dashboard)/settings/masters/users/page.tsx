@@ -44,8 +44,8 @@ export default async function UserMasterPage() {
     redirect("/dashboard");
   }
 
-  const role = currentProfile.role || "end_user";
-  const departmentId = currentProfile.department_id || "";
+  const role = currentProfile?.role || "end_user";
+  const departmentId = currentProfile?.department_id || "";
 
   const profiles = profilesResponse.data || [];
   const departments = departmentsResponse.data || [];
