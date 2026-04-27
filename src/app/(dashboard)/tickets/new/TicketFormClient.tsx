@@ -382,7 +382,7 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
-                  <Info className="h-3 w-3 text-primary" /> Subject
+                  <Info className="h-3 w-3 text-primary" /> Subject (Mandatory)
                 </Label>
                 <Input 
                   required 
@@ -390,18 +390,18 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
                   placeholder="Summarize your issue"
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
-                  className="h-10 rounded-xl bg-muted/20 border-border/40 text-[13px] font-semibold placeholder:text-muted-foreground/30"
+                  className="h-10 rounded-xl bg-muted/20 border-border/60 border text-[13px] font-semibold placeholder:text-muted-foreground/30 focus-visible:ring-primary/20 shadow-sm"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
-                  <Monitor className="h-3 w-3 text-primary" /> Description
+                  <Monitor className="h-3 w-3 text-primary" /> Description (Mandatory)
                 </Label>
                 <Textarea 
                   required 
-                  className="min-h-[120px] rounded-xl bg-muted/20 border-border/40 text-[13px] font-medium placeholder:text-muted-foreground/30 focus-visible:ring-primary/20" 
-                  placeholder="Provide any relevant details or steps to reproduce..."
+                  className="min-h-[120px] rounded-xl bg-muted/20 border-border/60 border text-[13px] font-medium placeholder:text-muted-foreground/30 focus-visible:ring-primary/20 shadow-sm" 
+                  placeholder="Provide full operational details or steps to reproduce..."
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                 />

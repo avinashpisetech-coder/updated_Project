@@ -23,7 +23,9 @@ export default async function AssetsMasterPage() {
     { data: departments },
     { data: suppliers },
     { data: budgets },
-    { data: onboardingConfigs }
+    { data: onboardingConfigs },
+    { data: catalog },
+    { data: uoms }
   ] = await Promise.all([
     supabase.from("asset_sub_types").select("*").order("name"),
     supabase.from("asset_types").select("*").order("name"),
@@ -36,7 +38,13 @@ export default async function AssetsMasterPage() {
         *,
         sub_type:asset_sub_types(name)
       )
-    `).order("title")
+    `).order("title"),
+    supabase.from("asset_catalog").select(`
+      *,
+      sub_type:asset_sub_types(name, type_id),
+      uom:asset_uom(name, symbol)
+    `).order("name"),
+    supabase.from("asset_uom").select("*").order("name")
   ]);
 
   return (
@@ -61,6 +69,8 @@ export default async function AssetsMasterPage() {
         assetTypes={assetTypes || []}
         suppliers={suppliers || []}
         budgets={budgets || []}
+        catalog={catalog || []}
+        uoms={uoms || []}
       />
     </div>
   );

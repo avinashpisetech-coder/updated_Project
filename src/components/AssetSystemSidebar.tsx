@@ -73,7 +73,7 @@ export function AssetSystemSidebar() {
 
     const deploymentItems = [
         { href: "/assets", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/assets/inventory", label: "Registry", icon: Box },
+        { href: "/assets/inventory", label: "Asset Register", icon: Box },
         { href: "/assets/deployment", label: "Deployment", icon: ArrowRightLeft },
         { href: "/assets/handover", label: "Direct Handover", icon: ShieldCheck },
         { href: "/assets/return", label: "Recovery", icon: History },

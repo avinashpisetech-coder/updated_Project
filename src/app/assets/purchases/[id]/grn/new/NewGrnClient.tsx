@@ -148,7 +148,7 @@ export function NewGrnClient({ purchase, items, allSubTypes = [] }: Props) {
     
     setIsLoading(true);
     try {
-      const { data: grnId, error } = await supabase.rpc('receive_grn_and_hydrate_stock', {
+      const { data: grnId, error } = await supabase.rpc('save_grn_protocol', {
           p_purchase_id: purchase.id,
           p_grn_number: grnForm.grn_number,
           p_received_date: grnForm.received_date,
@@ -173,7 +173,7 @@ export function NewGrnClient({ purchase, items, allSubTypes = [] }: Props) {
 
       if (error) throw error;
 
-      toast.success(`LOGISTICS SYNC COMPLETE: ${grnForm.grn_number} DISPATCHED TO STOCKROOMS.`);
+      toast.success(`GRN PROTOCOL SAVED: ${grnForm.grn_number} is pending approval and hydration.`);
       router.push(`/assets/purchases/grn`);
       router.refresh();
     } catch (e: any) { 

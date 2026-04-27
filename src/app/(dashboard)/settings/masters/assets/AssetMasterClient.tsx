@@ -102,6 +102,24 @@ interface Budget {
   asset_type?: { name: string };
 }
 
+interface AssetCatalog {
+  id: string;
+  sub_type_id: string;
+  name: string;
+  uom_id: string | null;
+  brand: string | null;
+  model_number: string | null;
+  description: string | null;
+  sub_type?: { name: string; type_id: string };
+  uom?: { name: string; symbol: string };
+}
+
+interface UOM {
+  id: string;
+  name: string;
+  symbol: string;
+}
+
 interface Props {
   subTypes: AssetSubType[];
   onboardingConfigs: OnboardingConfig[];
@@ -109,6 +127,8 @@ interface Props {
   assetTypes: AssetType[];
   suppliers: Supplier[];
   budgets: Budget[];
+  catalog: AssetCatalog[];
+  uoms: UOM[];
 }
 
 export function AssetMasterClient({ 
@@ -117,7 +137,9 @@ export function AssetMasterClient({
   departments,
   assetTypes,
   suppliers,
-  budgets
+  budgets,
+  catalog,
+  uoms
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -137,6 +159,8 @@ export function AssetMasterClient({
   const [localSuppliers, setLocalSuppliers] = React.useState<Supplier[]>(suppliers);
   const [localBudgets, setLocalBudgets] = React.useState<Budget[]>(budgets);
   const [localSubTypes, setLocalSubTypes] = React.useState<AssetSubType[]>(subTypes);
+  const [localCatalog, setLocalCatalog] = React.useState<AssetCatalog[]>(catalog);
+  const [localUoms, setLocalUoms] = React.useState<UOM[]>(uoms);
 
   // States for new Masters Modal
   const [isSupplierModalOpen, setIsSupplierModalOpen] = React.useState(false);
@@ -147,12 +171,31 @@ export function AssetMasterClient({
   const [isTypeModalOpen, setIsTypeModalOpen] = React.useState(false);
   const [typeForm, setTypeForm] = React.useState({ name: "", description: "" });
 
+  const [isSubTypeModalOpen, setIsSubTypeModalOpen] = React.useState(false);
+  const [subTypeForm, setSubTypeForm] = React.useState({
+    name: "",
+    code_prefix: "",
+    low_stock_threshold: 5,
+    is_active: true
+  });
+
   const [isBudgetModalOpen, setIsBudgetModalOpen] = React.useState(false);
   const [budgetForm, setBudgetForm] = React.useState({
     fiscal_year: "2026-27",
     asset_type_id: "",
     allocated_amount: 0,
     notes: ""
+  });
+
+  const [isCatalogModalOpen, setIsCatalogModalOpen] = React.useState(false);
+  const [editingCatalog, setEditingCatalog] = React.useState<AssetCatalog | null>(null);
+  const [catalogForm, setCatalogForm] = React.useState({
+    name: "",
+    sub_type_id: "",
+    uom_id: "",
+    brand: "",
+    model_number: "",
+    description: ""
   });
 
   const openBundleModal = (bundle?: OnboardingConfig) => {
@@ -304,6 +347,20 @@ export function AssetMasterClient({
     }
   };
 
+  const handleCreateSubType = async () => {
+    if (!subTypeForm.name || !subTypeForm.code_prefix) return toast.error("Name and Prefix are required.");
+    try {
+        const { data, error } = await supabase.from("asset_sub_types").insert([subTypeForm]).select().single();
+        if (error) throw error;
+        setLocalSubTypes(prev => [data, ...prev]);
+        setIsSubTypeModalOpen(false);
+        setSubTypeForm({ name: "", code_prefix: "", low_stock_threshold: 5, is_active: true });
+        toast.success("Asset sub-type registered.");
+    } catch (error: any) {
+        toast.error(error.message);
+    }
+  };
+
   const handleCreateBudget = async () => {
     if (!budgetForm.asset_type_id) return toast.error("Asset Type binding required.");
     if (budgetForm.allocated_amount <= 0) return toast.error("Budget amount must be positive.");
@@ -327,6 +384,67 @@ export function AssetMasterClient({
     }
   };
 
+  const handleSaveCatalog = async () => {
+    if (!catalogForm.name || !catalogForm.sub_type_id) {
+        return toast.error("Name and Sub-type are required.");
+    }
+    
+    try {
+        const payload = { ...catalogForm };
+        if (!payload.uom_id) delete (payload as any).uom_id;
+        
+        if (editingCatalog) {
+            const { data, error } = await supabase
+                .from("asset_catalog")
+                .update(payload)
+                .eq("id", editingCatalog.id)
+                .select(`*, sub_type:asset_sub_types(name), uom:asset_uom(name, symbol)`)
+                .single();
+            if (error) throw error;
+            setLocalCatalog(prev => prev.map(c => c.id === editingCatalog.id ? data : c));
+            toast.success("Asset Register entry updated.");
+        } else {
+            const { data, error } = await supabase
+                .from("asset_catalog")
+                .insert([payload])
+                .select(`*, sub_type:asset_sub_types(name), uom:asset_uom(name, symbol)`)
+                .single();
+            if (error) throw error;
+            setLocalCatalog(prev => [data, ...prev]);
+            toast.success("Asset Register entry created.");
+        }
+        setIsCatalogModalOpen(false);
+        setEditingCatalog(null);
+    } catch (error: any) {
+        toast.error(error.message);
+    }
+  };
+
+  const openCatalogModal = (entry?: AssetCatalog) => {
+    if (entry) {
+        setEditingCatalog(entry);
+        setCatalogForm({
+            name: entry.name,
+            sub_type_id: entry.sub_type_id,
+            uom_id: entry.uom_id || "",
+            brand: entry.brand || "",
+            model_number: entry.model_number || "",
+            description: entry.description || ""
+        });
+    } else {
+        setEditingCatalog(null);
+        setCatalogForm({
+            name: "",
+            sub_type_id: subTypes[0]?.id || "",
+            uom_id: uoms[0]?.id || "",
+            brand: "",
+            model_number: "",
+            description: ""
+        });
+    }
+    setIsCatalogModalOpen(true);
+  };
+
   // --- Icon mapping for Asset Sub-types ---
   const getAssetIcon = (name: string) => {
     const n = name.toLowerCase();
@@ -344,19 +462,25 @@ export function AssetMasterClient({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between mb-8">
             <TabsList className="bg-muted/30 p-1 rounded-2xl border border-border/40">
-            <TabsTrigger value="bundles" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
-                <Workflow size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Asset Assign Configurations</span>
-            </TabsTrigger>
-            <TabsTrigger value="types" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
-                <Package size={14} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Inventory Master</span>
-            </TabsTrigger>
+                <TabsTrigger value="bundles" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
+                    <Workflow size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Asset Assign Configurations</span>
+                </TabsTrigger>
+                <TabsTrigger value="types" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
+                    <Package size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Inventory Master</span>
+                </TabsTrigger>
+                <TabsTrigger value="catalog" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
+                    <Database size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Asset Register</span>
+                </TabsTrigger>
             </TabsList>
 
             <Button 
                 onClick={() => {
                     if (activeTab === "bundles") openBundleModal();
+                    else if (activeTab === "types") setIsSubTypeModalOpen(true);
+                    else if (activeTab === "catalog") openCatalogModal();
                     else if (activeTab === "suppliers") setIsSupplierModalOpen(true);
                     else if (activeTab === "asset_types") setIsTypeModalOpen(true);
                     else if (activeTab === "budgets") setIsBudgetModalOpen(true);
@@ -365,7 +489,7 @@ export function AssetMasterClient({
                 className="rounded-xl h-12 px-6 text-[10px] font-bold uppercase tracking-widest bg-primary hover:bg-primary/90 flex items-center gap-2 shadow-lg shadow-primary/20"
             >
                 <Plus size={14} />
-                Add {activeTab === "bundles" ? "Config" : activeTab === "types" ? "Category" : activeTab === "suppliers" ? "Supplier" : activeTab === "budgets" ? "Budget" : "Type"}
+                Add {activeTab === "bundles" ? "Config" : activeTab === "types" ? "Category" : activeTab === "catalog" ? "Asset to Register" : activeTab === "suppliers" ? "Supplier" : activeTab === "budgets" ? "Budget" : "Type"}
             </Button>
         </div>
 
@@ -378,6 +502,10 @@ export function AssetMasterClient({
                 <TabsTrigger value="types" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
                     <Package size={14} />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Asset Sub-types</span>
+                </TabsTrigger>
+                <TabsTrigger value="catalog" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
+                    <Database size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Asset Register</span>
                 </TabsTrigger>
                 <TabsTrigger value="asset_types" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
                     <Layers size={14} />
@@ -463,6 +591,133 @@ export function AssetMasterClient({
                     ))
                 )}
             </div>
+        </TabsContent>
+        <TabsContent value="types">
+            <Card className="rounded-[2rem] border-border/40 bg-card/40 overflow-hidden shadow-xl shadow-primary/5">
+                <Table>
+                    <TableHeader className="bg-muted/20">
+                        <TableRow className="hover:bg-transparent border-border/20">
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14 pl-10">Sub-type Identity</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14">Code Prefix</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14">Threshold</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14 text-center">Status</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14 text-right pr-10">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {localSubTypes.map(st => {
+                            const Icon = getAssetIcon(st.name);
+                            return (
+                                <TableRow key={st.id} className="border-border/10 hover:bg-muted/10 transition-colors">
+                                    <TableCell className="py-4 pl-10">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10">
+                                                <Icon size={18} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-sm tracking-tight text-foreground">{st.name}</span>
+                                                <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest font-black">ID: {st.id.slice(0,8)}</span>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <code className="px-2 py-1 bg-primary/10 rounded-lg text-[10px] font-bold text-primary">{st.code_prefix}</code>
+                                    </TableCell>
+                                    <TableCell className="py-4 font-mono font-bold text-[11px]">{st.low_stock_threshold} units</TableCell>
+                                    <TableCell className="py-4 text-center">
+                                        <Badge variant={st.is_active ? "default" : "outline"} className={cn(
+                                            "text-[8px] font-black uppercase tracking-widest h-5 px-2",
+                                            st.is_active ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" : "opacity-40"
+                                        )}>
+                                            {st.is_active ? "LIVE_GRID" : "INACTIVE"}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-4 text-right pr-10">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                                                <Edit2 size={12} className="text-muted-foreground" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-500/10">
+                                                <Trash2 size={12} className="text-red-500/60" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </Card>
+        </TabsContent>
+        <TabsContent value="catalog">
+            <Card className="rounded-[2rem] border-border/40 bg-card/40 overflow-hidden shadow-xl shadow-primary/5">
+                <Table>
+                    <TableHeader className="bg-muted/20">
+                        <TableRow className="hover:bg-transparent border-border/20">
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14 pl-10">Asset Identity</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14">Category/Type</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14">Hardware Meta</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14">UOM</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest h-14 text-right pr-10">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {localCatalog.map(item => {
+                            const Icon = getAssetIcon(item.sub_type?.name || "");
+                            return (
+                                <TableRow key={item.id} className="border-border/10 hover:bg-muted/10 transition-colors">
+                                    <TableCell className="py-4 pl-10">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10">
+                                                <Icon size={18} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-sm tracking-tight text-foreground">{item.name}</span>
+                                                <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest font-black">Register_ID: {item.id.slice(0,8)}</span>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest bg-primary/5 border-primary/10 text-primary w-fit h-5">
+                                                {item.sub_type?.name || 'CORE_EQUIPMENT'}
+                                            </Badge>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-black uppercase text-foreground/80">{item.brand || 'GENERIC'}</span>
+                                            <span className="text-[9px] font-bold text-muted-foreground/60 uppercase">{item.model_number || 'ST_MODEL'}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 font-black text-[10px] text-muted-foreground/80 uppercase">
+                                        {item.uom?.symbol || item.uom?.name || 'NOS'}
+                                    </TableCell>
+                                    <TableCell className="py-4 text-right pr-10">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openCatalogModal(item)}>
+                                                <Edit2 size={12} className="text-muted-foreground" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-500/10" onClick={async () => {
+                                                if (confirm("De-register this asset from master?")) {
+                                                    const { error } = await supabase.from('asset_catalog').delete().eq('id', item.id);
+                                                    if (error) toast.error(error.message);
+                                                    else {
+                                                        setLocalCatalog(prev => prev.filter(c => c.id !== item.id));
+                                                        toast.success("Entry purged from register.");
+                                                    }
+                                                }
+                                            }}>
+                                                <Trash2 size={12} className="text-red-500/60" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </Card>
         </TabsContent>
         <TabsContent value="suppliers">
             <Card className="rounded-[2rem] border-border/40 bg-card/40 overflow-hidden shadow-xl shadow-primary/5">
@@ -872,6 +1127,165 @@ export function AssetMasterClient({
                     className="rounded-xl h-12 px-8 text-[10px] font-bold uppercase tracking-widest bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
                 >
                     Confirm Allocation
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Asset Sub-type Registration Dialog */}
+      <Dialog open={isSubTypeModalOpen} onOpenChange={setIsSubTypeModalOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 border-border/40 gap-6">
+            <DialogHeader>
+                <DialogTitle className="text-2xl font-bold tracking-tight">New Asset Sub-type</DialogTitle>
+                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Define hardware personas for automated ID generation and grouping.
+                </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Sub-type Name</Label>
+                    <Input 
+                        value={subTypeForm.name} 
+                        onChange={e => setSubTypeForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g. MacBook Pro M3" 
+                        className="h-12 rounded-xl bg-muted/20 border-border/40"
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Code Prefix</Label>
+                        <Input 
+                            value={subTypeForm.code_prefix} 
+                            onChange={e => setSubTypeForm(prev => ({ ...prev, code_prefix: e.target.value.toUpperCase() }))}
+                            placeholder="MBP" 
+                            className="h-12 rounded-xl bg-muted/20 border-border/40"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Min Stock Warning</Label>
+                        <Input 
+                            type="number"
+                            value={subTypeForm.low_stock_threshold} 
+                            onChange={e => setSubTypeForm(prev => ({ ...prev, low_stock_threshold: parseInt(e.target.value) }))}
+                            className="h-12 rounded-xl bg-muted/20 border-border/40"
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox 
+                        id="subtype-active" 
+                        checked={subTypeForm.is_active} 
+                        onCheckedChange={v => setSubTypeForm(prev => ({ ...prev, is_active: !!v }))}
+                    />
+                    <Label htmlFor="subtype-active" className="text-[10px] font-black uppercase tracking-widest opacity-60">Active in Procurement Mesh</Label>
+                </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+                <Button variant="ghost" onClick={() => setIsSubTypeModalOpen(false)} className="rounded-xl h-12 px-8 text-[10px] font-bold uppercase tracking-widest">Cancel</Button>
+                <Button onClick={handleCreateSubType} className="rounded-xl h-12 px-8 text-[10px] font-bold uppercase tracking-widest bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">Authorize Category</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Asset Register (Catalog) Management Dialog */}
+      <Dialog open={isCatalogModalOpen} onOpenChange={setIsCatalogModalOpen}>
+        <DialogContent className="max-w-2xl rounded-[2.5rem] p-8 border-border/40 gap-6">
+            <DialogHeader>
+                <DialogTitle className="text-2xl font-bold tracking-tight">
+                    {editingCatalog ? "Update Asset Identity" : "Register New Asset Model"}
+                </DialogTitle>
+                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Define technical specifications for standardized assets in the catalog.
+                </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Asset Commercial Name</Label>
+                        <Input 
+                            value={catalogForm.name} 
+                            onChange={e => setCatalogForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g. MacBook Pro 16 (M3 Pro)" 
+                            className="h-12 rounded-xl bg-muted/20 border-border/40"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Technical Sub-type</Label>
+                        <Select 
+                            value={catalogForm.sub_type_id} 
+                            onValueChange={v => setCatalogForm(prev => ({ ...prev, sub_type_id: v }))}
+                        >
+                            <SelectTrigger className="h-12 rounded-xl bg-muted/20 border-border/40">
+                                <SelectValue placeholder="Standard Category" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-border/40">
+                                {subTypes.map(st => (
+                                    <SelectItem key={st.id} value={st.id}>{st.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Brand / OEM</Label>
+                        <Input 
+                            value={catalogForm.brand} 
+                            onChange={e => setCatalogForm(prev => ({ ...prev, brand: e.target.value }))}
+                            placeholder="e.g. Apple, Dell, Lenovo" 
+                            className="h-12 rounded-xl bg-muted/20 border-border/40"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Model / Part Number</Label>
+                        <Input 
+                            value={catalogForm.model_number} 
+                            onChange={e => setCatalogForm(prev => ({ ...prev, model_number: e.target.value }))}
+                            placeholder="e.g. A2991" 
+                            className="h-12 rounded-xl bg-muted/20 border-border/40"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Unit of Measure (UOM)</Label>
+                        <Select 
+                            value={catalogForm.uom_id} 
+                            onValueChange={v => setCatalogForm(prev => ({ ...prev, uom_id: v }))}
+                        >
+                            <SelectTrigger className="h-12 rounded-xl bg-muted/20 border-border/40">
+                                <SelectValue placeholder="Select UOM" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-border/40">
+                                {localUoms.map(u => (
+                                    <SelectItem key={u.id} value={u.id}>{u.name} ({u.symbol})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Brief Description</Label>
+                        <Input 
+                            value={catalogForm.description} 
+                            onChange={e => setCatalogForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Specs or internal notes..." 
+                            className="h-12 rounded-xl bg-muted/20 border-border/40"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+                <Button variant="ghost" onClick={() => setIsCatalogModalOpen(false)} className="rounded-xl h-12 px-8 text-[10px] font-bold uppercase tracking-widest">
+                    Cancel
+                </Button>
+                <Button onClick={handleSaveCatalog} className="rounded-xl h-12 px-8 text-[10px] font-bold uppercase tracking-widest bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                    {editingCatalog ? "Update Record" : "Register Asset"}
                 </Button>
             </DialogFooter>
         </DialogContent>

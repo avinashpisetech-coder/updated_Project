@@ -348,3 +348,76 @@ export async function sendMeetingInviteNotification(toEmail: string, payload: Me
     ],
   });
 }
+
+// --- TASK NOTIFICATIONS ---
+
+export async function sendTaskNotification(toEmail: string, taskTitle: string, description: string) {
+  await sendMailWrapper({
+    to: toEmail,
+    subject: `New Task Created: ${taskTitle}`,
+    text: `Your task has been successfully created.\n\nTask: ${taskTitle}\n\nDescription:\n${description}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #0f172a;">New Task Created</h2>
+        <p>A new task has been created in the Workspace.</p>
+        <p><strong>Task:</strong> ${taskTitle}</p>
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8fafc; border-radius: 6px;">
+          <p style="margin: 0; font-weight: bold;">Description:</p>
+          <p style="white-space: pre-wrap; margin-top: 10px; color: #475569;">${description}</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendTaskUpdateNotification(toEmail: string, taskTitle: string, status: string, note: string) {
+  await sendMailWrapper({
+    to: toEmail,
+    subject: `Task Update: [${taskTitle}] Status changed to ${status}`,
+    text: `Task: ${taskTitle}\nNew Status: ${status}\n\nNote:\n${note}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #0f172a;">Task Status Updated</h2>
+        <p><strong>Task:</strong> ${taskTitle}</p>
+        <p><strong>New Status:</strong> ${status.replace('_', ' ')}</p>
+        <div style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border-radius: 6px;">
+          <p style="margin: 0; font-weight: bold;">Update Note:</p>
+          <p style="white-space: pre-wrap; margin-top: 10px; color: #475569;">${note}</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendTaskAssignmentNotification(toEmail: string, taskTitle: string) {
+  await sendMailWrapper({
+    to: toEmail,
+    subject: `Task Assigned: [${taskTitle}]`,
+    text: `Task "${taskTitle}" has been assigned to you.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #0f172a;">Task Assignment</h2>
+        <p>Task <strong>${taskTitle}</strong> has been assigned to you.</p>
+        <p>Please log in to the Workspace to review.</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendTaskReplyNotification(toEmail: string, taskTitle: string, content: string) {
+  await sendMailWrapper({
+    to: toEmail,
+    subject: `New Comment on Task: [${taskTitle}]`,
+    text: `A new comment has been added to Task: ${taskTitle}\n\nMessage:\n${content}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #0f172a;">New Task Comment</h2>
+        <p>A new comment has been posted to task <strong>${taskTitle}</strong>.</p>
+        <div style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border-radius: 6px;">
+          <p style="margin: 0; font-weight: bold;">Message:</p>
+          <p style="white-space: pre-wrap; margin-top: 10px; color: #475569;">${content}</p>
+        </div>
+      </div>
+    `,
+  });
+}

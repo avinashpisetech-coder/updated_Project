@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 
 interface NavigationContextType {
   isSidebarOpen: boolean;
@@ -15,9 +16,10 @@ const NavigationContext = createContext<NavigationContextType | undefined>(undef
 // ── Sidebar width tokens ──────────────────────────────────────────────────────
 // These must exactly match the sidebar widths declared in Sidebar.tsx and
 // AssetSystemSidebar.tsx so that content areas are always true-full-screen.
-const SIDEBAR_EXPANDED_PX  = 256; // w-64 (ticketing Sidebar) / matches 288px asset sidebar via CSS var
+const SIDEBAR_EXPANDED_PX  = 256; // w-64 (ticketing Sidebar)
 const ASSET_SIDEBAR_EXPANDED_PX = 288; // w-72 (AssetSystemSidebar)
-const SIDEBAR_COLLAPSED_PX = 64;  // w-16 (both sidebars in icon mode)
+const SIDEBAR_COLLAPSED_PX_TICKET = 80; // w-20 (ticketing Sidebar)
+const SIDEBAR_COLLAPSED_PX_ASSET  = 64; // w-16 (AssetSystemSidebar)
 
 /** Applies sidebar width CSS tokens to <html> so every layout can stay full-screen */
 function applySidebarTokens(open: boolean, mode: "horizontal" | "vertical", isAssetPage: boolean) {
@@ -29,7 +31,8 @@ function applySidebarTokens(open: boolean, mode: "horizontal" | "vertical", isAs
     root.style.setProperty("--sidebar-width-num", "0");
   } else {
     const expandedPx = isAssetPage ? ASSET_SIDEBAR_EXPANDED_PX : SIDEBAR_EXPANDED_PX;
-    const px = open ? expandedPx : SIDEBAR_COLLAPSED_PX;
+    const collapsedPx = isAssetPage ? SIDEBAR_COLLAPSED_PX_ASSET : SIDEBAR_COLLAPSED_PX_TICKET;
+    const px = open ? expandedPx : collapsedPx;
     root.style.setProperty("--sidebar-width", `${px}px`);
     root.style.setProperty("--sidebar-width-num", String(px));
   }
@@ -38,17 +41,13 @@ function applySidebarTokens(open: boolean, mode: "horizontal" | "vertical", isAs
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [navMode, setNavMode] = useState<"horizontal" | "vertical">("vertical");
+  const pathname = usePathname();
+  const isAssetPage = pathname.startsWith("/assets");
 
-  // Detect which system we're in (asset vs ticketing) to pick correct sidebar width
-  const getIsAssetPage = useCallback(() => {
-    if (typeof window === "undefined") return false;
-    return window.location.pathname.startsWith("/assets");
-  }, []);
-
-  // Apply tokens on every state change
+  // Apply tokens on every state change or navigation
   useEffect(() => {
-    applySidebarTokens(isSidebarOpen, navMode, getIsAssetPage());
-  }, [isSidebarOpen, navMode, getIsAssetPage]);
+    applySidebarTokens(isSidebarOpen, navMode, isAssetPage);
+  }, [isSidebarOpen, navMode, isAssetPage]);
 
   // Load state from localStorage on mount and apply initial tokens
   useEffect(() => {
@@ -62,8 +61,8 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     if (savedMode) setNavMode(mode);
 
     // Apply immediately so there is no layout flash on first paint
-    applySidebarTokens(open, mode, getIsAssetPage());
-  }, [getIsAssetPage]);
+    applySidebarTokens(open, mode, isAssetPage);
+  }, [isAssetPage]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prev) => {

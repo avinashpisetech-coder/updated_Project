@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { BackButton } from "./BackButton";
 import { DashboardVersionSwitcher } from "./dashboard/DashboardVersionSwitcher";
 import { NotificationBell } from "./NotificationBell";
+import { TaskMessageBell } from "./workspace/TaskMessageBell";
 
 interface NavItemProps {
   href: string;
@@ -211,6 +212,7 @@ export function Navbar({
         </div>
 
         <div className="flex items-center gap-4">
+          <TaskMessageBell />
           <NotificationBell initial={notifications} />
           <DashboardVersionSwitcher />
           

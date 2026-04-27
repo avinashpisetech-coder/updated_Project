@@ -57,6 +57,7 @@ import {
     getDeploymentAuditLogs,
     seedAuditLogsAction
 } from "./actions";
+import { useNavigation } from "@/components/providers/NavigationProvider";
 
 interface DeploymentHubProps {
     companies: any[];
@@ -94,6 +95,7 @@ export function DeploymentHubClient({
     currentUserId
 }: DeploymentHubProps) {
     const router = useRouter();
+    const { isSidebarOpen } = useNavigation();
     const [view, setView] = useState<'list' | 'form' | 'amend_compare'>('list');
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -371,105 +373,90 @@ export function DeploymentHubClient({
 
     if (view === 'form') {
         return (
-            <div className="flex flex-col min-h-screen w-full bg-background animate-in fade-in duration-500">
-                <header className="h-[80px] shrink-0 bg-[var(--header-bg)] border-b border-[var(--header-border)] flex items-center justify-between px-8 shadow-[inset_0_-1px_3px_rgba(0,0,0,0.05)] backdrop-blur-md">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => setView('list')} className="h-10 w-10 rounded-2xl bg-card border border-border/40 hover:bg-muted/10 transition-all text-muted-foreground">
+            <div className="flex flex-col min-h-screen w-full bg-background animate-in fade-in duration-500 pl-[6px]">
+                <header className="h-[72px] shrink-0 bg-[var(--header-bg)] border-b border-[var(--header-border)] flex items-center justify-between px-10 shadow-[inset_0_-1px_3px_rgba(0,0,0,0.05)] backdrop-blur-md">
+                    <div className="flex items-center gap-6">
+                        <Button variant="ghost" size="icon" onClick={() => setView('list')} className="h-10 w-10 rounded-2xl bg-card border border-border/40 hover:bg-muted/10 transition-all text-muted-foreground shadow-sm">
                              <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-[1.1rem] font-black text-foreground uppercase tracking-tight">
-                                    {deploymentNumber || 'NEW_PROTOCOL_DRAFT'}
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-3 mb-0.5">
+                                <div className="h-4 w-1 bg-primary rounded-full shadow-[0_0_8px_var(--primary)]" />
+                                <h1 className="text-[17px] font-black text-foreground uppercase tracking-tight">
+                                    {deploymentNumber || 'CREATE_PROTOCOL_DRAFT'}
                                 </h1>
-                                <Badge className={cn("text-[9px] font-black uppercase tracking-widest h-5 px-2 rounded-md", getStatusConfig(status).class)}>
+                                <Badge className={cn("text-[9px] font-black uppercase tracking-widest h-5 px-3 rounded-md border-none", getStatusConfig(status).class)}>
                                     {getStatusConfig(status).label}
                                 </Badge>
-                                {version > 1 && (
-                                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest h-5 px-2 rounded-md border-primary/20 bg-primary/5 text-primary">
-                                        v{version}
-                                    </Badge>
-                                )}
                             </div>
+                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-40 ml-4">Deployment Execution Layer v4.0</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {version > 1 && (
-                            <Button variant="outline" size="sm" onClick={() => setView('amend_compare')} className="h-10 px-5 rounded-2xl text-[10px] font-black uppercase bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 transition-all">
-                                <History className="h-4 w-4 mr-2" /> Amend Details
-                            </Button>
-                        )}
-                        {currentId && (
-                            <Button variant="outline" size="sm" onClick={handleOpenAudit} className="h-10 px-5 rounded-2xl text-[10px] font-black uppercase bg-muted/10 hover:bg-muted/20 text-muted-foreground border-border/40 transition-all">
-                                <Activity className="h-4 w-4 mr-2" /> Protocol Audit
-                            </Button>
+                    <div className="flex items-center gap-4">
+                        {/* SURFACED ACTIONS */}
+                        {status === 'draft' && (
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    variant="outline" 
+                                    className="h-11 px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-all"
+                                    onClick={() => handleSave('draft')}
+                                    disabled={isSaving}
+                                >
+                                    <Save className="h-4 w-4 mr-2" /> Save_Draft
+                                </Button>
+                                <Button 
+                                    className="h-11 px-8 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/20 transition-all active:scale-95"
+                                    onClick={() => handleSave('submitted')}
+                                    disabled={isSaving}
+                                >
+                                    <CheckCircle className="h-4 w-4 mr-2" /> Execute_Protocol
+                                </Button>
+                            </div>
                         )}
 
-                        {/* Action Dropdown for Status Transitions - HIGHLIGHTED */}
-                        {!['deleted', 'cancelled'].includes(status) && (
-                            <Select 
-                                value={status}
-                                onValueChange={(v) => {
-                                    if (v === status) return; // Ignore if same
-                                    if (v === 'save') handleSave('draft');
-                                    else if (v === 'submit') handleSave('submitted');
-                                    else if (v === 'approve') handleApprove();
-                                    else if (v === 'amend') handleAmend();
-                                    else if (v === 'request_delete') handleDeleteRequest();
-                                    else handleStatusChange(v);
-                                }}
+                        {status === 'submitted' && (role === 'super_admin' || role === 'it_admin') && (
+                            <Button 
+                                className="h-11 px-8 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-primary hover:bg-primary/95 text-primary-foreground shadow-2xl transition-all"
+                                onClick={handleApprove}
+                                disabled={isApproving}
                             >
-                                <SelectTrigger className="h-10 w-64 rounded-2xl bg-primary text-primary-foreground border-none text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:brightness-110 transition-all duration-300">
-                                    <div className="flex items-center gap-2 w-full justify-center">
-                                        <div className="h-2 w-2 rounded-full bg-primary-foreground animate-pulse shadow-[0_0_8px_var(--primary-foreground)]" />
-                                        <SelectValue placeholder="CHANGE_PROTOCOL_STATE" />
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent className="bg-card border-border/40 shadow-2xl rounded-2xl">
-                                    <div className="px-3 py-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest border-b border-border/40 mb-1 opacity-50">
-                                        Current: {status}
-                                    </div>
-                                    <SelectItem value={status} disabled className="opacity-50 grayscale">
-                                        {status.toUpperCase()} (ACTIVE)
-                                    </SelectItem>
-                                    
-                                    {status === 'draft' && (
-                                        <>
-                                            <SelectItem value="save" className="text-primary font-bold">💾 Save Changes</SelectItem>
-                                            <SelectItem value="submit" className="text-emerald-500 font-bold">🚀 Submit Protocol</SelectItem>
-                                        </>
-                                    )}
-                                    {status === 'submitted' && (role === 'super_admin' || role === 'it_admin') && (
-                                        <SelectItem value="approve" className="text-emerald-500 font-bold">✅ Approve Transaction</SelectItem>
-                                    )}
-                                    {status === 'approved' && (
-                                        <>
-                                            <SelectItem value="amend" className="text-amber-500 font-bold">🔧 Amend Document</SelectItem>
-                                            <SelectItem value="request_delete" className="text-red-500 font-bold">🗑️ Request Deletion</SelectItem>
-                                        </>
-                                    )}
-                                    {status === 'requested_for_delete' && (role === 'super_admin' || role === 'it_admin') && (
-                                        <SelectItem value="deleted" className="text-red-500 font-bold">🚨 Confirm Deletion</SelectItem>
-                                    )}
-                                    {status !== 'cancelled' && <SelectItem value="cancelled" className="text-muted-foreground font-bold">❌ Cancel Transaction</SelectItem>}
-                                </SelectContent>
-                            </Select>
+                                <ShieldCheck className="h-4 w-4 mr-2" /> Authorize_Transaction
+                            </Button>
                         )}
 
-                        <div className="flex items-center gap-2 ml-2">
-                           <Button variant="outline" size="sm" onClick={() => setView('list')} className="h-10 px-5 rounded-2xl text-[11px] font-black uppercase text-muted-foreground hover:bg-muted/10 border-border/40 transition-all">
-                               Close
-                           </Button>
-                           <Button variant="outline" size="sm" onClick={() => setView('list')} className="h-10 px-5 rounded-2xl text-[11px] font-black uppercase text-muted-foreground hover:bg-muted/10 border-border/40 transition-all">
-                               Back
-                           </Button>
-                           {currentId && (
-                               <Button variant="outline" size="sm" onClick={() => window.print()} className="h-10 px-5 rounded-2xl text-[11px] font-black uppercase text-muted-foreground hover:bg-muted/10 border-border/40 transition-all">
-                                   Print
-                               </Button>
-                           )}
-                        </div>
+                        <div className="h-8 w-[1px] bg-border/40 mx-2" />
+
+                        {/* SECONDARY ACTIONS DROPDOWN */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-10 w-10 p-0 rounded-xl hover:bg-muted/10 text-muted-foreground">
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl border-border/40 bg-white shadow-2xl">
+                                <DropdownMenuItem onClick={() => setView('amend_compare')} className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase">
+                                    <History size={14} /> Amend History
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleOpenAudit} className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase">
+                                    <Activity size={14} /> Protocol Audit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => window.print()} className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase">
+                                    <Printer size={14} /> Print Protocol
+                                </DropdownMenuItem>
+                                {status === 'approved' && (
+                                    <DropdownMenuItem onClick={handleAmend} className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase text-amber-500">
+                                        <Edit size={14} /> Amend Document
+                                    </DropdownMenuItem>
+                                )}
+                                {(status === 'approved' || status === 'submitted') && (
+                                    <DropdownMenuItem onClick={handleDeleteRequest} className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase text-red-500">
+                                        <Trash2 size={14} /> Request Deletion
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </header>
 
@@ -607,18 +594,17 @@ export function DeploymentHubClient({
                                 )}
                             </div>
 
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto no-scrollbar">
                                 <Table>
-                                    <TableHeader className="bg-muted/10">
-                                        <TableRow className="h-10 hover:bg-transparent">
-                                            <TableHead className="w-[40px] text-center text-[10px] font-black uppercase text-muted-foreground">#</TableHead>
-                                            <TableHead className="w-[250px] text-[10px] font-black uppercase text-muted-foreground">Asset Identification</TableHead>
-                                            <TableHead className="w-[120px] text-[10px] font-black uppercase text-muted-foreground">Type</TableHead>
-                                            <TableHead className="w-[120px] text-[10px] font-black uppercase text-muted-foreground">Sub-Type</TableHead>
-                                            <TableHead className="w-[100px] text-[10px] font-black uppercase text-muted-foreground text-center">Live Stock</TableHead>
-                                            <TableHead className="w-[100px] text-[10px] font-black uppercase text-muted-foreground text-center">Qty / UOM</TableHead>
-                                            <TableHead className="w-[150px] text-[10px] font-black uppercase text-muted-foreground">Remark / Specs</TableHead>
-                                            <TableHead className="w-[80px] text-[10px] font-black uppercase text-muted-foreground text-center">Image</TableHead>
+                                    <TableHeader className="bg-muted/5 sticky top-0 z-20 backdrop-blur-md">
+                                        <TableRow className="h-10 hover:bg-transparent border-none">
+                                            <TableHead className="w-[40px] text-center text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest pl-6">#</TableHead>
+                                            <TableHead className="w-[280px] text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest">Asset Identification</TableHead>
+                                            <TableHead className="w-[120px] text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest">Type</TableHead>
+                                            <TableHead className="w-[140px] text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest">Sub-Type</TableHead>
+                                            <TableHead className="w-[90px] text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest text-center">In_Stock</TableHead>
+                                            <TableHead className="w-[100px] text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest text-center">Qty / UOM</TableHead>
+                                            <TableHead className="w-[180px] text-[9px] font-black uppercase text-muted-foreground/60 tracking-widest text-right pr-6">Remark / Authorization</TableHead>
                                             {!isLocked && <TableHead className="w-[50px]"></TableHead>}
                                         </TableRow>
                                     </TableHeader>
@@ -634,23 +620,23 @@ export function DeploymentHubClient({
                                             const isLowStock = stockCount < item.quantity;
                                             
                                             return (
-                                                <TableRow key={item.id || idx} className="h-16 group hover:bg-muted/10">
-                                                    <TableCell className="text-center font-bold text-muted-foreground text-[11px]">{idx + 1}</TableCell>
+                                                <TableRow key={item.id || idx} className={cn("h-12 border-b border-border/5 group transition-all", idx % 2 === 0 ? "bg-white/40" : "bg-muted/5")}>
+                                                    <TableCell className="text-center font-bold text-muted-foreground text-[10px] pl-6">{idx + 1}</TableCell>
                                                     <TableCell>
                                                         <Select 
                                                             disabled={isLocked} 
                                                             value={item.asset_id ? item.asset_id : undefined} 
                                                             onValueChange={(v) => handleItemChange(idx, 'asset_id', v)}
                                                         >
-                                                            <SelectTrigger className="h-10 rounded-xl bg-transparent border-transparent hover:border-border/40 focus:bg-white transition-all shadow-none w-full">
-                                                                <SelectValue placeholder={`Select Asset (${availableAssets.length} available)...`} />
+                                                            <SelectTrigger className="h-8 rounded-lg bg-transparent border-transparent hover:border-border/40 focus:bg-white transition-all shadow-none w-full text-[11px] font-bold">
+                                                                <SelectValue placeholder="SELECT_ASSET_NODE..." />
                                                             </SelectTrigger>
                                                             <SelectContent className="max-h-[300px] overflow-y-auto bg-white z-[99999]">
                                                                 {availableAssets.map((a: any) => (
                                                                     <SelectItem key={a.id} value={a.id}>
                                                                         <div className="flex flex-col text-left">
-                                                                            <span className="font-bold">{a.name}</span>
-                                                                            <span className="text-[9px] text-muted-foreground">{a.brand} {a.model_number} (HSN: {a.hsn?.hsn_code || 'N/A'})</span>
+                                                                            <span className="font-bold text-[10px] uppercase">{a.name}</span>
+                                                                            <span className="text-[8px] text-muted-foreground uppercase opacity-60">{a.brand} {a.model_number}</span>
                                                                         </div>
                                                                     </SelectItem>
                                                                 ))}
@@ -659,65 +645,59 @@ export function DeploymentHubClient({
                                                     </TableCell>
                                                     <TableCell>
                                                         {assetDetails ? (
-                                                            <span className="text-[10px] font-black uppercase text-slate-500">{assetDetails.sub_type?.asset_type?.name || '-'}</span>
-                                                        ) : <span className="text-muted-foreground/30">-</span>}
+                                                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">{assetDetails.sub_type?.asset_type?.name || '-'}</span>
+                                                        ) : <span className="text-muted-foreground/20">-</span>}
                                                     </TableCell>
                                                     <TableCell>
                                                         {assetDetails ? (
-                                                            <span className="text-[10px] font-black uppercase text-slate-500">{assetDetails.sub_type?.name || '-'}</span>
-                                                        ) : <span className="text-muted-foreground/30">-</span>}
+                                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest text-primary border-primary/10 bg-primary/5 h-5 px-2">
+                                                                {assetDetails.sub_type?.name || '-'}
+                                                            </Badge>
+                                                        ) : <span className="text-muted-foreground/20">-</span>}
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         {item.asset_id ? (
                                                             <Badge variant="outline" className={cn(
-                                                                "h-6 rounded-md font-mono font-bold w-16 justify-center",
+                                                                "h-5 rounded font-mono font-bold w-12 justify-center text-[9px]",
                                                                 isLowStock && isNegativeStockAllowed ? "border-amber-200 text-amber-600 bg-amber-50" : 
                                                                 isLowStock ? "border-red-200 text-red-600 bg-red-50" : 
                                                                 "border-emerald-200 text-emerald-600 bg-emerald-50"
                                                             )}>
                                                                 {stockCount}
                                                             </Badge>
-                                                        ) : (
-                                                            <span className="text-muted-foreground/30">-</span>
-                                                        )}
+                                                        ) : <span className="text-muted-foreground/20">-</span>}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="flex items-center gap-1 bg-white border border-border/40 rounded-xl p-1 focus-within:border-primary/50 transition-colors">
+                                                        <div className="flex items-center gap-1 bg-white/50 border border-border/20 rounded-lg p-0.5 focus-within:border-primary/50 transition-colors">
                                                             <Input 
                                                                 type="number"
                                                                 min="1"
                                                                 disabled={isLocked}
                                                                 value={item.quantity}
                                                                 onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                                                                className="h-8 w-14 border-none shadow-none text-center font-bold px-1"
+                                                                className="h-6 w-12 border-none shadow-none text-center font-bold px-1 text-[11px]"
                                                             />
-                                                            <div className="w-[1px] h-4 bg-border/40 mx-1" />
-                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase pr-2 w-10 text-center">{item.uom}</span>
+                                                            <span className="text-[9px] font-black text-muted-foreground uppercase pr-1 w-8 text-center">{item.uom}</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="pr-6">
                                                         <Input 
                                                             disabled={isLocked}
                                                             value={item.remark}
                                                             onChange={(e) => handleItemChange(idx, 'remark', e.target.value)}
-                                                            placeholder="Specs/Remarks"
-                                                            className="h-10 rounded-xl bg-transparent border-transparent hover:border-border/40 focus:bg-white transition-all shadow-none"
+                                                            placeholder="AUTHORIZATION_NOTE..."
+                                                            className="h-8 rounded-lg bg-transparent border-transparent hover:border-border/40 focus:bg-white transition-all shadow-none text-[10px] font-bold text-right"
                                                         />
                                                     </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Button disabled={isLocked} variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary">
-                                                            <ImageIcon className="h-4 w-4" />
-                                                        </Button>
-                                                    </TableCell>
                                                     {!isLocked && (
-                                                        <TableCell className="text-right">
+                                                        <TableCell className="text-right pr-4">
                                                             <Button 
                                                                 variant="ghost" 
                                                                 size="icon" 
                                                                 onClick={() => removeItem(idx)}
-                                                                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                                                                className="h-6 w-6 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
                                                             >
-                                                                <Trash2 className="h-4 w-4" />
+                                                                <Trash2 className="h-3 w-3" />
                                                             </Button>
                                                         </TableCell>
                                                     )}

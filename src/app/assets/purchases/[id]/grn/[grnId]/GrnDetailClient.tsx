@@ -50,15 +50,22 @@ export function GrnDetailClient({ grn, items, activities, profile }: Props) {
   const updateGrnStatus = async (newStatus: string) => {
     setIsLoading(true);
     try {
-      // 1. Update GRN status
-      const { error: grnError } = await supabase
-        .from('asset_grns')
-        .update({ status: newStatus, updated_at: new Date() })
-        .eq('id', grn.id);
-
-      if (grnError) throw grnError;
-
-      toast.success(`GRN STATUS SYNCHRONIZED: Successfully set to '${newStatus.toUpperCase()}'`);
+      if (newStatus === 'approved') {
+          // Trigger the hydration logic
+          const { error: hydrateError } = await supabase.rpc('approve_grn_and_register_assets', {
+              p_grn_id: grn.id
+          });
+          if (hydrateError) throw hydrateError;
+          toast.success(`INVENTORY HYDRATED: Assets from ${grn.grn_number} have been registered.`);
+      } else {
+          // Standard status update (e.g. Cancelled)
+          const { error: grnError } = await supabase
+            .from('asset_grns')
+            .update({ status: newStatus, updated_at: new Date() })
+            .eq('id', grn.id);
+          if (grnError) throw grnError;
+          toast.success(`GRN STATUS SYNCHRONIZED: Successfully set to '${newStatus.toUpperCase()}'`);
+      }
       router.refresh();
     } catch (e: any) {
       toast.error(`Protocol Fault: ${e.message}`);

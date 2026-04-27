@@ -35,7 +35,8 @@ import {
   Ruler,
   PackageSearch,
   History,
-  CreditCard
+  CreditCard,
+  Kanban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigation } from "./providers/NavigationProvider";
@@ -45,6 +46,7 @@ import React, { useState } from "react";
 import { ProfileRow } from "@/lib/ensure-profile";
 import { Badge } from "@/components/ui/badge";
 import { NotificationBell } from "./NotificationBell";
+import { TaskMessageBell } from "./workspace/TaskMessageBell";
 
 interface SidebarItemProps {
   href?: string;
@@ -304,6 +306,15 @@ export function Sidebar({
               isActive={pathname === "/service-analytics/reports"} 
             />
           )}
+          {hasPermission(permissions, RESOURCES.DASHBOARD) && (
+            <SidebarItem 
+              href="/workspace" 
+              label="Workspace" 
+              icon={Kanban} 
+              isOpen={isSidebarOpen} 
+              isActive={pathname.startsWith("/workspace")} 
+            />
+          )}
 
           {(hasPermission(permissions, RESOURCES.TICKETS) || hasPermission(permissions, RESOURCES.SUPPORT_QUEUE)) && (
             <>
@@ -437,9 +448,10 @@ export function Sidebar({
             !isSidebarOpen && "justify-center p-1 border-transparent bg-transparent"
           )}>
             <div className={cn("flex items-center gap-2", !isSidebarOpen && "flex-col gap-3")}>
-              <div className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+               <div className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                 <User className="h-4.5 w-4.5 text-primary opacity-60" />
               </div>
+              <TaskMessageBell />
               <NotificationBell initial={notifications} />
             </div>
             {isSidebarOpen && (

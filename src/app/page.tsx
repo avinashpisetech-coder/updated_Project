@@ -93,7 +93,7 @@ export default function HomePage() {
           <section className="space-y-4">
             <div className="rounded-2xl bg-white p-6 shadow-xl">
               <p className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">
-                Today&apos;s view
+                Analysis of Activities
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 transition-colors hover:bg-slate-100/80">

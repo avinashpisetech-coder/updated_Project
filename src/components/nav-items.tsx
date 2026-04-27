@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Ticket, PlusCircle, Settings2, User, BarChart3, ExternalLink, Home, FileText, Package } from "lucide-react";
+import { LayoutDashboard, Ticket, PlusCircle, Settings2, User, BarChart3, ExternalLink, Home, FileText, Package, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function NavItem({
@@ -46,6 +46,8 @@ export function NavItems({ canManageMasters }: { canManageMasters: boolean }) {
       <NavItem href="/service-analytics" label="Analytics" icon={<BarChart3 size={13} />} exact />
       <NavItem href="/service-analytics/reports" label="Analytical Reports" icon={<FileText size={13} />} />
       <NavItem href="/tickets" label="Tickets" icon={<Ticket size={13} />} />
+      <NavItem href="/workspace" label="Workspace" icon={<LayoutDashboard size={13} />} exact />
+      <NavItem href="/workspace/tasks" label="Task Registry" icon={<CheckSquare size={13} />} exact />
       <NavItem href="/assets" label="Assets" icon={<Package size={13} />} />
       <NavItem href="/tickets/new" label="New Ticket" icon={<PlusCircle size={13} />} exact />
       {canManageMasters && (

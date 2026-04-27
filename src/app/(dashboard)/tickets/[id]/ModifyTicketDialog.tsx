@@ -119,11 +119,12 @@ export default function ModifyTicketDialog({ ticket }: Props) {
 
         <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Narrative Subject</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Narrative Subject (Mandatory)</label>
             <Input 
               value={form.subject}
               onChange={e => setForm({...form, subject: e.target.value})}
-              className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 text-[14px] font-semibold text-slate-950 focus-visible:ring-indigo-950/10 focus-visible:bg-white transition-all shadow-none"
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50/50 text-[14px] font-semibold text-slate-950 focus-visible:ring-indigo-950/10 focus-visible:bg-white transition-all shadow-sm"
+              required
             />
           </div>
 
@@ -172,11 +173,12 @@ export default function ModifyTicketDialog({ ticket }: Props) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Operational Description</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Operational Description (Mandatory)</label>
             <Textarea 
               value={form.description}
               onChange={e => setForm({...form, description: e.target.value})}
-              className="min-h-[140px] rounded-[2rem] border-slate-200 bg-slate-50/50 text-[14px] font-medium leading-relaxed p-6 focus-visible:ring-indigo-950/10 focus-visible:bg-white transition-all shadow-none resize-none"
+              className="min-h-[140px] rounded-[2rem] border border-slate-200 bg-slate-50/50 text-[14px] font-medium leading-relaxed p-6 focus-visible:ring-indigo-950/10 focus-visible:bg-white transition-all shadow-sm resize-none"
+              required
             />
           </div>
         </div>

@@ -104,6 +104,9 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
           <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-[#E1F0F7] border-[#C5E1F0] text-slate-700 hover:bg-[#D4E9F4]">
             <Printer className="h-3.5 w-3.5 mr-2" /> Print Protocol
           </Button>
+          <Button variant="outline" size="sm" asChild className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100">
+            <Link href={`/workspace?action=createTask&ticketId=${ticket.id}`}>Convert to Task</Link>
+          </Button>
           <Button variant="outline" size="sm" asChild className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 border-none">
             <Link href="/tickets">Close</Link>
           </Button>

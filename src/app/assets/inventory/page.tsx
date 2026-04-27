@@ -26,7 +26,11 @@ export default async function InventoryPage() {
         *,
         holder:profiles!current_holder_id(full_name),
         sub_type:asset_sub_types(name, code_prefix),
-        purchase:asset_purchases(po_number)
+        purchase:asset_purchases(po_number),
+        company:certifying_company_id(name),
+        supplier:supplier_id(name),
+        store:store_id(name),
+        department:department_id(name)
     `)
     .order("asset_code");
 
@@ -39,7 +43,16 @@ export default async function InventoryPage() {
   // Fetch completed purchases for linkage
   const { data: purchases } = await supabase
     .from("asset_purchases")
-    .select("id, po_number")
+    .select(`
+        id, 
+        po_number,
+        supplier_id,
+        purchase_date,
+        total_raw_amount,
+        gst_amount,
+        grand_total,
+        project:projects(company_id)
+    `)
     .order("created_at", { ascending: false });
 
   // Fetch profiles for assignment
@@ -54,6 +67,36 @@ export default async function InventoryPage() {
     .select("id, name")
     .order("name");
 
+  // Fetch companies for certifying company selection
+  const { data: companies } = await supabase
+    .from("companies")
+    .select("id, name")
+    .order("name");
+
+  // Fetch suppliers
+  const { data: suppliers } = await supabase
+    .from("asset_suppliers")
+    .select("id, name")
+    .order("name");
+
+  // Fetch departments 
+  const { data: departments } = await supabase
+    .from("departments")
+    .select("id, name")
+    .order("name");
+
+  // Fetch Asset Catalog (Master Register)
+  const { data: catalog } = await supabase
+    .from("asset_catalog")
+    .select("*, sub_type:asset_sub_types(name, type_id)")
+    .order("name");
+
+  // Fetch UOMs
+  const { data: uoms } = await supabase
+    .from("asset_uom")
+    .select("*")
+    .order("name");
+
   return (
     <div className="w-full h-full min-h-screen">
         <InventoryClient 
@@ -62,6 +105,11 @@ export default async function InventoryPage() {
             purchases={purchases || []}
             profiles={profiles || []}
             stores={stores || []}
+            companies={companies || []}
+            suppliers={suppliers || []}
+            departments={departments || []}
+            catalog={catalog || []}
+            uoms={uoms || []}
             role={role} 
         />
     </div>

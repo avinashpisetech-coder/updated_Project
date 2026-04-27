@@ -24,7 +24,17 @@ import {
   Layers,
   ShieldCheck,
   Activity,
-  Printer
+  Printer,
+  Shield,
+  Settings,
+  User,
+  Truck,
+  Building2,
+  Receipt,
+  Clock,
+  Save,
+  Trash2,
+  ExternalLink
 } from "lucide-react";
 import { 
     Tabs, 
@@ -44,22 +54,18 @@ import {
     SelectTrigger, 
     SelectValue 
 } from "@/components/ui/select";
+import { 
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { format, differenceInMonths } from "date-fns";
-
-interface Relationship {
-    id: string;
-    child_asset: {
-        id: string;
-        asset_code: string;
-        brand: string;
-        model: string;
-        sub_type: { name: string };
-    };
-    relationship_type: string;
-}
 
 interface Props {
     asset: any;
@@ -68,484 +74,626 @@ interface Props {
 
 export function AssetDetailPro({ asset, onUpdate }: Props) {
     const supabase = createClient();
-    const [relationships, setRelationships] = React.useState<Relationship[]>([]);
-    const [availablePeripherals, setAvailablePeripherals] = React.useState<any[]>([]);
-    const [selectedPeripheral, setSelectedPeripheral] = React.useState<string>("");
     const [isLoading, setIsLoading] = React.useState(false);
+    
+    // Core Data States
+    const [insurance, setInsurance] = React.useState<any[]>([]);
+    const [modifications, setModifications] = React.useState<any[]>([]);
+    const [assignments, setAssignments] = React.useState<any[]>([]);
+    const [maintenance, setMaintenance] = React.useState<any[]>([]);
     const [logs, setLogs] = React.useState<any[]>([]);
-    const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = React.useState(false);
-    const [maintenanceForm, setMaintenanceForm] = React.useState({
-        category: "MAINTENANCE",
-        description: "",
-        notes: ""
+
+    // Modal States
+    const [isInsuranceModalOpen, setIsInsuranceModalOpen] = React.useState(false);
+    const [isModModalOpen, setIsModModalOpen] = React.useState(false);
+
+    // Form States
+    const [insuranceForm, setInsuranceForm] = React.useState({
+        policy_number: "", provider_name: "", insurance_type: "Comprehensive",
+        start_date: format(new Date(), "yyyy-MM-dd"), expiry_date: format(new Date(), "yyyy-MM-dd"),
+        premium_amount: 0, insured_value: 0
+    });
+    const [modForm, setModForm] = React.useState({
+        modification_date: format(new Date(), "yyyy-MM-dd"), modification_type: "Hardware Upgrade",
+        description: "", cost: 0, performed_by: ""
     });
 
-    // --- Financial Engine Logic ---
-    const cost = parseFloat(asset.purchase_cost || asset.unit_cost || 0);
-    const rate = parseFloat(asset.depreciation_rate || 15); // Default 15%
-    const salvage = parseFloat(asset.salvage_value || 0);
-    const purchaseDate = new Date(asset.purchase_date || asset.created_at);
-    const monthsPassed = differenceInMonths(new Date(), purchaseDate);
-    
-    // SLM: (Cost - Salvage) * Rate * (Time/12)
-    const annualDep = (cost - salvage) * (rate / 100);
-    const totalDepSLM = (annualDep / 12) * monthsPassed;
-    const currentValSLM = Math.max(salvage, cost - totalDepSLM);
-
-    // WDV: Cost * (1 - Rate)^Time
-    const currentValWDV = cost * Math.pow((1 - (rate/100/12)), monthsPassed);
-
     React.useEffect(() => {
-        fetchRelationships();
-        fetchAvailablePeripherals();
-        fetchLogs();
+        fetchAllData();
     }, [asset.id]);
 
-    const fetchLogs = async () => {
-        const { data } = await supabase
-            .from("asset_activity_logs")
-            .select("*, performer:profiles(full_name)")
-            .eq("asset_id", asset.id)
-            .order("created_at", { ascending: false });
-        setLogs(data || []);
-    };
-
-    const fetchRelationships = async () => {
-        const { data } = await supabase
-            .from("asset_relationships")
-            .select("*, child_asset:child_asset_id(id, asset_code, brand, model, sub_type:asset_sub_types(name))")
-            .eq("parent_asset_id", asset.id);
-        setRelationships(data || []);
-    };
-
-    const fetchAvailablePeripherals = async () => {
-        const { data } = await supabase
-            .from("assets")
-            .select("id, asset_code, brand, model, sub_type:asset_sub_types(name)")
-            .eq("status", "in_stock")
-            .ilike("sub_type.name", "%input device%")
-            .limit(10);
-        setAvailablePeripherals(data || []);
-    };
-
-    const handleLink = async () => {
-        if (!selectedPeripheral) return;
+    const fetchAllData = async () => {
         setIsLoading(true);
         try {
-            const { error } = await supabase.from("asset_relationships").insert({
-                parent_asset_id: asset.id,
-                child_asset_id: selectedPeripheral,
-                relationship_type: 'connected'
-            });
-            if (error) throw error;
-            toast.success("Peripheral Mesh Synced.");
-            fetchRelationships();
-            setSelectedPeripheral("");
-        } catch (e: any) {
-            toast.error(e.message);
+            const [insRes, modRes, dplRes, mntRes, logRes] = await Promise.all([
+                supabase.from('asset_insurance').select('*').eq('asset_id', asset.id).order('created_at', { ascending: false }),
+                supabase.from('asset_modifications').select('*').eq('asset_id', asset.id).order('created_at', { ascending: false }),
+                supabase.from('stock_movements').select('*, performer:profiles(full_name)').eq('asset_id', asset.id).order('created_at', { ascending: false }),
+                supabase.from('asset_maintenance').select('*').eq('asset_id', asset.id).order('created_at', { ascending: false }),
+                supabase.from('asset_activity_logs').select('*, performer:profiles(full_name)').eq('asset_id', asset.id).order('created_at', { ascending: false })
+            ]);
+
+            setInsurance(insRes.data || []);
+            setModifications(modRes.data || []);
+            setAssignments(dplRes.data || []);
+            setMaintenance(mntRes.data || []);
+            setLogs(logRes.data || []);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleUnlink = async (relId: string) => {
-        const { error } = await supabase.from("asset_relationships").delete().eq("id", relId);
-        if (error) toast.error("Mesh Severed Failure");
-        else fetchRelationships();
-    };
-
-    const handleLogMaintenance = async () => {
-        if (!maintenanceForm.description) return;
-        setIsLoading(true);
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            const { error } = await supabase.from("asset_activity_logs").insert({
-                asset_id: asset.id,
-                provisioning_id: asset.provisioning_id,
-                action_type: 'MAINTENANCE_LOG',
-                audit_category: maintenanceForm.category,
-                description: maintenanceForm.description,
-                metadata: { notes: maintenanceForm.notes },
-                performed_by: user?.id
-            });
-
-            if (error) throw error;
-            toast.success("Chronology Updated.");
-            setIsMaintenanceModalOpen(false);
-            setMaintenanceForm({ category: "MAINTENANCE", description: "", notes: "" });
-            fetchLogs();
-        } catch (e: any) {
-            toast.error(e.message);
-        } finally {
-            setIsLoading(false);
+    const handleAddInsurance = async () => {
+        const { error } = await supabase.from('asset_insurance').insert({
+            ...insuranceForm,
+            asset_id: asset.id,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+        });
+        if (error) toast.error(error.message);
+        else {
+            toast.success("Insurance Policy Logged.");
+            setIsInsuranceModalOpen(false);
+            fetchAllData();
         }
     };
+
+    const handleAddModification = async () => {
+        const { error } = await supabase.from('asset_modifications').insert({
+            ...modForm,
+            asset_id: asset.id,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+        });
+        if (error) toast.error(error.message);
+        else {
+            toast.success("Modification Protocol Logged.");
+            setIsModModalOpen(false);
+            fetchAllData();
+        }
+    };
+
+    // --- Financial Calculations ---
+    const cost = parseFloat(asset.gross_po_value || asset.unit_cost || 0);
+    const purchaseDate = new Date(asset.purchase_date || asset.created_at);
+    const monthsPassed = differenceInMonths(new Date(), purchaseDate);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-white">
-            <Tabs defaultValue="logistics" className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-10 mb-8 flex items-center justify-between">
-                    <TabsList className="bg-slate-200 h-11 p-1 rounded-xl border border-slate-300/60 shadow-inner">
-                        <TabsTrigger value="logistics" className="text-[10px] font-black uppercase tracking-tight data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-xl px-8 rounded-lg h-full transition-all">01_IDENT_LOGISTICS</TabsTrigger>
-                        <TabsTrigger value="mesh" className="text-[10px] font-black uppercase tracking-tight data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-xl px-8 rounded-lg h-full transition-all">02_RELATIONSHIP_MESH</TabsTrigger>
-                        <TabsTrigger value="finance" className="text-[10px] font-black uppercase tracking-tight data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-xl px-8 rounded-lg h-full transition-all">03_FINANCE_INTEL</TabsTrigger>
-                        <TabsTrigger value="history" className="text-[10px] font-black uppercase tracking-tight data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-xl px-8 rounded-lg h-full transition-all">04_AUDIT_TRAIL</TabsTrigger>
-                    </TabsList>
-
-                    <div className="flex items-center gap-4">
-                        <div className="h-8 w-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
-                             <ShieldCheck size={16} />
+        <div className="flex flex-col h-full overflow-hidden bg-[#f8fafc] font-sans">
+            
+            {/* 1. PREMIUM HEADER SECTION */}
+            <header className="px-10 py-6 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm shrink-0">
+                <div className="flex items-center gap-6">
+                    <div className="h-16 w-16 rounded-[1.5rem] bg-[#003366] flex items-center justify-center text-white shadow-lg shadow-[#003366]/20 relative group">
+                        <Package size={32} />
+                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.5rem]" />
+                    </div>
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-[22px] font-black text-slate-900 uppercase tracking-tighter leading-none">{asset.asset_name || asset.sub_type?.name}</h2>
+                            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200 text-[9px] font-black uppercase px-3 h-5">IN_SERVICE</Badge>
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">Auth_Context: SECURE</span>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-[18px] font-black text-slate-900 uppercase tracking-tighter leading-none">{asset.asset_name || asset.sub_type?.name}</h2>
+                            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200 text-[8px] font-black uppercase px-2 h-4">IN_SERVICE</Badge>
+                        </div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] mt-1 flex items-center gap-2">
+                            {asset.brand} // {asset.model} // <span className="text-primary font-black">NODE_OID: {asset.asset_code}</span>
+                        </p>
                     </div>
                 </div>
-
-                <div className="flex-1 overflow-auto px-10 no-scrollbar">
-                    
-                    {/* 1. LOGISTICS: High Density Static Data */}
-                    <TabsContent value="logistics" className="m-0 space-y-10 animate-in fade-in duration-500">
-                        <div className="grid grid-cols-3 gap-8">
-                            <div className="p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100/50 space-y-3 shadow-sm transition-all hover:shadow-md">
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-1">Hardware ID Code</span>
-                                <p className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">{asset.asset_code}</p>
-                                <div className="h-1 w-8 bg-primary/20 rounded-full" />
-                            </div>
-                            <div className="p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100/50 space-y-3 shadow-sm transition-all hover:shadow-md">
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-1">Invariant Serial ID</span>
-                                <p className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">{asset.serial_number || 'NULL_LOGGED'}</p>
-                                <div className="h-1 w-8 bg-blue-500/20 rounded-full" />
-                            </div>
-                            <div className="p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100/50 space-y-3 shadow-sm transition-all hover:shadow-md">
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-1">OEM Brand/Model</span>
-                                <p className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">{asset.brand} <span className="text-slate-300 font-bold">{asset.model}</span></p>
-                                <div className="h-1 w-8 bg-emerald-500/20 rounded-full" />
-                            </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-2">
+                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Node_Custodian</span>
+                        <div className="flex items-center gap-2">
+                           <User size={12} className="text-blue-500" />
+                           <span className="text-[10px] font-black text-slate-700 uppercase">{asset.holder?.full_name || 'CENTRAL_HUB'}</span>
                         </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                        <Printer size={16} />
+                    </Button>
+                </div>
+            </header>
 
-                        <div className="p-10 rounded-[3rem] bg-indigo-50/50 border border-indigo-100 flex items-center justify-between">
-                            <div className="flex items-center gap-6">
-                                <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                                    <Layers size={24} />
-                                </div>
-                                <div className="space-y-1">
-                                    <h5 className="text-[11px] font-black text-indigo-800 uppercase tracking-widest">Metadata Registry Statistics</h5>
-                                    <p className="text-[14px] font-bold text-indigo-600/80 uppercase tracking-tight">System Class: {asset.sub_type?.name} // Protocol Version 2.4</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Created On Registry</p>
-                                <p className="text-[18px] font-black text-indigo-900 uppercase">{format(new Date(asset.created_at), 'MMMM dd, yyyy')}</p>
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                    {/* 2. MESH: Peripheral Mapping */}
-                    <TabsContent value="mesh" className="m-0 space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                         <div className="flex items-center justify-between px-2">
-                             <div className="space-y-1">
-                                 <h4 className="text-[18px] font-black uppercase text-slate-800 tracking-tighter">Hardware_Relationship_Mesh</h4>
-                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Daughter cards and linked peripherals mapped to this chassis</p>
-                             </div>
-                             <Network className="text-primary opacity-10 animate-pulse" size={48} />
-                         </div>
-
-                         <div className="grid grid-cols-2 gap-6">
-                             {relationships.length === 0 ? (
-                                 <div className="col-span-2 p-16 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-[3rem] opacity-20 bg-slate-50">
-                                     <Link2 size={40} className="mb-4 text-slate-400" />
-                                     <p className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-500">Mesh_Empty // No_Nodes_Mapped</p>
-                                 </div>
-                             ) : (
-                                 relationships.map(rel => (
-                                     <div key={rel.id} className="p-6 rounded-[2rem] bg-white border border-slate-100 hover:border-primary/40 transition-all flex items-center justify-between shadow-sm group">
-                                         <div className="flex items-center gap-5">
-                                             <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-primary/5 group-hover:text-primary transition-all">
-                                                 <MousePointer2 size={22} />
-                                             </div>
-                                             <div className="flex flex-col">
-                                                 <span className="text-[14px] font-black text-slate-800 uppercase tracking-tight mb-1">{rel.child_asset.brand} {rel.child_asset.model}</span>
-                                                 <div className="flex items-center gap-2">
-                                                     <Badge variant="outline" className="h-5 px-3 text-[9px] font-black bg-slate-50 border-slate-100 text-slate-400 uppercase">{rel.child_asset.asset_code}</Badge>
-                                                     <span className="text-[9px] font-black text-primary/40 uppercase tracking-widest">{rel.child_asset.sub_type.name}</span>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                         <Button variant="ghost" size="icon" className="h-10 w-10 text-red-500/20 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 rounded-xl" onClick={() => handleUnlink(rel.id)}>
-                                             <Unlink size={18} />
-                                         </Button>
-                                     </div>
-                                 ))
-                             )}
-                         </div>
-
-                         <div className="p-10 rounded-[2.5rem] bg-[#E8F0F7]/40 border border-slate-200/50 space-y-6">
-                             <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] block pl-2">MESH_SYNERGY: Authorize New Relationship</Label>
-                             <div className="flex gap-4">
-                                 <Select value={selectedPeripheral} onValueChange={setSelectedPeripheral}>
-                                     <SelectTrigger className="h-12 rounded-xl bg-white border-slate-100 text-[11px] font-black uppercase tracking-widest pl-6 shadow-sm"><SelectValue placeholder="SELECT_AVAILABLE_HARDWARE_NODE" /></SelectTrigger>
-                                     <SelectContent className="rounded-xl">
-                                         {availablePeripherals.map(p => (
-                                             <SelectItem key={p.id} value={p.id} className="text-[10px] font-black uppercase">{p.brand} {p.model} ({p.asset_code})</SelectItem>
-                                         ))}
-                                     </SelectContent>
-                                 </Select>
-                                 <Button className="h-12 px-12 rounded-xl bg-primary hover:bg-black text-white text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-95" onClick={handleLink} disabled={isLoading || !selectedPeripheral}>
-                                     Authorize_Link
-                                 </Button>
-                             </div>
-                         </div>
-                    </TabsContent>
-
-                    {/* 3. FINANCE: Asset Valuation Matrix */}
-                    <TabsContent value="finance" className="m-0 space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div className="grid grid-cols-2 gap-8">
-                            <div className="p-10 rounded-[3rem] bg-emerald-50 text-emerald-900 border border-emerald-100/50 space-y-4 shadow-sm">
-                                <div className="flex items-center justify-between">
-                                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                                        <DollarSign size={20} />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-600/60">CAP_EX_PROTOCOL</span>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-4xl font-black tracking-tighter italic">₹{cost.toLocaleString('en-IN')}</p>
-                                    <p className="text-[11px] font-black uppercase tracking-widest opacity-40">Original Inward Acquisition Cost</p>
-                                </div>
-                                <div className="h-1 w-12 bg-emerald-500/30 rounded-full" />
-                            </div>
-
-                            <div className="p-10 rounded-[3rem] bg-amber-50 text-amber-900 border border-amber-100/50 space-y-4 shadow-sm">
-                                <div className="flex items-center justify-between">
-                                    <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                                        <TrendingDown size={20} />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-600/60">WDV_VALUATION</span>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-4xl font-black tracking-tighter italic">₹{Math.floor(currentValWDV).toLocaleString('en-IN')}</p>
-                                    <p className="text-[11px] font-black uppercase tracking-widest opacity-40">Estimated Current Net Residue</p>
-                                </div>
-                                <div className="h-1 w-12 bg-amber-500/30 rounded-full" />
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-900 rounded-[3rem] p-12 text-white shadow-2xl space-y-10 relative overflow-hidden group">
-                            <div className="absolute right-[-10%] top-[-20%] h-96 w-96 bg-white/5 rounded-full blur-3xl transition-transform group-hover:scale-110 duration-1000" />
-                            
-                            <div className="flex items-center justify-between relative z-10">
-                                <div className="space-y-1">
-                                    <h5 className="text-[20px] font-black uppercase tracking-tighter">Depreciation_Lifecycle_Matrix</h5>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic leading-none">Global Fiscal Policy v3.2 Enforced</p>
-                                </div>
-                                <Badge variant="outline" className="bg-white/5 border-white/10 text-white/40 text-[9px] font-black uppercase h-8 px-6 rounded-xl">{asset.depreciation_method || 'WDV_MODEL'}</Badge>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-12 relative z-10">
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Temporal Tenure</p>
-                                    <p className="text-2xl font-black text-white">{monthsPassed} <span className="text-slate-600 text-[14px]">Months</span></p>
-                                    <div className="h-0.5 w-6 bg-blue-500" />
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Cumulative Dep.</p>
-                                    <p className="text-2xl font-black text-red-400">₹{(cost - currentValWDV).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-                                    <div className="h-0.5 w-6 bg-red-500" />
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Straight Line Ref</p>
-                                    <p className="text-2xl font-black text-slate-400">₹{Math.floor(currentValSLM).toLocaleString('en-IN')}</p>
-                                    <div className="h-0.5 w-6 bg-slate-700" />
-                                </div>
-                            </div>
-                            
-                            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between relative z-10">
-                                <div className="flex items-center gap-4">
-                                    <BadgeAlert className="text-amber-400" size={18} />
-                                    <p className="text-[10px] font-bold text-slate-400 leading-relaxed uppercase tracking-tight">
-                                        Valuation integrity depends on accuracy of inward cost and the {rate}% annual rate defined in the fiscal master policy.
-                                    </p>
-                                </div>
-                                <Button variant="ghost" size="sm" className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-white">Detailed_Report</Button>
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                    {/* 4. HISTORY: Operational Chronology */}
-                    <TabsContent value="history" className="m-0 space-y-10 animate-in fade-in duration-500">
-                        <div className="flex items-center justify-between px-2">
-                            <div className="space-y-1">
-                                <h4 className="text-[20px] font-black uppercase text-slate-800 tracking-tighter">Operational_Chronology</h4>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Immutable audit trails and lifecycle engagement history</p>
-                            </div>
-                            <Button 
-                                variant="default" 
-                                size="sm" 
-                                className="h-10 px-6 rounded-xl bg-slate-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest gap-2 shadow-xl shadow-slate-900/10"
-                                onClick={() => setIsMaintenanceModalOpen(true)}
+            {/* 2. TABBED PROTOCOL MATRIX */}
+            <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
+                <div className="px-6 bg-white border-b border-slate-100 shrink-0">
+                    <TabsList className="h-[48px] bg-transparent p-0 gap-6 justify-start">
+                        {["details", "issue", "insurance", "modifications", "maintenance", "depreciation", "documents", "history"].map(tab => (
+                            <TabsTrigger 
+                                key={tab} 
+                                value={tab} 
+                                className="h-full border-none bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-0 text-[9px] font-black uppercase tracking-widest text-slate-400 transition-all hover:text-slate-600"
                             >
-                                <Plus size={14} />
-                                Commit_Audit_Event
-                            </Button>
-                        </div>
+                                {tab.replace('_', ' ')}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </div>
 
-                        {asset.provisioning_id && (
-                            <div className="p-6 rounded-[2rem] bg-indigo-50 border border-indigo-100/50 flex items-center justify-between group shadow-sm">
-                                <div className="flex items-center gap-6">
-                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                                        <Zap size={22} className="animate-pulse" />
+                <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-[#f8fafc]">
+                    
+                    {/* --- DETAILS TAB: THE CORE GRID --- */}
+                    <TabsContent value="details" className="m-0 space-y-6 focus-visible:ring-0">
+                        <div className="grid grid-cols-12 gap-6">
+                            {/* Primary Field Matrix */}
+                            <div className="col-span-8 space-y-6">
+                                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden group">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
+                                    <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-6 border-b border-slate-50 pb-3">Asset_Master_Specification</h3>
+                                    
+                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6">
+                                        {[
+                                            { label: "Certifying Company", value: asset.company?.name || 'ADIOS_CORE' },
+                                            { label: "Asset Group", value: asset.sub_type?.asset_types?.name || 'CORE_EQUIPMENT' },
+                                            { label: "Asset Type", value: asset.sub_type?.name },
+                                            { label: "Asset Sub Type", value: asset.sub_type?.name },
+                                            { label: "Indent No", value: asset.indent_number || 'N/A' },
+                                            { label: "PO Number", value: asset.po_number || asset.purchase?.po_number || 'MANUAL_INWARD' },
+                                            { label: "PO Date", value: asset.purchase?.purchase_date ? format(new Date(asset.purchase.purchase_date), 'dd MMM yyyy') : 'N/A' },
+                                            { label: "GRN Number", value: asset.grn_number || 'N/A' },
+                                            { label: "Received Date", value: asset.purchase_date ? format(new Date(asset.purchase_date), 'dd MMM yyyy') : 'N/A' },
+                                            { label: "Condition", value: `${asset.condition || 'NEW'}_GRADE` },
+                                            { label: "Retail UOM", value: asset.uom?.symbol || asset.uom?.name || 'NOS' },
+                                            { label: "Ownership", value: asset.department?.name || 'CENTRAL' },
+                                            { label: "Location", value: asset.store?.name || 'TRANSIT' }
+                                        ].map(field => (
+                                            <div key={field.label} className="space-y-1 border-b border-slate-50 pb-1">
+                                                <Label className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{field.label}</Label>
+                                                <p className="text-[10px] font-black text-slate-700 uppercase tracking-tight truncate">{field.value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Purchase Order Tax Addition Table */}
+                                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Purchase_Order_Tax_Addition</h4>
+                                        <Receipt size={12} className="text-slate-300" />
+                                    </div>
+                                    <Table>
+                                        <TableHeader className="bg-slate-50/10">
+                                            <TableRow className="border-slate-100">
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 pl-6">Tax Category</TableHead>
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 text-right">Percentage</TableHead>
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 text-right">Tax Amount</TableHead>
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 text-right pr-6">Credit Applicable</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRow className="border-none text-[10px] font-bold text-slate-600">
+                                                <TableCell className="pl-6 uppercase">GST Protocol (CGST+SGST)</TableCell>
+                                                <TableCell className="text-right">18%</TableCell>
+                                                <TableCell className="text-right font-black text-slate-900">₹{asset.tax_amount?.toLocaleString('en-IN') || '0.00'}</TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <Badge className="bg-emerald-50 text-emerald-600 border-none text-[7px] font-black px-2">YES_CREDIT</Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+
+                            {/* Sidebar Matrix */}
+                            <div className="col-span-4 space-y-6">
+                                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm text-center space-y-4">
+                                    <div className="h-40 w-full rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center relative group overflow-hidden shadow-inner">
+                                        {asset.asset_photograph_path ? (
+                                            <img src={asset.asset_photograph_path} alt="Node Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <ImageIcon size={32} className="text-slate-200 group-hover:scale-110 transition-transform" />
+                                        )}
+                                        <div className="absolute top-2 right-2">
+                                            <Button variant="outline" className="h-6 w-6 rounded-lg bg-white/90 backdrop-blur shadow-sm p-0">
+                                                <Plus size={12} />
+                                            </Button>
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em] leading-none">Deployment_Root_Source</p>
-                                        <p className="text-[15px] font-black text-indigo-900 uppercase tracking-tight">Provisioning Hierarchy: {asset.requisition?.requisition_number || 'STABLE_ORIGIN_OK'}</p>
+                                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Inward_Lifecycle_Status</p>
+                                        <Badge className="bg-slate-900 text-white border-none rounded-lg h-6 px-4 text-[9px] font-black uppercase tracking-widest">
+                                            {asset.status || 'IN_STOCK'}
+                                        </Badge>
                                     </div>
                                 </div>
-                                <Badge variant="outline" className="bg-indigo-500 text-white border-none text-[9px] font-black uppercase tracking-widest h-8 px-6 rounded-xl">Traceable_Source</Badge>
+
+                                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                                    <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-50 pb-2">Vendor_Contact_Protocol</h4>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                                                <Truck size={14} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-black text-slate-800 uppercase leading-none mb-0.5">{asset.supplier?.name || 'DIRECT'}</span>
+                                                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Certified Vendor</span>
+                                            </div>
+                                        </div>
+                                        <div className="pt-2 space-y-2">
+                                            <div className="flex justify-between text-[10px] font-bold">
+                                                <span className="text-slate-300 uppercase">POC:</span>
+                                                <span className="text-slate-600 uppercase">{asset.supplier?.city || 'HQ'} Division</span>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] font-bold">
+                                                <span className="text-slate-300 uppercase">Comm:</span>
+                                                <span className="text-blue-500 font-black italic underline cursor-pointer">Email Link</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        )}
 
-                        <div className="space-y-6 max-h-[500px] overflow-y-auto pr-4 scrollbar-hide">
-                            {logs.length === 0 ? (
-                                <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-[3rem] opacity-20 bg-slate-50">
-                                    <History size={48} className="mb-4 text-slate-400" />
-                                    <p className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-500">Chronology_Data_Pool_Empty</p>
-                                </div>
-                            ) : (
-                                logs.map((log: any) => (
-                                    <div key={log.id} className="relative pl-12 pb-10 last:pb-0 group/log">
-                                        <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-slate-100 group-last/log:h-5" />
-                                        <div className={cn(
-                                            "absolute left-0 top-1.5 h-[48px] w-[48px] rounded-2xl border-4 border-white shadow-xl flex items-center justify-center z-10 transition-transform group-hover/log:scale-110 duration-300",
-                                            log.audit_category === 'MAINTENANCE' ? "bg-amber-500 shadow-amber-500/20" : 
-                                            log.audit_category === 'DEPLOYMENT' ? "bg-emerald-500 shadow-emerald-500/20" : "bg-[#475569] shadow-slate-900/20"
-                                        )}>
-                                            <History size={18} className="text-white" />
-                                        </div>
-
-                                        <div className="p-8 rounded-[2.5rem] bg-slate-50/50 border border-slate-100/50 space-y-4 group-hover/log:bg-white group-hover/log:shadow-lg transition-all">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-[16px] font-black uppercase text-slate-800 tracking-tight leading-none">{log.description}</span>
-                                                    <Badge variant="outline" className="text-[9px] font-black text-slate-400 border-slate-200 uppercase px-3">{log.audit_category || 'SYSTEM_EVENT'}</Badge>
-                                                </div>
-                                                <span className="text-[10px] font-black text-slate-300 font-mono italic uppercase tracking-widest">{format(new Date(log.created_at), 'dd MMM yyyy // HH:mm')}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-[12px] font-bold text-slate-500/80 leading-relaxed uppercase tracking-tight">{log.metadata?.notes || "PROTOCOL_EXECUTION_COMPLETED_SUCCESSFULLY"}</p>
-                                                <div className="flex items-center gap-2 opacity-40">
-                                                    <Activity size={10} className="text-primary" />
-                                                    <span className="text-[9px] font-black text-slate-900 uppercase">Performer: {log.performer?.full_name || 'AUTHENTICATED_SYSTEM'}</span>
-                                                </div>
-                                            </div>
-                                            {log.metadata?.handover_number && (
-                                                <div className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
-                                                    <div className="flex items-center gap-4">
-                                                        <ImageIcon size={18} className="text-primary/40" />
-                                                        <span className="text-[11px] font-black text-primary/80 uppercase">Handover_Protocol_Document: {log.metadata.handover_number}</span>
-                                                    </div>
-                                                    <Button variant="ghost" size="sm" className="h-8 text-[9px] font-black text-primary uppercase">View_Chain</Button>
-                                                </div>
-                                            )}
-                                        </div>
+                            {/* Audit Trail */}
+                            <div className="col-span-12">
+                                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                                     <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Operational_Audit_Trail</h4>
+                                        <Badge variant="outline" className="rounded-lg h-4 px-2 text-[7px] font-black uppercase border-slate-200">Full_Log</Badge>
                                     </div>
-                                ))
-                            )}
+                                    <Table>
+                                        <TableHeader className="bg-slate-50/10">
+                                            <TableRow className="border-slate-100 h-8">
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 pl-6">Status</TableHead>
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400">Performed By</TableHead>
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 text-center">Timestamp</TableHead>
+                                                <TableHead className="text-[8px] font-black uppercase text-slate-400 pr-6">Remarks</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {(assignments.slice(0, 5)).map((log) => (
+                                                <TableRow key={log.id} className="border-slate-50 text-[10px] font-bold text-slate-600 transition-colors hover:bg-slate-50/30">
+                                                    <TableCell className="pl-6">
+                                                       <Badge className="bg-blue-50 text-blue-600 border-none text-[7px] font-black uppercase h-4">{log.type}</Badge>
+                                                    </TableCell>
+                                                    <TableCell className="uppercase text-slate-900">{log.performer?.full_name || 'SYSTEM'}</TableCell>
+                                                    <TableCell className="text-center italic">{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                                    <TableCell className="pr-6 text-slate-400 uppercase italic">"{log.notes || 'Automated Protocol Sync'}"</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
                         </div>
                     </TabsContent>
-                </div>
 
-                {/* --- Logic Matrix Footer --- */}
-                <div className="h-[96px] shrink-0 border-t border-slate-100 flex items-center justify-between px-10 bg-white shadow-[0_-1px_3px_rgba(0,0,0,0.02)] relative z-50">
-                    <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-4">
-                            <FileText className="text-primary opacity-20" size={24} />
-                            <div className="space-y-0.5">
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 leading-none">Security Status</p>
-                                <p className="text-[14px] font-black text-emerald-500 uppercase tracking-tight leading-none">Chain_Integrity_Locked</p>
+                    {/* --- ISSUE TAB: ASSIGNMENT HISTORY --- */}
+                    <TabsContent value="issue" className="m-0 focus-visible:ring-0">
+                         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-tighter">Custody_Lifecycle_Log</h3>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Complete Issue and Return chronology</p>
+                                </div>
+                                <Button className="h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] uppercase tracking-widest gap-2">
+                                    <Plus size={12} /> Initiate_Issue
+                                </Button>
+                            </div>
+                            <Table>
+                                <TableHeader className="bg-slate-50/50">
+                                    <TableRow className="border-slate-100 h-8">
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 pl-6">Transaction_ID</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400">Recipient</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400">Issue Date</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400">Return Date</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 text-right pr-6">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {assignments.length > 0 ? assignments.map(mv => (
+                                        <TableRow key={mv.id} className="border-slate-50 hover:bg-slate-50 transition-all font-black uppercase h-12">
+                                            <TableCell className="pl-6 text-[10px] text-blue-600 italic">#{mv.id.slice(0, 8)}</TableCell>
+                                            <TableCell className="text-[11px] text-slate-900">{mv.performer?.full_name}</TableCell>
+                                            <TableCell className="text-slate-500 text-[10px]">{format(new Date(mv.created_at), 'dd MMM yyyy')}</TableCell>
+                                            <TableCell className="text-slate-300 text-[10px]">N/A</TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <Badge className="bg-emerald-50 text-emerald-600 border-none rounded-md h-5 px-2 text-[8px]">COMPLETED</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={5} className="h-32 text-center text-slate-300 font-black uppercase tracking-widest opacity-30 italic">No_Custody_Records_Found</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                         </div>
+                    </TabsContent>
+
+                    {/* --- INSURANCE TAB --- */}
+                    <TabsContent value="insurance" className="m-0 space-y-6 focus-visible:ring-0">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[16px] font-black text-slate-900 uppercase tracking-tighter">Machine_Insurance_Vault</h3>
+                            <Button onClick={() => setIsInsuranceModalOpen(true)} className="h-9 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[9px] uppercase tracking-widest gap-2 shadow-lg shadow-indigo-600/20">
+                                <Shield size={12} /> Register_Coverage
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-6">
+                            {insurance.map(policy => (
+                                <div key={policy.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm relative group hover:shadow-md transition-all duration-300">
+                                    <div className="absolute top-6 right-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                                        <Shield size={60} />
+                                    </div>
+                                    <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 rounded-md h-5 px-2 text-[8px] mb-4 font-black uppercase">{policy.insurance_type}</Badge>
+                                    <div className="space-y-0.5 mb-6">
+                                        <p className="text-[18px] font-black text-slate-950 uppercase tracking-tighter leading-none">{policy.provider_name}</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Policy Protocol: {policy.policy_number}</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
+                                        <div>
+                                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block mb-0.5">Coverage Period</span>
+                                            <p className="text-[10px] font-black text-slate-700 uppercase italic leading-none">{format(new Date(policy.start_date), 'dd/MM/yy')} — {format(new Date(policy.expiry_date), 'dd/MM/yy')}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest block mb-0.5">Insured Value</span>
+                                            <p className="text-[11px] font-black text-indigo-600 leading-none">₹{policy.insured_value?.toLocaleString('en-IN')}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </TabsContent>
+
+                    {/* --- MODIFICATIONS TAB --- */}
+                    <TabsContent value="modifications" className="m-0 space-y-6 focus-visible:ring-0">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[16px] font-black text-slate-900 uppercase tracking-tighter">Hardware_Modification_Logs</h3>
+                            <Button onClick={() => setIsModModalOpen(true)} className="h-9 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-[9px] uppercase tracking-widest gap-2 shadow-lg shadow-amber-600/20">
+                                <Settings size={12} /> Log_Technical_Change
+                            </Button>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <Table>
+                                <TableHeader className="bg-slate-50/50">
+                                    <TableRow className="border-slate-100">
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 pl-6">Protocol Date</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400">Modification_Type</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400">Description</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 text-right pr-6 font-bold">Cost</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {modifications.map(mod => (
+                                        <TableRow key={mod.id} className="border-slate-50 h-[56px] hover:bg-slate-50/50 transition-all font-black uppercase">
+                                            <TableCell className="pl-6 text-[10px] text-slate-400 font-bold italic">{format(new Date(mod.modification_date), 'dd MMM yyyy')}</TableCell>
+                                            <TableCell>
+                                                <Badge className="bg-amber-50 text-amber-600 border-none rounded-md h-5 px-2 text-[8px]">{mod.modification_type}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-[10px] text-slate-700 max-w-[200px] truncate underline decoration-slate-100 decoration-2">{mod.description}</TableCell>
+                                            <TableCell className="text-right pr-6 text-[11px] text-slate-950 font-black">₹{mod.cost?.toLocaleString('en-IN')}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </TabsContent>
+
+                    {/* --- HISTORY TAB: IMMUTABLE AUDIT LOG --- */}
+                    <TabsContent value="history" className="m-0 focus-visible:ring-0">
+                         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm p-6 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <h3 className="text-[16px] font-black text-slate-900 uppercase tracking-tighter italic">Machine_Activity_Chain</h3>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Historical Protocol Log // ID: {asset.id.slice(0, 8)}</p>
+                                </div>
+                                <Activity className="text-slate-100" size={32} />
+                            </div>
+                            
+                            <div className="space-y-4">
+                                {logs.map((log: any, idx: number) => (
+                                    <div key={log.id} className="flex gap-6 group/trail">
+                                        <div className="flex flex-col items-center gap-1 group/trail">
+                                            <div className={cn(
+                                                "h-8 w-8 rounded-lg flex items-center justify-center border transition-all",
+                                                idx === 0 ? "bg-slate-900 text-white shadow-md" : "bg-white text-slate-300 border-slate-100"
+                                            )}>
+                                                <History size={12} />
+                                            </div>
+                                            <div className="w-[1px] flex-1 bg-slate-100 group-last/trail:hidden" />
+                                        </div>
+                                        <div className="flex-1 pb-6 space-y-0.5 border-b border-slate-50 group-last/trail:border-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight italic">{log.description}</span>
+                                                <span className="text-[9px] font-bold text-slate-300 uppercase italic tracking-widest">{format(new Date(log.created_at), 'dd MMM yyyy // HH:mm')}</span>
+                                            </div>
+                                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic decoration-slate-100 underline leading-none mb-0.5">
+                                                Status: {log.action_type || 'SYSTEM_RECORD'} // Auditor: {log.performer?.full_name || 'SYSTEM_DAEMON'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                         </div>
+                    </TabsContent>
+
+                    {/* --- MAINTENANCE TAB --- */}
+                    <TabsContent value="maintenance" className="m-0 space-y-6 focus-visible:ring-0">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[16px] font-black text-slate-900 uppercase tracking-tighter">Machine_Maintenance_Registry</h3>
+                            <Button className="h-9 px-6 rounded-xl bg-[#003366] hover:bg-[#004488] text-white font-black text-[9px] uppercase tracking-widest gap-2 shadow-lg shadow-[#003366]/20">
+                                <Plus size={12} /> Schedule_Intervention
+                            </Button>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <Table>
+                                <TableHeader className="bg-slate-50/50">
+                                    <TableRow className="border-slate-100 h-10">
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 pl-6">Maintenance_ID</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400">Category</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 text-center">Protocol_Status</TableHead>
+                                        <TableHead className="text-[9px] font-black uppercase text-slate-400 text-right pr-6">Est_Execution_Cost</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {maintenance.length > 0 ? maintenance.map(mnt => (
+                                        <TableRow key={mnt.id} className="border-slate-50 h-[56px] hover:bg-slate-50 transition-all font-black uppercase">
+                                            <TableCell className="pl-6">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] text-slate-900">{mnt.maintenance_number || 'MNT-UNASSIGNED'}</span>
+                                                    <span className="text-[8px] text-slate-400 italic">{mnt.reported_date ? format(new Date(mnt.reported_date), 'dd MMM yyyy') : 'N/A'}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="border-slate-200 text-slate-400 text-[7px] font-black px-2">{mnt.request_type || 'GENERAL'}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge className={cn(
+                                                    "border-none rounded-md h-5 px-2 text-[8px]",
+                                                    mnt.status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                                                )}>{mnt.status?.toUpperCase()}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right pr-6 text-[11px] text-slate-900">
+                                                ₹{(mnt.actual_costs?.labor + mnt.actual_costs?.material + mnt.actual_costs?.service)?.toLocaleString('en-IN') || '0.00'}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={4} className="h-32 text-center text-slate-300 font-black uppercase tracking-widest opacity-30 italic">No_Maintenance_Records_Available</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </TabsContent>
+                    
+                    {/* --- DEPRECIATION TAB --- */}
+                    <TabsContent value="depreciation" className="m-0 space-y-6 focus-visible:ring-0">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-2xl relative overflow-hidden group">
+                                <h4 className="text-[10px] font-black uppercase text-blue-400 tracking-[0.3em]">Asset_WDV_Projection</h4>
+                                <div className="space-y-0.5 mt-4">
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Base Value (Acquisition)</p>
+                                    <p className="text-3xl font-black italic">₹{cost.toLocaleString('en-IN')}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-6 pt-4 border-t border-white/5 mt-4">
+                                    <div>
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Months In-Service</p>
+                                        <p className="text-xl font-black">{monthsPassed} MOS</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Depletion Rate</p>
+                                        <p className="text-xl font-black text-emerald-400">15.0%</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                                <h4 className="text-[10px] font-black uppercase text-blue-600 tracking-[0.3em]">Residual_Balance_Forecast</h4>
+                                <div className="space-y-0.5">
+                                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Current Residual Value</p>
+                                    <p className="text-3xl font-black text-slate-900">₹{asset.net_asset_value?.toLocaleString('en-IN') || 0}</p>
+                                </div>
+                                <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-2">
+                                    <div className="h-full bg-blue-600 rounded-full" style={{ width: '65%' }} />
+                                </div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic leading-tight">Engine Analysis: Machine has utilized 35% of its fiscal utility based on standard WDV intervals.</p>
                             </div>
                         </div>
-                        <div className="h-8 w-[1px] bg-slate-100" />
-                        <div className="flex items-center gap-2">
-                             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Sync_Node_OK</span>
-                        </div>
-                    </div>
+                    </TabsContent>
 
-                    <div className="flex gap-4">
-                        <Button variant="outline" className="h-12 px-10 rounded-2xl border-slate-100 shadow-sm text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95">
-                            <Printer size={16} className="mr-3 text-slate-300" /> Print_Profile
-                        </Button>
-                        <Button className="h-12 px-12 rounded-2xl bg-slate-900 hover:bg-black text-white text-[11px] font-black uppercase tracking-widest shadow-2xl shadow-slate-900/10 transition-all active:scale-95">
-                            Gate_Pass_Protocol
-                        </Button>
-                    </div>
+                    {/* --- DOCUMENTS TAB --- */}
+                    <TabsContent value="documents" className="m-0 focus-visible:ring-0">
+                        <div className="grid grid-cols-4 gap-6">
+                             <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 gap-3 hover:border-blue-400 hover:text-blue-400 transition-all cursor-pointer bg-white group">
+                                <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-all">
+                                    <Plus size={18} />
+                                </div>
+                                <p className="text-[9px] font-black uppercase tracking-widest">Secure_Upload</p>
+                             </div>
+                             {/* Mock Documents */}
+                             {[
+                                { title: "INWARD_GRN_ADVISORY", type: "PDF", size: "1.2 MB" },
+                                { title: "OEM_WARRANTY_CERT", type: "JPG", size: "4.5 MB" },
+                                { title: "INSURANCE_POLICY_MNT", type: "PDF", size: "0.8 MB" }
+                             ].map((doc, i) => (
+                                <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all relative group">
+                                    <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ExternalLink size={16} className="text-blue-600 cursor-pointer" />
+                                    </div>
+                                    <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 mb-6 font-black text-[10px] uppercase">{doc.type}</div>
+                                    <p className="text-[12px] font-black text-slate-800 uppercase leading-tight mb-1 truncate pr-4">{doc.title}</p>
+                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{doc.size}</p>
+                                </div>
+                             ))}
+                        </div>
+                    </TabsContent>
+
                 </div>
             </Tabs>
 
-            {/* --- Maintenance Modal --- */}
-            {isMaintenanceModalOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="w-full max-w-xl bg-white rounded-[3rem] shadow-[0_40px_80px_rgba(0,0,0,0.2)] border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="p-10 border-b border-slate-50 relative bg-[radial-gradient(ellipse:80%_60%_at:50%_0%,rgba(16,185,129,0.05),transparent_100%)]">
-                            <div className="flex items-center gap-5">
-                                <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                                    <FileCheck size={28} className="text-primary" />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40 leading-none">Protocol Engagement</p>
-                                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Log_Audit_Event</h3>
-                                </div>
-                            </div>
+            {/* 3. MODALS FOR CRUD */}
+            <Dialog open={isInsuranceModalOpen} onOpenChange={setIsInsuranceModalOpen}>
+                <DialogContent className="sm:max-w-2xl rounded-[3rem] border-none shadow-2xl p-10 font-sans">
+                    <DialogHeader className="mb-8">
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Machine Insurance Ingestion</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Policy Identifier</Label>
+                            <Input value={insuranceForm.policy_number} onChange={e => setInsuranceForm({...insuranceForm, policy_number: e.target.value.toUpperCase()})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
                         </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Insurance Carrier</Label>
+                            <Input value={insuranceForm.provider_name} onChange={e => setInsuranceForm({...insuranceForm, provider_name: e.target.value.toUpperCase()})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Policy Start</Label>
+                            <Input type="date" value={insuranceForm.start_date} onChange={e => setInsuranceForm({...insuranceForm, start_date: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Policy Expiry</Label>
+                            <Input type="date" value={insuranceForm.expiry_date} onChange={e => setInsuranceForm({...insuranceForm, expiry_date: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Insured Value (IDV)</Label>
+                            <Input type="number" value={insuranceForm.insured_value} onChange={e => setInsuranceForm({...insuranceForm, insured_value: parseFloat(e.target.value) || 0})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                        </div>
+                    </div>
+                    <DialogFooter className="mt-10 pt-8 border-t border-slate-50">
+                        <Button className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl uppercase tracking-[0.4em]" onClick={handleAddInsurance}>Authorize Coverage Protocol</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                        <div className="p-12 space-y-8">
-                            <div className="space-y-3">
-                                <Label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Event Category Hierarchy</Label>
-                                <Select value={maintenanceForm.category} onValueChange={v => setMaintenanceForm({...maintenanceForm, category: v})}>
-                                    <SelectTrigger className="h-14 bg-slate-50 border-slate-100 rounded-2xl text-[12px] font-black uppercase tracking-widest pl-6 shadow-sm"><SelectValue /></SelectTrigger>
-                                    <SelectContent className="rounded-2xl">
-                                        <SelectItem value="MAINTENANCE" className="text-[11px] font-black uppercase">Standard_Maintenance</SelectItem>
-                                        <SelectItem value="AUDIT" className="text-[11px] font-black uppercase">Physical_Verification_Audit</SelectItem>
-                                        <SelectItem value="UPGRADE" className="text-[11px] font-black uppercase">Technical_Performance_Upgrade</SelectItem>
-                                        <SelectItem value="SYSTEM_EDIT" className="text-[11px] font-black uppercase">Core_Registry_Metadata_Correction</SelectItem>
+            <Dialog open={isModModalOpen} onOpenChange={setIsModModalOpen}>
+                <DialogContent className="sm:max-w-2xl rounded-[3rem] border-none shadow-2xl p-10 font-sans">
+                    <DialogHeader className="mb-8">
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Technical Change Log</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Modification Date</Label>
+                                <Input type="date" value={modForm.modification_date} onChange={e => setModForm({...modForm, modification_date: e.target.value})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type of Upgrade</Label>
+                                <Select value={modForm.modification_type} onValueChange={v => setModForm({...modForm, modification_type: v})}>
+                                    <SelectTrigger className="h-12 bg-slate-50 border-slate-100 rounded-xl font-black"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {["Hardware Upgrade", "Software Install", "Preventative Maintenance", "Component Replace", "Network Refactor"].map(t => (
+                                            <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
-
-                            <div className="space-y-3">
-                                <Label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Protocol Action Summary</Label>
-                                <Input 
-                                    placeholder="e.g. BATTERY_REPLACEMENT_SYNC"
-                                    className="h-14 bg-slate-50 border-slate-100 rounded-2xl text-[12px] font-black uppercase tracking-tight pl-6 shadow-sm"
-                                    value={maintenanceForm.description}
-                                    onChange={e => setMaintenanceForm({...maintenanceForm, description: e.target.value.toUpperCase()})}
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <Label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Detailed Operational Telemetry</Label>
-                                <Textarea 
-                                    placeholder="Enter exhaustive technical overview of the amendment or event..."
-                                    className="h-40 bg-slate-50 border-slate-100 rounded-3xl text-[12px] font-medium p-6 focus-visible:ring-primary/20 no-scrollbar shadow-sm"
-                                    value={maintenanceForm.notes}
-                                    onChange={e => setMaintenanceForm({...maintenanceForm, notes: e.target.value})}
-                                />
-                            </div>
                         </div>
-
-                        <div className="p-10 bg-slate-50 border-t border-slate-100 flex gap-4">
-                            <Button variant="ghost" className="flex-1 h-14 rounded-2xl text-[12px] font-black uppercase tracking-widest text-slate-400" onClick={() => setIsMaintenanceModalOpen(false)}>
-                                Abort_Entry
-                            </Button>
-                            <Button 
-                                className="flex-1 h-14 rounded-2xl bg-primary hover:bg-black text-white text-[12px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 transition-all active:scale-95"
-                                onClick={handleLogMaintenance}
-                                disabled={isLoading || !maintenanceForm.description}
-                            >
-                                {isLoading ? "Synchronizing..." : "Authorize_Log_Entry"}
-                            </Button>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Action Summary</Label>
+                            <Textarea value={modForm.description} onChange={e => setModForm({...modForm, description: e.target.value.toUpperCase()})} className="min-h-[100px] rounded-xl bg-slate-50 border-slate-100 font-bold uppercase" placeholder="DESCRIBE THE TECHNICAL INTERVENTION..." />
+                        </div>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Execution Cost</Label>
+                                <Input type="number" value={modForm.cost} onChange={e => setModForm({...modForm, cost: parseFloat(e.target.value) || 0})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Technician / Vendor</Label>
+                                <Input value={modForm.performed_by} onChange={e => setModForm({...modForm, performed_by: e.target.value.toUpperCase()})} className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black" />
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                    <DialogFooter className="mt-10 pt-8 border-t border-slate-50">
+                        <Button className="w-full h-14 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-2xl uppercase tracking-[0.4em]" onClick={handleAddModification}>Commit Technical Update</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
