@@ -17,6 +17,9 @@ import { cn } from "@/lib/utils";
 
 type Profile = { id: string; full_name: string; role: string };
 type SoftwareSystem = { id: string; name: string; scope: "erp" | "it"; code?: string | null };
+type Scope = "IT" | "ERP" | "General" | null;
+type Module = { id: string; name: string; slug: string };
+type Category = { id: string; name: string };
 
 interface TicketFormClientProps {
   initialModules: Module[];

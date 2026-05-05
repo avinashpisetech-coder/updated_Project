@@ -40,14 +40,20 @@ export default async function UserMasterPage() {
   ]);
 
   const currentProfile = profileResponse.data;
+  if (!currentProfile) {
+    redirect("/dashboard");
+    return null;
+  }
+
   const canManageGlobal = hasPermission(permissions, "*", "*");
   const canManageDept = hasPermission(permissions, RESOURCES.USERS, "manage");
 
-  if (!currentProfile || (!canManageGlobal && !canManageDept)) {
+  if (!canManageGlobal && !canManageDept) {
     redirect("/dashboard");
+    return null;
   }
 
-  const departmentId = currentProfile?.department_id || "";
+  const departmentId = currentProfile.department_id || "";
 
   const profiles = profilesResponse.data || [];
   const departments = departmentsResponse.data || [];

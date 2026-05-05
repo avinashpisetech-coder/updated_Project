@@ -108,7 +108,7 @@ export async function getProjects(workspaceId: string) {
   return data || [];
 }
 
-export async function createProject(workspaceId: string, data: { name: string; description?: string }) {
+export async function createProject(workspaceId: string, data: { name: string; description?: string; status?: string }) {
   const supabase = await createClient();
   
   const { data: userData } = await supabase.auth.getUser();
@@ -1114,6 +1114,7 @@ export async function atomicUpdateTask(taskId: string, updates: any, assignees?:
   revalidatePath("/dashboard");
   return { success: true };
 }
+export async function getTeams() {
   const supabase = await createClient();
   const { data, error } = await supabase.from("teams").select("*").order("name");
   if (error) throw new Error(error.message);

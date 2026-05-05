@@ -133,7 +133,7 @@ export default function RequestDetailClient({
       await reopenRequirement(ticket.id);
       setIsFrozen(false);
       setApprovalStage(0);
-      setVersion(v => v + 1);
+      setVersion((v: number) => v + 1);
       toast.success("Reopened");
     } catch (e) {
       toast.error("Failed");

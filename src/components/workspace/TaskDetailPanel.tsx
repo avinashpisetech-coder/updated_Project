@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ActivityPanel } from "./ActivityPanel";
 import { UserSelector } from "./UserSelector";
 import { TeamSelector } from "./TeamSelector";
-import { updateTaskStatus, updateTaskField, updateTaskFull, updateTaskAssignees } from "@/app/(dashboard)/workspace/actions";
+import { updateTaskStatus, updateTaskField, updateTaskFull, updateTaskAssignees, atomicUpdateTask } from "@/app/(dashboard)/workspace/actions";
 import { toast } from "sonner";
 import { 
   CheckCircle2, Users, Calendar, Flag,

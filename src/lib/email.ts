@@ -1,4 +1,3 @@
-// @ts-expect-error Could not find a declaration file for module 'nodemailer'
 import nodemailer from 'nodemailer';
 import { createClient } from "@/lib/supabase/server";
 
