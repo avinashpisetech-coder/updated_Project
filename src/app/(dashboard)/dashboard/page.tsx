@@ -21,13 +21,14 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     redirect("/login");
   }
 
-  const [awaitedSearchParams, { data: analytics, error }, myTasks] = await Promise.all([
+  const [awaitedSearchParams, { data: analytics, error }, myTasks, { count: myAssetsCount }] = await Promise.all([
     searchParams,
     supabase.rpc("get_advanced_analytics", {
       p_profile_id: user.id,
       p_filters: {}
     }),
-    getMyTasks().catch(() => [])
+    getMyTasks().catch(() => []),
+    supabase.from("assets").select("*", { count: 'exact', head: true }).eq("current_holder_id", user.id)
   ]);
 
   const version = awaitedSearchParams.version as string;
@@ -48,6 +49,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   }
 
   const data = analytics ? transformDashboardData(analytics) : {};
+  if (data) (data as any).myAssetsCount = myAssetsCount || 0;
 
   if (version === "v2") {
     return <DashboardV2 initialData={data} _myTasks={myTasks} />;

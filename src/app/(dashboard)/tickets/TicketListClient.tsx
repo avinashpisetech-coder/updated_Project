@@ -15,8 +15,12 @@ import {
   Shield,
   Zap,
   User,
-  MoreVertical
+  MoreVertical,
+  Timer,
+  Download
 } from "lucide-react";
+import { exportToCSV } from "@/lib/utils/export";
+import { calculateSLAStatus } from "@/lib/utils/sla";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +44,7 @@ interface Ticket {
   status: string;
   priority: string;
   created_at: string;
+  sla_due_date: string | null;
   resolved_at: string | null;
   module: { name: string } | null;
   category: { name: string } | null;
@@ -47,6 +52,7 @@ interface Ticket {
     full_name: string;
     department: { name: string } | null;
   } | null;
+  is_requirement?: boolean;
 }
 
 interface TicketListClientProps {
@@ -89,10 +95,29 @@ export default function TicketListClient({ tickets: initialTickets, pagination }
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const handleRowClick = (id: string) => {
+  const handleRowClick = (id: string, isRequirement: boolean) => {
     startTransition(() => {
-      router.push(`/tickets/${id}`);
+      const path = isRequirement ? `/tickets/requests/${id}` : `/tickets/${id}`;
+      router.push(path);
     });
+  };
+
+  const handleExport = () => {
+    // Flatten data for clean CSV
+    const exportData = initialTickets.map(t => ({
+      ID: t.ticket_number,
+      Subject: t.subject,
+      Status: t.status.toUpperCase(),
+      Priority: t.priority.toUpperCase(),
+      Module: t.module?.name || 'N/A',
+      Category: t.category?.name || 'N/A',
+      Requester: t.requester?.full_name || 'N/A',
+      Department: t.requester?.department?.name || 'N/A',
+      Created: format(new Date(t.created_at), 'yyyy-MM-dd HH:mm'),
+      Deadline: t.sla_due_date ? format(new Date(t.sla_due_date), 'yyyy-MM-dd HH:mm') : 'N/A'
+    }));
+    
+    exportToCSV(exportData, 'Ticket_Registry_Report');
   };
 
   const getStatusConfig = (status: string) => {
@@ -213,6 +238,7 @@ export default function TicketListClient({ tickets: initialTickets, pagination }
               <TableHead className="w-[120px] text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Zone</TableHead>
               <TableHead className="w-[240px] text-[9px] font-black text-muted-foreground uppercase tracking-widest pl-8">Operator_Node</TableHead>
               <TableHead className="w-[140px] text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Lifecycle</TableHead>
+              <TableHead className="w-[140px] text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">SLA_Protocol</TableHead>
               <TableHead className="w-[80px] text-right pr-10"></TableHead>
             </TableRow>
           </TableHeader>
@@ -235,7 +261,7 @@ export default function TicketListClient({ tickets: initialTickets, pagination }
                         "h-16 group border-b border-border/20 transition-all cursor-pointer relative z-10",
                         isPending ? "opacity-50" : ""
                     )}
-                    onClick={() => handleRowClick(t.id)}
+                    onClick={() => handleRowClick(t.id, (t as any).is_requirement)}
                   >
                     <TableCell className="pl-10">
                       <div className="flex items-center gap-4">
@@ -295,6 +321,27 @@ export default function TicketListClient({ tickets: initialTickets, pagination }
                       )}>
                         {status.label}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {t.status !== 'resolved' && t.status !== 'closed' ? (
+                        (() => {
+                          const sla = calculateSLAStatus(t.sla_due_date);
+                          return (
+                            <div className={cn(
+                              "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
+                              sla.color
+                            )}>
+                              <Timer className="h-3 w-3" />
+                              <span>{sla.label}</span>
+                              {sla.hoursRemaining !== null && (
+                                <span className="opacity-50">({sla.hoursRemaining}h)</span>
+                              )}
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-30">Terminated</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right pr-10">
                        <div className="flex justify-end opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">

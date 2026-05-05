@@ -7,6 +7,8 @@ import { ensureProfile } from "@/lib/ensure-profile";
 import SoftwareSystemManager from "../SoftwareSystemManager";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import { Database, Hexagon, Fingerprint, Box } from "lucide-react";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function ErpMasterPage() {
   const supabase = await createClient();
@@ -15,13 +17,16 @@ export default async function ErpMasterPage() {
 
   // --- Parallel High-Performance Fetch ---
   // Collapsing sequential calls into a single parallel block
-  const [profile, modulesRes, systemsRes] = await Promise.all([
+  const [profile, permissions, modulesRes, systemsRes] = await Promise.all([
     ensureProfile(supabase, user),
+    getUserPermissions(user.id),
     supabase.from("erp_modules").select("id, name, sub_modules:erp_sub_modules(id, name)").order("name"),
     supabase.from("software_systems").select("id, name, code, description, status").eq("scope", "erp").order("name")
   ]);
 
-  if (profile?.role !== "super_admin") {
+  if (!hasPermission(permissions, RESOURCES.ERP, "manage") && 
+      !hasPermission(permissions, RESOURCES.ERP, "*") &&
+      !hasPermission(permissions, "*", "*")) {
     redirect("/dashboard");
   }
 

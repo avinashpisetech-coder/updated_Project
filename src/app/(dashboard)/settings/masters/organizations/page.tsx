@@ -6,6 +6,8 @@ import { ensureProfile } from "@/lib/ensure-profile";
 import { ModuleHeader } from "@/components/ModuleHeader";
 import OrganizationManager from "./OrganizationManager";
 import { Globe, Fingerprint } from "lucide-react";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function OrganizationsPage() {
   const supabase = await createClient();
@@ -15,13 +17,16 @@ export default async function OrganizationsPage() {
 
   // --- Parallel High-Performance Fetch ---
   // Collapsing sequential calls into a single parallel block
-  const [profile, companiesRes, projectsRes] = await Promise.all([
+  const [profile, permissions, companiesRes, projectsRes] = await Promise.all([
     ensureProfile(supabase, user),
+    getUserPermissions(user.id),
     supabase.from("companies").select("id, name, code, status").order("name"),
     supabase.from("projects").select("id, name, code, status, company_id, company:companies!company_id(name)").order("name")
   ]);
 
-  if (profile?.role !== "super_admin") {
+  if (!hasPermission(permissions, RESOURCES.ORGS, "manage") && 
+      !hasPermission(permissions, RESOURCES.ORGS, "*") &&
+      !hasPermission(permissions, "*", "*")) {
     redirect("/dashboard");
   }
 

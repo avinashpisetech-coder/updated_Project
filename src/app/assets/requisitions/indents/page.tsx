@@ -1,14 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
-import { IndentResolverClient } from "./IndentResolverClient";
 import { redirect } from "next/navigation";
+import { IndentResolverClient } from "./IndentResolverClient";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function IndentManagementPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) redirect("/auth/login");
+    if (!user) redirect("/login");
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (profile?.role !== 'super_admin' && profile?.role !== 'it_admin' && profile?.role !== 'procurement_admin') {
+    const permissions = await getUserPermissions(user.id);
+
+    // HEAVY GATE: Matrix-backed security enforcement
+    if (!hasPermission(permissions, RESOURCES.ASSETS, "manage") && 
+        !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+        !hasPermission(permissions, "*", "*")) {
         redirect("/assets");
     }
 

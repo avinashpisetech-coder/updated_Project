@@ -38,7 +38,7 @@ export default function ScheduleMeetingPanel({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
-  const [title, setTitle] = useState(ticketSubject);
+  const [title, setTitle] = useState(ticketSubject || "");
   const [meetingType, setMeetingType] = useState("online");
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingTime, setMeetingTime] = useState("");

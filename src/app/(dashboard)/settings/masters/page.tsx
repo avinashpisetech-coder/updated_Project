@@ -28,6 +28,8 @@ import {
   Database,
   Globe
 } from "lucide-react";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
 
 export default async function MastersHubPage() {
   const supabase = await createClient();
@@ -37,10 +39,17 @@ export default async function MastersHubPage() {
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  const role = profile?.role || "end_user";
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
 
-  if (role !== "super_admin") {
+  const canAccessUsers = hasPermission(permissions, RESOURCES.USERS);
+  const canAccessERP = hasPermission(permissions, RESOURCES.ERP);
+  const canAccessHelpDesk = hasPermission(permissions, RESOURCES.HELP_DESK_MASTER);
+  const canAccessOrgs = hasPermission(permissions, RESOURCES.ORGS);
+
+  if (!canAccessUsers && !canAccessERP && !canAccessHelpDesk && !canAccessOrgs) {
     redirect("/dashboard");
   }
 
@@ -53,6 +62,7 @@ export default async function MastersHubPage() {
       cta: "Manage Users",
       icon: Users,
       badge: "Identity",
+      canShow: canAccessUsers
     },
     {
       title: "ERP Systems",
@@ -62,6 +72,7 @@ export default async function MastersHubPage() {
       cta: "Configure ERP",
       icon: Settings2,
       badge: "Logistics",
+      canShow: canAccessERP
     },
     {
       title: "Help Desk Setup",
@@ -71,6 +82,7 @@ export default async function MastersHubPage() {
       cta: "Configure Support",
       icon: LayoutTemplate,
       badge: "Support",
+      canShow: canAccessHelpDesk
     },
     {
       title: "Legal Entities",
@@ -80,6 +92,7 @@ export default async function MastersHubPage() {
       cta: "Manage Entities",
       icon: Building2,
       badge: "Enterprise",
+      canShow: canAccessOrgs
     },
   ];
 
@@ -92,7 +105,7 @@ export default async function MastersHubPage() {
 
       {/* Grid Matrix */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card) => {
+        {cards.filter(c => c.canShow).map((card) => {
           const Icon = card.icon;
           return (
             <div

@@ -1,20 +1,56 @@
-import { getProjects } from "../actions";
+import { getProjects, getWorkspace } from "../actions";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import { ProjectModal } from "@/components/workspace/ProjectModal";
 import { ProjectCard } from "@/components/workspace/ProjectCard";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default async function WorkspaceProjectsPage({ params }: { params: { workspaceId: string } }) {
+import { getCachedUser } from "@/lib/supabase/server";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+
+export default async function WorkspaceProjectsPage({ 
+  params,
+  searchParams 
+}: { 
+  params: { workspaceId: string },
+  searchParams: { [key: string]: string | undefined }
+}) {
   const { workspaceId } = await params;
-  const projects = await getProjects(workspaceId);
+  const sParams = await searchParams;
+  const isManual = sParams?.manual === 'true';
+
+  const user = await getCachedUser();
+  if (!user) return null;
+
+  const [projects, permissions, workspace] = await Promise.all([
+    getProjects(workspaceId),
+    getUserPermissions(user.id),
+    getWorkspace(workspaceId)
+  ]);
+
+  // Logical Auto-Redirect: If there is only one project, skip the list unless manual access is requested
+  if (projects.length === 1 && !isManual) {
+    redirect(`/workspace/${workspaceId}/project/${projects[0].id}`);
+  }
+
+  const canCreate = hasPermission(permissions, RESOURCES.WORKSPACE, "create") || 
+                    hasPermission(permissions, "*", "manage");
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Projects</h1>
-          <p className="text-zinc-500 mt-1">Select a project to view tasks</p>
+          <div className="flex items-center gap-2 mb-1">
+            <Link href="/workspace?manual=true" className="flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
+              <ArrowLeft className="h-3 w-3" /> Back to Hub
+            </Link>
+          </div>
+          <h1 className="text-3xl font-black text-zinc-900 tracking-tight uppercase">
+            {workspace?.name}
+          </h1>
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">Select a project to view tasks</p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/workspace/tasks">
@@ -22,11 +58,13 @@ export default async function WorkspaceProjectsPage({ params }: { params: { work
               Task_Registry
             </Button>
           </Link>
-          <ProjectModal workspaceId={workspaceId}>
-            <Button className="h-10 rounded-xl font-black uppercase tracking-widest text-[10px]">
-              <Plus className="mr-2 h-4 w-4" /> Create_Project
-            </Button>
-          </ProjectModal>
+          {canCreate && (
+            <ProjectModal workspaceId={workspaceId}>
+              <Button className="h-10 rounded-xl font-black uppercase tracking-widest text-[10px]">
+                <Plus className="mr-2 h-4 w-4" /> Create_Project
+              </Button>
+            </ProjectModal>
+          )}
         </div>
       </div>
 

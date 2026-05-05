@@ -40,11 +40,13 @@ export default async function UserMasterPage() {
   ]);
 
   const currentProfile = profileResponse.data;
-  if (!currentProfile || !hasPermission(permissions, RESOURCES.USERS, "manage")) {
+  const canManageGlobal = hasPermission(permissions, "*", "*");
+  const canManageDept = hasPermission(permissions, RESOURCES.USERS, "manage");
+
+  if (!currentProfile || (!canManageGlobal && !canManageDept)) {
     redirect("/dashboard");
   }
 
-  const role = currentProfile?.role || "end_user";
   const departmentId = currentProfile?.department_id || "";
 
   const profiles = profilesResponse.data || [];
@@ -160,7 +162,8 @@ export default async function UserMasterPage() {
               companies={companies || []}
               projects={projects || []}
               roles={roles || []}
-              currentUserRole={role}
+              canManageGlobal={canManageGlobal}
+              canManageDept={canManageDept}
               currentUserDepartmentId={departmentId}
             />
           </TabsContent>

@@ -21,7 +21,6 @@ import { DashboardV2 } from "@/components/dashboard/v2/DashboardV2";
 import { IntelligenceReports } from "@/components/dashboard/analytics/IntelligenceReports";
 
 export default function ServiceAnalyticsDashboard() {
-  const [role, setRole] = useState<string>("super_admin");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isPending, startTransition] = useTransition();
   const [filters, setFilters] = useState({
@@ -38,14 +37,14 @@ export default function ServiceAnalyticsDashboard() {
 
   const fetchStats = useCallback(() => {
     startTransition(async () => {
-      const { data: result, error } = await getAnalytics(role, filters, startDate || undefined, endDate || undefined);
+      const { data: result, error } = await getAnalytics(filters, startDate || undefined, endDate || undefined);
       if (error) {
         toast.error(`Failed to fetch live analytics: ${error}`);
         return;
       }
       if (result) setData(result);
     });
-  }, [role, filters, startDate, endDate]);
+  }, [filters, startDate, endDate]);
 
   useEffect(() => {
     fetchStats();

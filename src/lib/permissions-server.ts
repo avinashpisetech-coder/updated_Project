@@ -1,10 +1,12 @@
 import { createClient } from "./supabase/server";
 import { Permission } from "./permissions";
+import { cache } from "react";
 
 /**
  * Server-side utility to fetch all flattened permissions for a user.
+ * Memoized per-request to avoid redundant RPC calls.
  */
-export async function getUserPermissions(userId: string): Promise<Permission[]> {
+export const getUserPermissions = cache(async (userId: string): Promise<Permission[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_user_permissions", {
     p_user_id: userId,
@@ -16,4 +18,4 @@ export async function getUserPermissions(userId: string): Promise<Permission[]> 
   }
 
   return (data as Permission[]) || [];
-}
+});

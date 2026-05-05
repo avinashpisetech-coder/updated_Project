@@ -24,6 +24,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
 
 export default async function SettingsPage(props: { searchParams: Promise<{ tab?: string }> }) {
   const searchParams = await props.searchParams;
@@ -34,8 +36,15 @@ export default async function SettingsPage(props: { searchParams: Promise<{ tab?
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  const isSuperAdmin = profile?.role === "super_admin";
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
+
+  const canAccessMasters = hasPermission(permissions, RESOURCES.USERS) || 
+                           hasPermission(permissions, RESOURCES.ERP) || 
+                           hasPermission(permissions, RESOURCES.HELP_DESK_MASTER) ||
+                           hasPermission(permissions, RESOURCES.ACCESS);
 
   const settingsCards = [
     {
@@ -45,7 +54,7 @@ export default async function SettingsPage(props: { searchParams: Promise<{ tab?
       href: "/settings/masters",
       color: "text-indigo-500",
       bg: "bg-indigo-500/5",
-      adminOnly: true,
+      canShow: canAccessMasters,
       tag: "CORE-03"
     },
     {
@@ -55,7 +64,7 @@ export default async function SettingsPage(props: { searchParams: Promise<{ tab?
       href: "/profile",
       color: "text-emerald-500",
       bg: "bg-emerald-500/5",
-      adminOnly: false,
+      canShow: true,
       tag: "ID-04"
     }
   ];
@@ -88,7 +97,7 @@ export default async function SettingsPage(props: { searchParams: Promise<{ tab?
         <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {settingsCards.filter(c => !c.adminOnly || isSuperAdmin).map((card) => {
+              {settingsCards.filter(c => c.canShow).map((card) => {
                 const Icon = card.icon;
                 return (
                   <Link key={card.href} href={card.href} className="group">

@@ -10,8 +10,35 @@ import {
   sendTaskReplyNotification 
 } from "@/lib/email";
 
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+
 export async function getWorkspaces() {
   const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  const userId = userData.user.id;
+
+  // Check permissions dynamically instead of hardcoded admin check
+  const permissions = await getUserPermissions(userId);
+  const canReadAll = hasPermission(permissions, RESOURCES.WORKSPACE, "read") || 
+                     hasPermission(permissions, "module_workspace", "read") ||
+                     hasPermission(permissions, "*", "manage");
+
+  if (canReadAll) {
+    // Users with global workspace read permission see all workspaces
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from("workspaces")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  // For users without global read, let Supabase RLS handle visibility automatically.
+  // This ensures we respect the complex assignment-based visibility defined in our SQL.
   const { data, error } = await supabase
     .from("workspaces")
     .select("*")
@@ -26,6 +53,13 @@ export async function createWorkspace(data: { name: string; description?: string
   
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error("Unauthorized");
+
+  // Enforce dynamic permission check for creation
+  const permissions = await getUserPermissions(userData.user.id);
+  if (!hasPermission(permissions, RESOURCES.WORKSPACE, "create") && 
+      !hasPermission(permissions, "*", "manage")) {
+    throw new Error("Insufficient permissions to create workspaces");
+  }
 
   const { data: workspace, error } = await supabase
     .from("workspaces")
@@ -71,22 +105,7 @@ export async function getProjects(workspaceId: string) {
 
   if (error) throw new Error(error.message);
 
-  // Filter in memory for simplicity or use a complex RPC if performance is an issue
-  // For now, if user is admin or creator of project, or has an assignee record in any task
-  const { data: adminCheck } = await supabase.rpc("is_admin_safe_v2", { p_profile_id: userData.user.id });
-  
-  if (adminCheck) return data;
-
-  return data.filter(project => {
-    if (project.created_by === userData.user.id) return true;
-    
-    // Check if user is an assignee in any task of this project
-    const isAssignee = project.tasks?.some((task: any) => 
-      task.task_assignees?.some((ta: any) => ta.profile_id === userData.user.id)
-    );
-    
-    return isAssignee;
-  });
+  return data || [];
 }
 
 export async function createProject(workspaceId: string, data: { name: string; description?: string }) {
@@ -109,7 +128,16 @@ export async function createProject(workspaceId: string, data: { name: string; d
 
 export async function getTasks(projectId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  const permissions = await getUserPermissions(userData.user.id);
+  const canReadAll = hasPermission(permissions, RESOURCES.WORKSPACE, "read") || 
+                     hasPermission(permissions, "*", "manage");
+
+  const queryClient = canReadAll ? createAdminClient() : supabase;
+
+  const { data, error } = await queryClient
     .from("tasks")
     .select("*, task_assignees(profile_id, profiles(full_name, avatar_url))")
     .eq("project_id", projectId)
@@ -142,6 +170,27 @@ export async function createTask(projectId: string, taskData: any) {
       profile_id
     }));
     await supabase.from("task_assignees").insert(assigneeInserts);
+
+    // Auto-enroll assignees as workspace members so they can see the workspace
+    try {
+      const adminClient = createAdminClient();
+      const { data: projectData } = await adminClient
+        .from("workspace_projects")
+        .select("workspace_id")
+        .eq("id", projectId)
+        .single();
+      
+      if (projectData?.workspace_id) {
+        const memberInserts = assignees.map((profile_id: string) => ({
+          workspace_id: projectData.workspace_id,
+          profile_id,
+          role: 'member'
+        }));
+        await adminClient.from("workspace_members").upsert(memberInserts, { onConflict: 'workspace_id,profile_id', ignoreDuplicates: true });
+      }
+    } catch (err) {
+      console.warn("Failed to auto-enroll assignees as workspace members:", err);
+    }
   }
 
   // Log activity
@@ -202,37 +251,62 @@ export async function createTask(projectId: string, taskData: any) {
   return task;
 }
 
-export async function updateTaskStatus(taskId: string, status: string) {
+export async function updateTaskStatus(taskId: string, status: string, resolutionNote?: string) {
   const supabase = await createClient();
   
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("Unauthorized");
+  if (!userData || !userData.user) throw new Error("Unauthorized");
 
-  const { data: task, error } = await supabase
+  // Check if user is admin/manager to bypass RLS if needed
+  const permissions = await getUserPermissions(userData.user.id);
+  const resourceNames = [RESOURCES.WORKSPACE, "module_workspace", "workspace_tasks", "tasks", "workspace"];
+  const canUpdate = permissions.some(p => 
+    resourceNames.includes(p.resource) && (p.action === 'update' || p.action === 'manage' || p.action === '*')
+  ) || hasPermission(permissions, "*", "manage");
+
+  const queryClient = canUpdate ? createAdminClient() : supabase;
+
+  const updates: any = { status };
+  if (resolutionNote) {
+    updates.resolution_note = resolutionNote;
+  }
+
+  const { data: task, error } = await queryClient
     .from("tasks")
-    .update({ status })
+    .update(updates)
     .eq("id", taskId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!task) throw new Error("Task not found or insufficient permissions to update");
 
   // Log activity
   await supabase.from("task_activity_logs").insert([{
     task_id: taskId,
-    action_type: 'status_changed',
+    action_type: status === 'COMPLETE' ? 'task_resolved' : 'status_changed',
     created_by: userData.user.id,
-    metadata: { new_status: status }
+    metadata: { 
+      new_status: status,
+      resolution_note: resolutionNote 
+    }
   }]);
 
   // Background Notifications
   (async () => {
     try {
-      const { data: taskDetails } = await supabase
+      const adminClient = createAdminClient();
+      const { data: taskDetails } = await adminClient
         .from("tasks")
-        .select("title, created_by, task_assignees(profile_id)")
+        .select(`
+          title, 
+          created_by, 
+          project_id,
+          workspace_projects(workspace_id),
+          task_assignees(profile_id)
+        `)
         .eq("id", taskId)
-        .single();
+        .maybeSingle();
       
       if (taskDetails) {
         const recipientIds = new Set<string>();
@@ -241,12 +315,20 @@ export async function updateTaskStatus(taskId: string, status: string) {
         recipientIds.delete(userData.user.id);
 
         if (recipientIds.size > 0) {
+          const wp = taskDetails.workspace_projects as any;
+          const workspaceId = Array.isArray(wp) ? wp[0]?.workspace_id : wp?.workspace_id;
+          const link = workspaceId ? `/workspace/${workspaceId}/project/${taskDetails.project_id}/task/${taskId}` : null;
+
           const notifications = Array.from(recipientIds).map(pid => ({
-            task_id: taskId,
             user_id: pid,
-            message: `Task Status Updated: ${taskDetails.title} is now ${status}`
+            title: "Task Activity",
+            message: status === 'COMPLETE' 
+              ? `Task Resolved: ${taskDetails.title}. Note: ${resolutionNote || 'No note'}`
+              : `Task Status Updated: ${taskDetails.title} is now ${status}`,
+            type: "task_update",
+            link: link
           }));
-          await supabase.from("ticket_notifications").insert(notifications);
+          await adminClient.from("notifications").insert(notifications);
         }
       }
     } catch (err) {
@@ -270,52 +352,63 @@ export async function updateTaskField(taskId: string, field: string, value: any)
     throw new Error("Invalid field to update");
   }
 
-  const { data: task, error } = await supabase
+  // Check if user is admin/manager to bypass RLS if needed
+  const permissions = await getUserPermissions(userData.user.id);
+  const resourceNames = [RESOURCES.WORKSPACE, "module_workspace", "workspace_tasks", "tasks", "workspace"];
+  const canUpdate = permissions.some(p => 
+    resourceNames.includes(p.resource) && (p.action === 'update' || p.action === 'manage' || p.action === '*')
+  ) || hasPermission(permissions, "*", "manage");
+
+  const queryClient = canUpdate ? createAdminClient() : supabase;
+
+  const { data: task, error } = await queryClient
     .from("tasks")
     .update({ [field]: value })
     .eq("id", taskId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!task) {
+    const permSummary = permissions.slice(0, 10).map(p => `${p.resource}:${p.action}`).join(', ');
+    throw new Error(`Insufficient permissions or task not found. (Perms: ${permSummary}${permissions.length > 10 ? '...' : ''})`);
+  }
 
   // Background Notifications
   (async () => {
     try {
-      const { data: taskDetails } = await supabase
+      const adminClient = createAdminClient();
+      const { data: taskDetails } = await adminClient
         .from("tasks")
-        .select("title, created_by, task_assignees(profiles(email, id))")
+        .select(`
+          title, 
+          created_by, 
+          project_id,
+          workspace_projects(workspace_id),
+          task_assignees(profile_id)
+        `)
         .eq("id", taskId)
-        .single();
+        .maybeSingle();
       
       if (taskDetails) {
-        const recipients = new Set<string>();
         const recipientIds = new Set<string>();
-
-        taskDetails.task_assignees?.forEach((ta: any) => {
-          if (ta.profiles?.email) recipients.add(ta.profiles.email);
-          if (ta.profiles?.id) recipientIds.add(ta.profiles.id);
-        });
-
-        const { data: creator } = await supabase.from("profiles").select("email, id").eq("id", taskDetails.created_by).single();
-        if (creator?.email) recipients.add(creator.email);
-        if (creator?.id) recipientIds.add(creator.id);
-
-        // Remove sender
-        recipients.delete(userData.user.email!);
+        taskDetails.task_assignees?.forEach((ta: any) => recipientIds.add(ta.profile_id));
+        recipientIds.add(taskDetails.created_by);
         recipientIds.delete(userData.user.id);
 
-        for (const email of recipients) {
-          await sendTaskUpdateNotification(email, taskDetails.title, "Updated", `Field '${field}' was updated to '${value}'`);
-        }
-
         if (recipientIds.size > 0) {
+          const wp = taskDetails.workspace_projects as any;
+          const workspaceId = Array.isArray(wp) ? wp[0]?.workspace_id : wp?.workspace_id;
+          const link = workspaceId ? `/workspace/${workspaceId}/project/${taskDetails.project_id}/task/${taskId}` : null;
+
           const notifications = Array.from(recipientIds).map(pid => ({
-            task_id: taskId,
             user_id: pid,
-            message: `Task Updated: ${taskDetails.title} (${field} changed)`
+            title: "Task Modified",
+            message: `Task Updated: ${taskDetails.title} (${field} changed to ${value})`,
+            type: "task_update",
+            link: link
           }));
-          await supabase.from("ticket_notifications").insert(notifications);
+          await adminClient.from("notifications").insert(notifications);
         }
       }
     } catch (err) {
@@ -331,16 +424,29 @@ export async function updateTaskField(taskId: string, field: string, value: any)
 export async function updateTaskFull(taskId: string, updates: any) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("Unauthorized");
+  if (!userData || !userData.user) throw new Error("Unauthorized");
 
-  const { data: task, error } = await supabase
+  // Check if user is admin/manager to bypass RLS if needed
+  const permissions = await getUserPermissions(userData.user.id);
+  const resourceNames = [RESOURCES.WORKSPACE, "module_workspace", "workspace_tasks", "tasks", "workspace"];
+  const canUpdate = permissions.some(p => 
+    resourceNames.includes(p.resource) && (p.action === 'update' || p.action === 'manage' || p.action === '*')
+  ) || hasPermission(permissions, "*", "manage");
+
+  const queryClient = canUpdate ? createAdminClient() : supabase;
+
+  const { data: task, error } = await queryClient
     .from("tasks")
     .update(updates)
     .eq("id", taskId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!task) {
+    const permSummary = permissions.slice(0, 10).map(p => `${p.resource}:${p.action}`).join(', ');
+    throw new Error(`Insufficient permissions or task not found. (Perms: ${permSummary}${permissions.length > 10 ? '...' : ''})`);
+  }
 
   // Log activity
   await supabase.from("task_activity_logs").insert([{
@@ -353,39 +459,52 @@ export async function updateTaskFull(taskId: string, updates: any) {
   // Background Notifications
   (async () => {
     try {
-      const { data: taskDetails } = await supabase
+      const adminClient = createAdminClient();
+      const { data: taskDetails } = await adminClient
         .from("tasks")
-        .select("title, created_by, task_assignees(profiles(email, id))")
+        .select(`
+          title, 
+          created_by, 
+          project_id,
+          workspace_projects(workspace_id),
+          task_assignees(profile_id, profiles(email, id))
+        `)
         .eq("id", taskId)
         .single();
       
       if (taskDetails) {
         const recipients = new Set<string>();
         const recipientIds = new Set<string>();
-
+ 
         taskDetails.task_assignees?.forEach((ta: any) => {
           if (ta.profiles?.email) recipients.add(ta.profiles.email);
-          if (ta.profiles?.id) recipientIds.add(ta.profiles.id);
+          if (ta.profiles?.id || ta.profile_id) recipientIds.add(ta.profiles?.id || ta.profile_id);
         });
-
-        const { data: creator } = await supabase.from("profiles").select("email, id").eq("id", taskDetails.created_by).single();
+ 
+        const { data: creator } = await adminClient.from("profiles").select("email, id").eq("id", taskDetails.created_by).single();
         if (creator?.email) recipients.add(creator.email);
         if (creator?.id) recipientIds.add(creator.id);
-
+ 
         recipients.delete(userData.user.email!);
         recipientIds.delete(userData.user.id);
-
+ 
         for (const email of recipients) {
           await sendTaskUpdateNotification(email, taskDetails.title, "Updated", "Multiple task parameters were updated.");
         }
-
+ 
         if (recipientIds.size > 0) {
+          const wp = taskDetails.workspace_projects as any;
+          const workspaceId = Array.isArray(wp) ? wp[0]?.workspace_id : wp?.workspace_id;
+          const link = workspaceId ? `/workspace/${workspaceId}/project/${taskDetails.project_id}/task/${taskId}` : null;
+
           const notifications = Array.from(recipientIds).map(pid => ({
-            task_id: taskId,
-            profile_id: pid,
-            message: `Task Protocol Updated: ${taskDetails.title}`
+            user_id: pid,
+            title: "Task Update",
+            message: `Comprehensive Protocol Update: ${taskDetails.title}`,
+            type: "task_update",
+            link: link
           }));
-          await supabase.from("task_notifications").insert(notifications);
+          await adminClient.from("notifications").insert(notifications);
         }
       }
     } catch (err) {
@@ -414,58 +533,81 @@ export async function addTaskComment(taskId: string, content: string) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) throw new Error("Unauthorized");
 
-  const { data: comment, error } = await supabase
+  const permissions = await getUserPermissions(userData.user.id);
+  const resourceNames = [RESOURCES.WORKSPACE, "module_workspace", "workspace_tasks", "tasks", "workspace"];
+  const hasWorkspaceAccess = permissions.some(p => 
+    resourceNames.includes(p.resource) && (p.action === 'read' || p.action === 'update' || p.action === 'manage' || p.action === '*')
+  ) || hasPermission(permissions, "*", "manage");
+
+  const queryClient = hasWorkspaceAccess ? createAdminClient() : supabase;
+
+  const { data: comment, error } = await queryClient
     .from("task_comments")
     .insert([{ task_id: taskId, content, profile_id: userData.user.id }])
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!comment) throw new Error("Failed to add comment: Insufficient permissions or task not found.");
 
   // Background Notifications
   (async () => {
     try {
-      const { data: taskDetails } = await supabase
+      const adminClient = createAdminClient();
+      const { data: taskDetails } = await adminClient
         .from("tasks")
-        .select("title, created_by, task_assignees(profiles(email))")
+        .select("title, created_by, task_assignees(profiles(id, email))")
         .eq("id", taskId)
-        .single();
+        .maybeSingle();
       
       if (taskDetails) {
-        const recipients = new Set<string>();
+        const stakeholderIds = new Set<string>();
+        const stakeholderEmails = new Set<string>();
+
+        // 1. Add Assignees
         taskDetails.task_assignees?.forEach((ta: any) => {
-          if (ta.profiles?.email) recipients.add(ta.profiles.email);
+          if (ta.profiles?.id) stakeholderIds.add(ta.profiles.id);
+          if (ta.profiles?.email) stakeholderEmails.add(ta.profiles.email);
         });
-        const { data: creatorProfile } = await supabase.from("profiles").select("email").eq("id", taskDetails.created_by).single();
-        if (creatorProfile?.email) recipients.add(creatorProfile.email);
 
-        // Don't send to the person who just commented
-        if (userData.user.email) recipients.delete(userData.user.email);
+        // 2. Add Creator
+        const { data: creatorProfile } = await adminClient.from("profiles").select("id, email").eq("id", taskDetails.created_by).single();
+        if (creatorProfile?.id) stakeholderIds.add(creatorProfile.id);
+        if (creatorProfile?.email) stakeholderEmails.add(creatorProfile.email);
 
-        for (const email of recipients) {
+        // 3. --- NEW: Parse Mentions ---
+        // Regex to find @Mention or @Mention Name (non-greedy)
+        const mentionMatches = content.match(/@\w+(?:\s\w+)?/g);
+        if (mentionMatches) {
+          const mentionedNames = mentionMatches.map(m => m.slice(1).trim());
+          const { data: mentionedProfiles } = await adminClient
+            .from("profiles")
+            .select("id, email")
+            .in("full_name", mentionedNames);
+          
+          mentionedProfiles?.forEach(p => {
+            stakeholderIds.add(p.id);
+            stakeholderEmails.add(p.email);
+          });
+        }
+
+        // 4. Clean up: Don't notify the person who just commented
+        stakeholderIds.delete(userData.user.id);
+        if (userData.user.email) stakeholderEmails.delete(userData.user.email);
+
+        // 5. Send Email Notifications
+        for (const email of stakeholderEmails) {
           await sendTaskReplyNotification(email, taskDetails.title, content);
         }
 
-        // --- NEW: Add Task Message Notifications ---
-        const { data: stakeholders } = await supabase
-          .from("task_assignees")
-          .select("profile_id")
-          .eq("task_id", taskId);
-        
-        const stakeholderIds = new Set<string>();
-        stakeholders?.forEach(s => stakeholderIds.add(s.profile_id));
-        stakeholderIds.add(taskDetails.created_by);
-        
-        // Remove current user from notifications
-        stakeholderIds.delete(userData.user.id);
-
+        // 6. Send In-App Notifications
         if (stakeholderIds.size > 0) {
           const notificationInserts = Array.from(stakeholderIds).map(pid => ({
             task_id: taskId,
             profile_id: pid,
-            message: `${userData.user.user_metadata?.full_name || 'Someone'} commented on: ${taskDetails.title}`
+            message: `${userData.user.user_metadata?.full_name || 'Someone'} mentioned you in: ${taskDetails.title}`
           }));
-          await supabase.from("task_notifications").insert(notificationInserts);
+          await adminClient.from("task_notifications").insert(notificationInserts);
         }
       }
     } catch (err) {
@@ -528,7 +670,16 @@ export async function getTaskAttachments(taskId: string) {
 
 export async function getWorkspace(workspaceId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  const permissions = await getUserPermissions(userData.user.id);
+  const canRead = hasPermission(permissions, RESOURCES.WORKSPACE, "read") || 
+                  hasPermission(permissions, "*", "manage");
+
+  const queryClient = canRead ? createAdminClient() : supabase;
+
+  const { data, error } = await queryClient
     .from("workspaces")
     .select("*")
     .eq("id", workspaceId)
@@ -572,7 +723,16 @@ export async function deleteWorkspace(workspaceId: string) {
 
 export async function getProject(projectId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  const permissions = await getUserPermissions(userData.user.id);
+  const canRead = hasPermission(permissions, RESOURCES.WORKSPACE, "read") || 
+                  hasPermission(permissions, "*", "manage");
+
+  const queryClient = canRead ? createAdminClient() : supabase;
+
+  const { data, error } = await queryClient
     .from("workspace_projects")
     .select("*")
     .eq("id", projectId)
@@ -740,30 +900,54 @@ export async function getAllTasks() {
 
   let query = supabase
     .from("tasks")
-    .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), task_assignees!inner(profile_id), profiles:task_assignees(profile_id, profiles(full_name, email))")
+    .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), task_assignees(profile_id, profiles(full_name, email))")
     .order("created_at", { ascending: false });
-
-  if (!isAdmin) {
-    // If not admin, filter by creator or assignee
-    // Note: Filtering by creator and assignee simultaneously in a single select query 
-    // with !inner join can be tricky. We'll use a more flexible approach or an RPC.
-    // For now, let's use a simpler check:
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), task_assignees(profile_id, profiles(full_name, email))")
-      .order("created_at", { ascending: false });
-
-    if (error) throw new Error(error.message);
-
-    return data.filter(task => 
-      task.created_by === userData.user.id || 
-      task.task_assignees?.some((ta: any) => ta.profile_id === userData.user.id)
-    );
-  }
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function getWorkloadData() {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("Unauthorized");
+
+  // Fetch all profiles
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url, email");
+
+  // Fetch all active tasks (not complete)
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("*, task_assignees(profile_id)")
+    .neq("status", "COMPLETE");
+
+  // Fetch all active tickets (not closed/resolved)
+  const { data: tickets } = await supabase
+    .from("tickets")
+    .select("id, subject, status, priority, assigned_to")
+    .not("status", "in", "('Resolved', 'Closed')");
+
+  if (!profiles) return [];
+
+  // Map data to profiles
+  const workload = profiles.map(profile => {
+    const userTasks = tasks?.filter(t => t.task_assignees?.some((ta: any) => ta.profile_id === profile.id)) || [];
+    const userTickets = tickets?.filter(t => t.assigned_to === profile.id) || [];
+
+    return {
+      ...profile,
+      tasks: userTasks,
+      tickets: userTickets,
+      taskCount: userTasks.length,
+      ticketCount: userTickets.length,
+      totalLoad: userTasks.length + userTickets.length
+    };
+  });
+
+  return workload.sort((a, b) => b.totalLoad - a.totalLoad);
 }
 
 export async function getUnreadTaskNotifications() {
@@ -798,8 +982,17 @@ export async function updateTaskAssignees(taskId: string, assignees: string[]) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) throw new Error("Unauthorized");
 
+  // Check permissions to determine if we should use admin client
+  const permissions = await getUserPermissions(userData.user.id);
+  const resourceNames = [RESOURCES.WORKSPACE, "module_workspace", "workspace_tasks", "tasks", "workspace"];
+  const canUpdate = permissions.some(p => 
+    resourceNames.includes(p.resource) && (p.action === 'update' || p.action === 'manage' || p.action === '*')
+  ) || hasPermission(permissions, "*", "manage");
+
+  const queryClient = canUpdate ? createAdminClient() : supabase;
+
   // Get current assignees for delta notification
-  const { data: oldAssignees } = await supabase
+  const { data: oldAssignees } = await queryClient
     .from("task_assignees")
     .select("profile_id")
     .eq("task_id", taskId);
@@ -811,18 +1004,42 @@ export async function updateTaskAssignees(taskId: string, assignees: string[]) {
   const newlyAssigned = assignees.filter(id => !oldSet.has(id));
 
   // Sync database
-  await supabase.from("task_assignees").delete().eq("task_id", taskId);
+  const { error: deleteError } = await queryClient.from("task_assignees").delete().eq("task_id", taskId);
+  if (deleteError) throw new Error("Failed to clear old assignees: " + deleteError.message);
 
   if (assignees.length > 0) {
     const assigneeInserts = assignees.map((profile_id: string) => ({
       task_id: taskId,
       profile_id
     }));
-    await supabase.from("task_assignees").insert(assigneeInserts);
+    const { error: insertError } = await queryClient.from("task_assignees").insert(assigneeInserts);
+    if (insertError) throw new Error("Failed to add new assignees: " + insertError.message);
+
+    // Auto-enroll new assignees as workspace members
+    try {
+      const adminClient = createAdminClient();
+      const { data: taskData } = await adminClient
+        .from("tasks")
+        .select("project_id, workspace_projects(workspace_id)")
+        .eq("id", taskId)
+        .single();
+      
+      const wsId = (taskData as any)?.workspace_projects?.workspace_id;
+      if (wsId) {
+        const memberInserts = assignees.map((profile_id: string) => ({
+          workspace_id: wsId,
+          profile_id,
+          role: 'member'
+        }));
+        await adminClient.from("workspace_members").upsert(memberInserts, { onConflict: 'workspace_id,profile_id', ignoreDuplicates: true });
+      }
+    } catch (err) {
+      console.warn("Failed to auto-enroll assignees as workspace members:", err);
+    }
   }
 
   // Log activity
-  await supabase.from("task_activity_logs").insert([{
+  await queryClient.from("task_activity_logs").insert([{
     task_id: taskId,
     action_type: 'assignees_updated',
     created_by: userData.user.id,
@@ -860,10 +1077,43 @@ export async function updateTaskAssignees(taskId: string, assignees: string[]) {
     }
   })();
 
+  revalidatePath("/workspace");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
-export async function getTeams() {
+export async function atomicUpdateTask(taskId: string, updates: any, assignees?: string[]) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData || !userData.user) throw new Error("Unauthorized");
+
+  const permissions = await getUserPermissions(userData.user.id);
+  const resourceNames = [RESOURCES.WORKSPACE, "module_workspace", "workspace_tasks", "tasks", "workspace"];
+  const canUpdate = permissions.some(p => 
+    resourceNames.includes(p.resource) && (p.action === 'update' || p.action === 'manage' || p.action === '*')
+  ) || hasPermission(permissions, "*", "manage");
+
+  const queryClient = canUpdate ? createAdminClient() : supabase;
+
+  // 1. Update Core Fields
+  if (Object.keys(updates).length > 0) {
+    const { error } = await queryClient.from("tasks").update(updates).eq("id", taskId);
+    if (error) throw new Error("Field Update Failed: " + error.message);
+  }
+
+  // 2. Update Assignees if provided
+  if (assignees) {
+    await queryClient.from("task_assignees").delete().eq("task_id", taskId);
+    if (assignees.length > 0) {
+      const inserts = assignees.map(id => ({ task_id: taskId, profile_id: id }));
+      await queryClient.from("task_assignees").insert(inserts);
+    }
+  }
+
+  revalidatePath("/workspace");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
   const supabase = await createClient();
   const { data, error } = await supabase.from("teams").select("*").order("name");
   if (error) throw new Error(error.message);

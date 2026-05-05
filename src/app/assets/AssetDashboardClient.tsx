@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { Permission } from "@/lib/permissions";
 import { 
   Package, 
   CheckCircle2, 
@@ -44,14 +46,16 @@ interface Props {
   movements: any[];
   lowStock: any[];
   budgets: any[];
-  role: string;
+  permissions: Permission[];
 }
 
-export function AssetDashboardClient({ stats, movements, lowStock, budgets, role }: Props) {
+export function AssetDashboardClient({ stats, movements, lowStock, budgets, permissions }: Props) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => { setMounted(true); }, []);
   
-  const isPrivileged = role === "super_admin" || role === "dept_admin" || role === "module_agent";
+  const canManageAssets = hasPermission(permissions, RESOURCES.ASSETS, "manage") || 
+                          hasPermission(permissions, RESOURCES.ASSETS, "*") ||
+                          hasPermission(permissions, "*", "*");
 
   const statCards = [
     { label: "Asset Pool", value: stats.total || 0, sub: "Total Lifecycle", icon: Package, color: "text-blue-600", border: "border-blue-100", accent: "bg-blue-600" },
@@ -91,46 +95,52 @@ export function AssetDashboardClient({ stats, movements, lowStock, budgets, role
         {/* Left Column: Quick Actions & Budget */}
         <div className="lg:col-span-8 space-y-8">
             
-            {/* Action Matrix */}
+            {/* Action Matrix - Strictly Gated */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Link href="/assets/inventory" className="group h-full">
-                    <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-primary/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
-                        <div className="h-9 w-9 rounded-lg bg-primary shadow-lg shadow-primary/20 flex items-center justify-center mb-3 text-white">
-                            <Plus size={16} />
-                        </div>
-                        <div>
-                          <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Commit Stock</h3>
-                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Record New Hardware</p>
-                        </div>
-                        <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-primary transition-colors" size={16} />
-                    </div>
-                </Link>
-
-                <Link href="/assets/deployment" className="group h-full">
-                    <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
-                        <div className="h-9 w-9 rounded-lg bg-emerald-600 shadow-lg shadow-emerald-600/20 flex items-center justify-center mb-3 text-white">
-                            <Zap size={16} />
-                        </div>
-                        <div>
-                          <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Handover</h3>
-                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Deploy Asset Node</p>
-                        </div>
-                        <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-emerald-500 transition-colors" size={16} />
-                    </div>
-                </Link>
-
-                <Link href="/assets/return" className="group h-full">
-                    <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
-                        <div className="h-9 w-9 rounded-lg bg-amber-600 shadow-lg shadow-amber-600/20 flex items-center justify-center mb-3 text-white">
-                            <History size={16} />
-                        </div>
-                        <div>
-                          <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Recovery</h3>
-                          <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Reverse Custody</p>
-                        </div>
-                        <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-amber-500 transition-colors" size={16} />
-                    </div>
-                </Link>
+                {canManageAssets && (
+                  <Link href="/assets/inventory" className="group h-full">
+                      <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-primary/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
+                          <div className="h-9 w-9 rounded-lg bg-primary shadow-lg shadow-primary/20 flex items-center justify-center mb-3 text-white">
+                              <Plus size={16} />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Commit Stock</h3>
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Record New Hardware</p>
+                          </div>
+                          <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-primary transition-colors" size={16} />
+                      </div>
+                  </Link>
+                )}
+ 
+                {canManageAssets && (
+                  <Link href="/assets/deployment" className="group h-full">
+                      <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
+                          <div className="h-9 w-9 rounded-lg bg-emerald-600 shadow-lg shadow-emerald-600/20 flex items-center justify-center mb-3 text-white">
+                              <Zap size={16} />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Handover</h3>
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Deploy Asset Node</p>
+                          </div>
+                          <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-emerald-500 transition-colors" size={16} />
+                      </div>
+                  </Link>
+                )}
+ 
+                {canManageAssets && (
+                  <Link href="/assets/return" className="group h-full">
+                      <div className="p-5 rounded-xl bg-white border border-border/40 hover:border-amber-500/50 hover:shadow-lg transition-all duration-500 relative overflow-hidden h-full flex flex-col justify-between">
+                          <div className="h-9 w-9 rounded-lg bg-amber-600 shadow-lg shadow-amber-600/20 flex items-center justify-center mb-3 text-white">
+                              <History size={16} />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-black uppercase tracking-tighter text-foreground mb-0.5">Recovery</h3>
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none">Reverse Custody</p>
+                          </div>
+                          <ArrowUpRight className="absolute top-5 right-5 text-muted-foreground/30 group-hover:text-amber-500 transition-colors" size={16} />
+                      </div>
+                  </Link>
+                )}
             </div>
 
             {/* Budget Monitoring Matrix */}
@@ -220,21 +230,23 @@ export function AssetDashboardClient({ stats, movements, lowStock, budgets, role
                 </div>
             </div>
 
-            {/* Governance Master Entry */}
-            <Link href="/assets/masters" className="block text-white">
-                <div className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:bg-black transition-all duration-300 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                         <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center">
-                            <Settings2 size={16} />
-                         </div>
-                         <div className="flex flex-col">
-                            <span className="text-[11px] font-black uppercase tracking-tight leading-none mb-0.5">Policy Matrix</span>
-                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">System Administration</span>
-                         </div>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-500 group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-1" />
-                </div>
-            </Link>
+            {/* Governance Master Entry - Strictly Gated */}
+            {canManageAssets && (
+              <Link href="/assets/masters" className="block text-white">
+                  <div className="group p-4 rounded-xl bg-slate-900 border border-slate-800 hover:bg-black transition-all duration-300 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                           <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center">
+                              <Settings2 size={16} />
+                           </div>
+                           <div className="flex flex-col">
+                              <span className="text-[11px] font-black uppercase tracking-tight leading-none mb-0.5">Policy Matrix</span>
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">System Administration</span>
+                           </div>
+                      </div>
+                      <ChevronRight size={14} className="text-slate-500 group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-1" />
+                  </div>
+              </Link>
+            )}
 
             {/* External Links / Help */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">

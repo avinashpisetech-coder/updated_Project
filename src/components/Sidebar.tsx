@@ -158,6 +158,22 @@ function SidebarItem({
   );
 
   const isExternalIdentifier = label === "Tactical Command Center" || label === "Intelligence Hub";
+  const isActionOnly = !href || href === "#";
+
+  if (isActionOnly) {
+    return (
+      <div 
+        className="w-full cursor-pointer"
+        onClick={() => {
+          if (hasSubItems) {
+            onClick?.();
+          }
+        }}
+      >
+        {content}
+      </div>
+    );
+  }
 
   return (
     <Link 
@@ -200,12 +216,18 @@ import { Permission, hasPermission, RESOURCES } from "@/lib/permissions";
 export function Sidebar({ 
   canAccessMasters, 
   canAccessSecurity,
+  canAccessWorkspace,
+  canAccessTickets,
+  canAccessAssets,
   profile,
   permissions = [],
   notifications = []
 }: { 
   canAccessMasters: boolean; 
   canAccessSecurity: boolean;
+  canAccessWorkspace: boolean;
+  canAccessTickets: boolean;
+  canAccessAssets: boolean;
   profile: ProfileRow | null;
   permissions?: Permission[];
   notifications?: any[];
@@ -220,8 +242,10 @@ export function Sidebar({
     setMounted(true);
     if (pathname.startsWith("/assets")) setExpandedGroup("assets");
     else if (pathname.startsWith("/settings/masters")) setExpandedGroup("masters");
+    else if (pathname.startsWith("/tickets/requests")) setExpandedGroup("requirements");
     else if (pathname.startsWith("/tickets")) setExpandedGroup("support");
     else if (pathname.startsWith("/workspace")) setExpandedGroup("workspace");
+    else if (pathname.startsWith("/settings/notifications")) setExpandedGroup("requirements");
     else if (pathname.startsWith("/settings") || pathname.includes("/settings/mail")) setExpandedGroup("settings");
   }, [pathname]);
 
@@ -309,13 +333,14 @@ export function Sidebar({
               isActive={pathname === "/service-analytics/reports"} 
             />
           )}
-          {hasPermission(permissions, RESOURCES.WORKSPACE) && (
+          {canAccessWorkspace && (
             <>
               <SidebarItem 
                 label="Workspace" 
                 icon={Kanban} 
                 isOpen={isSidebarOpen} 
-                isActive={pathname.startsWith("/workspace") && !pathname.includes("my-tasks")}
+                isActive={pathname.startsWith("/workspace")}
+                href="/workspace/my-tasks"
                 onClick={() => toggleGroup("workspace")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "workspace"}
@@ -335,7 +360,7 @@ export function Sidebar({
             </>
           )}
 
-          {(hasPermission(permissions, RESOURCES.TICKETS) || hasPermission(permissions, RESOURCES.SUPPORT_QUEUE)) && (
+          {canAccessTickets && (
             <>
               <SidebarItem 
                 label="Support Queue" 
@@ -359,14 +384,25 @@ export function Sidebar({
               )}
             </>
           )}
-          {hasPermission(permissions, RESOURCES.ASSETS) && (
-            <SidebarItem 
-              href="/assets" 
-              label="Assets" 
-              icon={Package} 
-              isOpen={isSidebarOpen} 
-              isActive={pathname.startsWith("/assets")} 
-            />
+
+          {canAccessTickets && (
+            <>
+              <SidebarItem 
+                label="Requirement Registry" 
+                icon={FileCode} 
+                isOpen={isSidebarOpen} 
+                isActive={pathname.startsWith("/tickets/requests")} 
+                onClick={() => toggleGroup("requirements")}
+                hasSubItems
+                isSubItemExpanded={expandedGroup === "requirements"}
+              />
+              {expandedGroup === "requirements" && isSidebarOpen && (
+                <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <SidebarSubItem href="/tickets/requests" label="All Requirements" isOpen={isSidebarOpen} />
+                  <SidebarSubItem href="/settings/notifications" label="Message Governance" isOpen={isSidebarOpen} />
+                </div>
+              )}
+            </>
           )}
 
           {hasPermission(permissions, RESOURCES.TICKETS, "create") && (

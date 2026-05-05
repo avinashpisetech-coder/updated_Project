@@ -82,6 +82,7 @@ export function AssetDetailPro({ asset, onUpdate }: Props) {
     const [assignments, setAssignments] = React.useState<any[]>([]);
     const [maintenance, setMaintenance] = React.useState<any[]>([]);
     const [logs, setLogs] = React.useState<any[]>([]);
+    const [valuation, setValuation] = React.useState<any>(null);
 
     // Modal States
     const [isInsuranceModalOpen, setIsInsuranceModalOpen] = React.useState(false);
@@ -118,6 +119,10 @@ export function AssetDetailPro({ asset, onUpdate }: Props) {
             setAssignments(dplRes.data || []);
             setMaintenance(mntRes.data || []);
             setLogs(logRes.data || []);
+
+            // Fetch Real-time Valuation
+            const { data: valData } = await supabase.rpc('calculate_asset_valuation', { p_asset_id: asset.id });
+            if (valData && valData[0]) setValuation(valData[0]);
         } finally {
             setIsLoading(false);
         }
@@ -553,35 +558,91 @@ export function AssetDetailPro({ asset, onUpdate }: Props) {
                     </TabsContent>
                     
                     {/* --- DEPRECIATION TAB --- */}
-                    <TabsContent value="depreciation" className="m-0 space-y-6 focus-visible:ring-0">
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-2xl relative overflow-hidden group">
-                                <h4 className="text-[10px] font-black uppercase text-blue-400 tracking-[0.3em]">Asset_WDV_Projection</h4>
-                                <div className="space-y-0.5 mt-4">
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Base Value (Acquisition)</p>
-                                    <p className="text-3xl font-black italic">₹{cost.toLocaleString('en-IN')}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-6 pt-4 border-t border-white/5 mt-4">
-                                    <div>
-                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Months In-Service</p>
-                                        <p className="text-xl font-black">{monthsPassed} MOS</p>
+                    <TabsContent value="depreciation" className="m-0 space-y-8 focus-visible:ring-0">
+                        <div className="grid grid-cols-12 gap-8">
+                            {/* Valuation Hero Card */}
+                            <div className="col-span-12 lg:col-span-5">
+                                <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden group min-h-[320px] flex flex-col justify-between">
+                                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-all">
+                                        <TrendingDown size={120} />
                                     </div>
-                                    <div>
-                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Depletion Rate</p>
-                                        <p className="text-xl font-black text-emerald-400">15.0%</p>
+                                    
+                                    <div className="space-y-1">
+                                        <h4 className="text-[10px] font-black uppercase text-blue-400 tracking-[0.4em]">Node_Fiscal_Valuation</h4>
+                                        <p className="text-[42px] font-black tracking-tighter leading-none mt-4">
+                                            ₹{valuation?.current_value?.toLocaleString('en-IN') || '0.00'}
+                                        </p>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Current Net Book Value (NBV)</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+                                        <div className="space-y-1">
+                                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Months Consumed</p>
+                                            <p className="text-[18px] font-black text-white uppercase">{valuation?.months_elapsed || 0} / 60</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Fiscal Status</p>
+                                            <Badge className={cn(
+                                                "border-none rounded-md h-5 px-3 text-[8px] font-black",
+                                                valuation?.is_fully_depreciated ? "bg-red-500 text-white" : "bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)]"
+                                            )}>
+                                                {valuation?.is_fully_depreciated ? 'EXPIRED_ASSET' : 'ACTIVE_EQUITY'}
+                                            </Badge>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                                <h4 className="text-[10px] font-black uppercase text-blue-600 tracking-[0.3em]">Residual_Balance_Forecast</h4>
-                                <div className="space-y-0.5">
-                                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Current Residual Value</p>
-                                    <p className="text-3xl font-black text-slate-900">₹{asset.net_asset_value?.toLocaleString('en-IN') || 0}</p>
+
+                            {/* Analytics Matrix */}
+                            <div className="col-span-12 lg:col-span-7 grid grid-cols-2 gap-6">
+                                <div className="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Accumulated_Depletion</h5>
+                                        <DollarSign size={14} className="text-slate-200" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-2xl font-black text-slate-900 leading-none">₹{valuation?.accumulated_depreciation?.toLocaleString('en-IN') || '0.00'}</p>
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic">Total value loss since acquisition</p>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-slate-50 rounded-full mt-6 overflow-hidden">
+                                        <div 
+                                            className="h-full bg-rose-500 rounded-full transition-all duration-1000" 
+                                            style={{ width: `${Math.min(((valuation?.accumulated_depreciation || 0) / (valuation?.original_cost || 1)) * 100, 100)}%` }} 
+                                        />
+                                    </div>
                                 </div>
-                                <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-2">
-                                    <div className="h-full bg-blue-600 rounded-full" style={{ width: '65%' }} />
+
+                                <div className="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Salvage_Anchor_Value</h5>
+                                        <ShieldCheck size={14} className="text-slate-200" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-2xl font-black text-slate-900 leading-none">₹{asset.salvage_value?.toLocaleString('en-IN') || '0.00'}</p>
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic">Guaranteed terminal value at retirement</p>
+                                    </div>
+                                    <div className="mt-6 flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                                        <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">Protocol Secured</span>
+                                    </div>
                                 </div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic leading-tight">Engine Analysis: Machine has utilized 35% of its fiscal utility based on standard WDV intervals.</p>
+
+                                <div className="col-span-2 bg-blue-50 border border-blue-100/50 rounded-[2rem] p-8 flex items-center justify-between group hover:bg-blue-600 transition-all duration-500">
+                                    <div className="flex items-center gap-6">
+                                        <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-110 transition-all">
+                                            <TrendingDown size={20} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h6 className="text-[10px] font-black text-blue-900 uppercase tracking-widest group-hover:text-white transition-colors">Depreciation Method Applied</h6>
+                                            <p className="text-[14px] font-black text-blue-600 uppercase group-hover:text-blue-100 transition-colors">
+                                                {asset.depreciation_method?.replace('_', ' ') || 'STRAIGHT_LINE'} Protocol // {asset.depreciation_rate || 0}% Annual
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button variant="ghost" className="h-10 w-10 p-0 text-blue-400 group-hover:text-white transition-colors">
+                                        <Info size={20} />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </TabsContent>

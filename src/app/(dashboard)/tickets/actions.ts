@@ -11,17 +11,82 @@ import {
 } from "@/lib/email";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { format } from "date-fns";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { createProject, createTask } from "../workspace/actions";
+
+export async function escalateTicketToProject(ticketId: string, projectName: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // 1. Fetch ticket details
+  const { data: ticket, error: ticketError } = await supabase
+    .from("tickets")
+    .select("*")
+    .eq("id", ticketId)
+    .single();
+
+  if (ticketError || !ticket) throw new Error("Ticket not found");
+
+  // 2. Create Workspace Project
+  // We need to fetch/create a workspace for the project if one doesn't exist?
+  // Usually tickets are escalated to a "Service Operations" workspace or a specific one.
+  // For now, let's assume we use a default workspace or the user chooses one.
+  // To keep it simple, I'll fetch the first active workspace the user has access to.
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (!workspace) throw new Error("No active workspace found to host the project");
+
+  const project = await createProject(workspace.id, {
+    name: projectName,
+    description: `Escalated from Ticket ${ticket.ticket_number}: ${ticket.subject}\n\nOriginal Description:\n${ticket.description}`,
+    status: 'ACTIVE'
+  });
+
+  // 3. Update project with ticket reference
+  await supabase
+    .from("workspace_projects")
+    .update({ escalated_from_ticket_id: ticketId })
+    .eq("id", project.id);
+
+  // 4. Create Initial Task
+  await createTask(project.id, {
+    title: `Resolve Ticket ${ticket.ticket_number}: ${ticket.subject}`,
+    description: ticket.description,
+    status: 'TODO',
+    priority: ticket.priority?.toUpperCase() === 'HIGH' ? 'HIGH' : 'MEDIUM'
+  });
+
+  // 5. Update Ticket Status
+  await supabase
+    .from("tickets")
+    .update({ status: 'escalated' })
+    .eq("id", ticketId);
+
+  // 6. Log Activity
+  await supabase.from("ticket_activity_log").insert({
+    ticket_id: ticketId,
+    actor_id: user.id,
+    activity_type: "status_change",
+    content: `Ticket escalated to Project: ${projectName}`,
+    old_value: ticket.status,
+    new_value: "escalated"
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/workspace");
+  
+  return project;
+}
 
 const TICKET_ATTACHMENTS_BUCKET = process.env.NEXT_PUBLIC_TICKET_ATTACHMENTS_BUCKET ?? "ticket-attachments";
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 
-function normalizeRoleKey(role: string | null | undefined) {
-  return String(role ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
 
 export async function createTicket(formData: FormData): Promise<{ success: boolean; ticket?: any; error?: string }> {
   try {
@@ -49,6 +114,9 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     const erpSubModule = formData.get("erp_sub_module") as string | null;
     const assignedToId = formData.get("assigned_to_id") as string | null;
     const assetId = formData.get("asset_id") as string | null;
+    const isRequirement = formData.get("is_requirement") === "true";
+    const descriptionOfChange = formData.get("description_of_change") as string | null;
+    const reasonForChange = formData.get("reason_for_change") as string | null;
     let effectiveAssignedToId = (assignedToId && assignedToId !== "_default") ? assignedToId : null;
     let autoAssigned = false;
 
@@ -80,7 +148,8 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
       priority,
       requester_id: user.id,
       created_by_id: user.id,
-      status: effectiveAssignedToId ? "assigned" : "new"
+      status: effectiveAssignedToId ? "assigned" : "new",
+      is_requirement: isRequirement
     };
 
     if (effectiveAssignedToId) insertData.assigned_to_id = effectiveAssignedToId;
@@ -109,6 +178,17 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     if (error) {
       console.error("Error creating ticket:", error);
       return { success: false, error: `Database Error: ${error.message}` };
+    }
+
+    // If requirement, initialize specialized fields
+    if (isRequirement && ticket) {
+      await supabase.from("ticket_requirements").insert({
+        ticket_id: ticket.id,
+        description_of_change: descriptionOfChange || "",
+        reason_for_change: reasonForChange || "",
+        approval_stage: 0,
+        version: 1
+      });
     }
 
     // Non-blocking notifications
@@ -145,6 +225,7 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     })();
 
     revalidatePath("/tickets");
+    revalidatePath("/tickets/requests");
     return { success: true, ticket };
   } catch (err: any) {
     console.error("Unhandle error in createTicket:", err);
@@ -411,19 +492,10 @@ export async function assignTicket(ticketId: string, assigneeId: string): Promis
 
     await ensureProfile(supabase, user);
 
-    const { data: actorProfile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (!actorProfile) {
-      return { success: false, error: "Profile not found" };
-    }
-
-    const allowedRoles = ["super_admin", "dept_admin", "module_agent"];
-    const actorRole = normalizeRoleKey(actorProfile.role);
-    if (!allowedRoles.includes(actorRole)) {
+    const permissions = await getUserPermissions(user.id);
+    
+    if (!hasPermission(permissions, RESOURCES.TICKETS, "manage") && 
+        !hasPermission(permissions, RESOURCES.TICKETS, "assign")) {
       return { success: false, error: "Insufficient permissions to assign tickets" };
     }
 
@@ -436,9 +508,9 @@ export async function assignTicket(ticketId: string, assigneeId: string): Promis
     if (!currentTicket) return { success: false, error: "Ticket not found" };
 
     // New: Restriction Logic
-    // If ticket is ALREADY assigned, only Super Admin or Dept Admin can change it.
-    const isAdmin = ["super_admin", "dept_admin"].includes(actorRole);
-    if (currentTicket.assigned_to_id && !isAdmin) {
+    // If ticket is ALREADY assigned, only privileged users can change it.
+    const isPrivileged = hasPermission(permissions, RESOURCES.TICKETS, "manage");
+    if (currentTicket.assigned_to_id && !isPrivileged) {
       return { success: false, error: "Only Administrators can change an existing assignment." };
     }
 
@@ -530,14 +602,10 @@ export async function uploadTicketAttachment(ticketId: string, formData: FormDat
 
   await ensureProfile(supabase, user);
 
-  const { data: actorProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const allowedRoles = ["super_admin", "dept_admin", "module_agent"];
-  if (!actorProfile || !allowedRoles.includes(normalizeRoleKey(actorProfile.role))) {
+  const permissions = await getUserPermissions(user.id);
+  
+  if (!hasPermission(permissions, RESOURCES.TICKETS, "manage") && 
+      !hasPermission(permissions, RESOURCES.TICKETS, "update")) {
     throw new Error("Insufficient permissions to upload attachments");
   }
 
@@ -609,6 +677,7 @@ export async function uploadTicketAttachment(ticketId: string, formData: FormDat
   }
 
   revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath(`/tickets/requests/${ticketId}`);
   revalidatePath("/tickets");
 
   return { success: true };
@@ -628,14 +697,10 @@ export async function updateTicketStatus(
 
     await ensureProfile(supabase, user);
 
-    const { data: actorProfile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    const allowedRoles = ["super_admin", "dept_admin", "module_agent"];
-    if (!actorProfile || !allowedRoles.includes(normalizeRoleKey(actorProfile.role))) {
+    const permissions = await getUserPermissions(user.id);
+    
+    if (!hasPermission(permissions, RESOURCES.TICKETS, "manage") && 
+        !hasPermission(permissions, RESOURCES.TICKETS, "update")) {
       return { success: false, error: "Insufficient permissions to update ticket status" };
     }
 
@@ -1117,14 +1182,9 @@ export async function updateTicketDeadline(ticketId: string, deadline: string | 
 
     await ensureProfile(supabase, user);
 
-    const { data: actorProfile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    const allowedRoles = ["super_admin", "dept_admin", "module_agent"];
-    if (!actorProfile || !allowedRoles.includes(normalizeRoleKey(actorProfile.role))) {
+    const permissions = await getUserPermissions(user.id);
+    
+    if (!hasPermission(permissions, RESOURCES.TICKETS, "manage")) {
       return { success: false, error: "Insufficient permissions to update ticket deadline" };
     }
 
@@ -1225,14 +1285,17 @@ export async function getUnreadNotifications() {
   if (!user) return [];
 
   const { data, error } = await supabase
-    .from("ticket_notifications")
-    .select("*, tickets(ticket_number), tasks(title, project_id, workspace_projects(workspace_id))")
+    .from("notifications")
+    .select("*")
     .eq("user_id", user.id)
     .eq("is_read", false)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (error) return [];
+  if (error) {
+    console.error("NOTIFICATION_FETCH_ERROR:", error.message);
+    return [];
+  }
   return data ?? [];
 }
 
@@ -1244,10 +1307,11 @@ export async function markNotificationsRead(ids: string[]) {
   if (!user) throw new Error("Unauthorized");
 
   await supabase
-    .from("ticket_notifications")
+    .from("notifications")
     .update({ is_read: true })
     .in("id", ids)
     .eq("user_id", user.id);
+  
   revalidatePath("/dashboard");
 }
 
@@ -1299,11 +1363,10 @@ export async function resolveTicket(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "Unauthorized" };
 
-    const { data: profile } = await supabase
-      .from("profiles").select("role").eq("id", user.id).single();
+    const permissions = await getUserPermissions(user.id);
 
-    const allowedRoles = ["super_admin", "dept_admin", "module_agent"];
-    if (!profile || !allowedRoles.includes(normalizeRoleKey(profile.role))) {
+    if (!hasPermission(permissions, RESOURCES.TICKETS, "manage") && 
+        !hasPermission(permissions, RESOURCES.TICKETS, "update")) {
       return { success: false, error: "Insufficient permissions to resolve tickets" };
     }
 
@@ -1333,10 +1396,9 @@ export async function approveTicketClose(ticketId: string): Promise<{ success: b
     if (!ticket) return { success: false, error: "Ticket not found" };
     if (ticket.status !== "resolved") return { success: false, error: "Ticket is not in Resolved state" };
 
-    const { data: profile } = await supabase
-      .from("profiles").select("role").eq("id", user.id).single();
+    const permissions = await getUserPermissions(user.id);
 
-    if (ticket.requester_id !== user.id && normalizeRoleKey(profile?.role) !== "super_admin") {
+    if (ticket.requester_id !== user.id && !hasPermission(permissions, RESOURCES.TICKETS, "manage")) {
       return { success: false, error: "Only the ticket requester may approve closing" };
     }
 
@@ -1407,10 +1469,9 @@ export async function reopenTicket(
     if (!ticket) return { success: false, error: "Ticket not found" };
     if (ticket.status !== "resolved") return { success: false, error: "Only resolved tickets can be re-opened" };
 
-    const { data: profile } = await supabase
-      .from("profiles").select("role").eq("id", user.id).single();
+    const permissions = await getUserPermissions(user.id);
 
-    if (ticket.requester_id !== user.id && normalizeRoleKey(profile?.role) !== "super_admin") {
+    if (ticket.requester_id !== user.id && !hasPermission(permissions, RESOURCES.TICKETS, "manage")) {
       return { success: false, error: "Only the ticket requester may re-open this ticket" };
     }
 
@@ -1473,3 +1534,232 @@ export async function getTicketMetadataOptions() {
     ]
   };
 }
+
+// ─── Bulk Actions ────────────────────────────────────────────────────
+
+export async function bulkAssignTickets(ticketIds: string[], assigneeId: string): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, count: 0, error: "Unauthorized" };
+
+    const { error, count } = await supabase
+      .from("tickets")
+      .update({ assigned_to_id: assigneeId, status: "assigned", updated_at: new Date().toISOString() })
+      .in("id", ticketIds);
+
+    if (error) return { success: false, count: 0, error: error.message };
+
+    // Log activity for each ticket
+    const activityRows = ticketIds.map(id => ({
+      ticket_id: id,
+      action: "bulk_assigned",
+      actor_id: user.id,
+      metadata: { assigned_to_id: assigneeId }
+    }));
+    await supabase.from("ticket_activity_log").insert(activityRows).throwOnError();
+
+    revalidatePath("/tickets");
+    return { success: true, count: count || ticketIds.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err.message };
+  }
+}
+
+export async function bulkCloseTickets(ticketIds: string[]): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, count: 0, error: "Unauthorized" };
+
+    const { error, count } = await supabase
+      .from("tickets")
+      .update({ status: "resolved", resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .in("id", ticketIds);
+
+    if (error) return { success: false, count: 0, error: error.message };
+
+    revalidatePath("/tickets");
+    return { success: true, count: count || ticketIds.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err.message };
+  }
+}
+
+export async function bulkChangePriority(ticketIds: string[], priority: string): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, count: 0, error: "Unauthorized" };
+
+    const { error, count } = await supabase
+      .from("tickets")
+      .update({ priority, updated_at: new Date().toISOString() })
+      .in("id", ticketIds);
+
+    if (error) return { success: false, count: 0, error: error.message };
+
+    revalidatePath("/tickets");
+    return { success: true, count: count || ticketIds.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err.message };
+  }
+}
+
+// ─── Ticket Templates ────────────────────────────────────────────────
+
+export async function getTicketTemplates() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ticket_templates")
+    .select("id, name, description, subject_template, description_template, default_priority, module_id, category_id")
+    .eq("is_active", true)
+    .order("name");
+  if (error) return [];
+  return data || [];
+}
+
+// ─── CSAT / Resolve with Email ────────────────────────────────────────
+
+export async function resolveTicketWithCSAT(ticketId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const { data: ticket } = await supabase
+      .from("tickets")
+      .select("id, ticket_number, subject, requester_id, profiles!tickets_requester_id_fkey(email, full_name)")
+      .eq("id", ticketId)
+      .single();
+
+    if (!ticket) return { success: false, error: "Ticket not found" };
+
+    const { error } = await supabase
+      .from("tickets")
+      .update({ status: "resolved", resolved_at: new Date().toISOString() })
+      .eq("id", ticketId);
+
+    if (error) return { success: false, error: error.message };
+
+    // Send CSAT email non-blocking
+    const requester = (ticket as any).profiles;
+    if (requester?.email) {
+      const token = Buffer.from(`${ticketId}:${ticket.requester_id}`).toString("base64");
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+      const csatUrl = `${appUrl}/csat?token=${token}`;
+      
+      const { sendTicketResolvedEmail } = await import("@/lib/email/service");
+      sendTicketResolvedEmail({
+        to: requester.email,
+        requesterName: requester.full_name || "User",
+        ticketNumber: ticket.ticket_number,
+        subject: ticket.subject,
+        csatUrl,
+      }).catch(e => console.warn("[CSAT Email]", e));
+    }
+
+    revalidatePath("/tickets");
+    revalidatePath(`/tickets/${ticketId}`);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function approveRequirementStage(ticketId: string, stage: number) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("ticket_requirements")
+    .update({ 
+      approval_stage: stage,
+      is_frozen: stage >= 2
+    })
+    .eq("ticket_id", ticketId);
+
+  if (error) throw error;
+
+  revalidatePath(`/tickets/requests/${ticketId}`);
+  revalidatePath("/tickets/requests");
+  
+  return { success: true };
+}
+
+export async function reopenRequirement(ticketId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: req } = await supabase
+    .from("ticket_requirements")
+    .select("version")
+    .eq("ticket_id", ticketId)
+    .single();
+
+  const newVersion = (req?.version || 1) + 1;
+
+  const { error } = await supabase
+    .from("ticket_requirements")
+    .update({ 
+      version: newVersion,
+      approval_stage: 0,
+      is_frozen: false
+    })
+    .eq("ticket_id", ticketId);
+
+  if (error) throw error;
+
+  revalidatePath(`/tickets/requests/${ticketId}`);
+  return { success: true };
+}
+
+export async function updateRequirementChecklist(ticketId: string, checklist: any[]) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ticket_requirements")
+    .update({ checklist })
+    .eq("ticket_id", ticketId);
+
+  if (error) throw error;
+  revalidatePath(`/tickets/requests/${ticketId}`);
+  return { success: true };
+}
+
+export async function updateRequirementField(ticketId: string, field: string, value: any) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("ticket_requirements")
+    .update({ [field]: value, updated_at: new Date().toISOString() })
+    .eq("ticket_id", ticketId);
+
+  if (error) throw error;
+
+  revalidatePath(`/tickets/requests/${ticketId}`);
+  return { success: true };
+}
+
+export async function updateTicketField(ticketId: string, field: string, value: any) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("tickets")
+    .update({ [field]: value, updated_at: new Date().toISOString() })
+    .eq("id", ticketId);
+
+  if (error) throw error;
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath(`/tickets/requests/${ticketId}`);
+  revalidatePath("/tickets");
+  
+  return { success: true };
+}
+

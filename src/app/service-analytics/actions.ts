@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient, getCachedUser } from "@/lib/supabase/server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import { getUserPermissions } from "@/lib/permissions-server";
 
 export interface AnalyticsData {
   timestamp: string;
@@ -43,7 +45,6 @@ export interface AnalyticsData {
 }
 
 export async function getAnalytics(
-  roleId?: string, 
   filters: any = {}, 
   startDate?: string, 
   endDate?: string
@@ -54,33 +55,14 @@ export async function getAnalytics(
 
     if (!user) return { error: "Unauthorized" };
 
-    let profileId = user.id;
-
-    if (roleId) {
-      const { data: currentUserProfile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      const isAdmin = currentUserProfile?.role === "super_admin" || currentUserProfile?.role === "dept_admin";
-
-      if (isAdmin) {
-        const { data: targetProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("role", roleId)
-          .limit(1)
-          .maybeSingle();
-
-        if (targetProfile) {
-          profileId = targetProfile.id;
-        }
-      }
+    const permissions = await getUserPermissions(user.id);
+    
+    if (!hasPermission(permissions, RESOURCES.INTEL)) {
+      return { error: "Insufficient permissions for intelligence analytics" };
     }
 
     const { data, error } = await supabase.rpc("get_advanced_analytics", {
-      p_profile_id: profileId,
+      p_profile_id: user.id,
       p_filters: filters,
       p_start_date: startDate,
       p_end_date: endDate

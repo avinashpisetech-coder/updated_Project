@@ -78,7 +78,9 @@ export default async function TicketsPage(props: { searchParams: Promise<any> })
     status: t.status,
     priority: t.priority,
     created_at: t.created_at,
+    sla_due_date: t.sla_due_date,
     resolved_at: t.resolved_at,
+    is_requirement: t.is_requirement,
     module: { name: t.module_name },
     category: { name: t.category_name },
     requester: {

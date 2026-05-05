@@ -63,7 +63,7 @@ export default async function AssetsDashboardPage() {
             movements={movements || []} 
             lowStock={lowStock || []}
             budgets={budgets || []}
-            role={profile?.role || "end_user"}
+            permissions={permissions}
           />
         </div>
       </main>

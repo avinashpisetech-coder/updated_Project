@@ -29,15 +29,18 @@ export default async function AccessControlPage() {
     redirect("/dashboard");
   }
 
+  const canManageGlobal = hasPermission(userPermissions, "*", "*");
+  const canManageDept = hasPermission(userPermissions, RESOURCES.ACCESS, "manage");
+
   // Get base query for users
   const usersQuery = supabase
     .from("profiles")
     .select("id, full_name, personal_email, department_id, role")
     .order("full_name");
 
-  // Apply scope
+  // Apply scope: Only global admins see everyone; dept admins see their department
   const userScope =
-    profile.role === "dept_admin" && profile.department_id
+    !canManageGlobal && canManageDept && profile.department_id
       ? usersQuery.eq("department_id", profile.department_id)
       : usersQuery;
 
@@ -177,8 +180,8 @@ export default async function AccessControlPage() {
         initialRoles={roles}
         initialPermissions={permissions}
         initialUserRoles={initialUserRoles}
-        isSuperAdmin={profile.role === "super_admin"}
-        isDeptAdmin={profile.role === "dept_admin"}
+        canManageGlobal={canManageGlobal}
+        canManageDept={canManageDept}
         userDeptId={profile.department_id as string | undefined}
       />
     </div>

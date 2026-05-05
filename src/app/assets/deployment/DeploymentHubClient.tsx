@@ -75,7 +75,8 @@ interface DeploymentHubProps {
     assets: any[];
     users: any[];
     deployments: any[];
-    role: string;
+    canAuthorize: boolean;
+    canManage: boolean;
     currentUserId: string;
 }
 
@@ -99,7 +100,8 @@ export function DeploymentHubClient({
     assets,
     users,
     deployments,
-    role,
+    canAuthorize,
+    canManage,
     currentUserId
 }: DeploymentHubProps) {
     const router = useRouter();
@@ -423,7 +425,7 @@ export function DeploymentHubClient({
                             </div>
                         )}
 
-                        {status === 'submitted' && (role === 'super_admin' || role === 'it_admin') && (
+                        {status === 'submitted' && canAuthorize && (
                             <Button 
                                 className="h-11 px-8 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-primary hover:bg-primary/95 text-primary-foreground shadow-2xl transition-all"
                                 onClick={handleApprove}

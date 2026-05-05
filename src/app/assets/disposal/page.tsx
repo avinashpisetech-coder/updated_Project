@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { DisposalClient } from "./DisposalClient";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function DisposalPage() {
   const supabase = await createClient();
@@ -11,11 +13,15 @@ export default async function DisposalPage() {
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  const role = profile?.role || "end_user";
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
 
-  // Only IT/Super Admin can access disposal protocols
-  if (role === "end_user" && profile?.role !== "dept_admin" && profile?.role !== "super_admin") {
+  // HEAVY GATE: Matrix-backed security enforcement
+  if (!hasPermission(permissions, RESOURCES.ASSETS, "manage") && 
+      !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+      !hasPermission(permissions, "*", "*")) {
       redirect("/assets");
   }
 
@@ -71,7 +77,8 @@ export default async function DisposalPage() {
             initialDisposals={disposals || []} 
             assets={assets || []} 
             profiles={profiles || []}
-            role={role} 
+            canManage={hasPermission(permissions, RESOURCES.ASSETS, "manage")}
+            canAuthorize={hasPermission(permissions, RESOURCES.ASSETS, "*") || hasPermission(permissions, "*", "*")}
         />
     </div>
   );

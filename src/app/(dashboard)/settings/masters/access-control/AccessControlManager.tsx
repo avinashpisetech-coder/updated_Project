@@ -42,8 +42,8 @@ interface Props {
     initialRoles: any[];
     initialPermissions: any[];
     initialUserRoles: Record<string, string[]>;
-    isSuperAdmin: boolean;
-    isDeptAdmin: boolean;
+    canManageGlobal: boolean;
+    canManageDept: boolean;
     userDeptId?: string;
 }
 
@@ -53,8 +53,8 @@ export default function AccessControlManager({
     initialRoles, 
     initialPermissions, 
     initialUserRoles, 
-    isSuperAdmin,
-    isDeptAdmin,
+    canManageGlobal,
+    canManageDept,
     userDeptId 
 }: Props) {
     const router = useRouter();
@@ -81,7 +81,7 @@ export default function AccessControlManager({
 
     const accessibleProfiles = useMemo(() => {
         let filtered = initialProfiles;
-        if (!isSuperAdmin && isDeptAdmin) {
+        if (!canManageGlobal && canManageDept) {
             filtered = filtered.filter(p => p.department_id === userDeptId);
         }
         if (searchTerm) {
@@ -92,7 +92,7 @@ export default function AccessControlManager({
             );
         }
         return filtered;
-    }, [initialProfiles, isSuperAdmin, isDeptAdmin, userDeptId, searchTerm]);
+    }, [initialProfiles, canManageGlobal, canManageDept, userDeptId, searchTerm]);
 
     // TAB 1: INITIALIZE ACTIONS
     const toggleNewPerm = (id: string) => {

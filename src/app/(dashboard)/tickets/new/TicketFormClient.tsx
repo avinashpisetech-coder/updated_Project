@@ -15,18 +15,16 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type Scope = "IT" | "ERP" | "General" | null;
-type Module = { id: string; name: string; slug: string };
-type Category = { id: string; name: string };
 type Profile = { id: string; full_name: string; role: string };
 type SoftwareSystem = { id: string; name: string; scope: "erp" | "it"; code?: string | null };
 
 interface TicketFormClientProps {
   initialModules: Module[];
-  userProfile: { id: string; role: string } | null;
+  canAssign: boolean;
+  assignableUsers: Profile[];
 }
 
-export default function TicketFormClient({ initialModules, userProfile }: TicketFormClientProps) {
+export default function TicketFormClient({ initialModules, canAssign, assignableUsers }: TicketFormClientProps) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -37,7 +35,6 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
   const [erpModulesList, setErpModulesList] = useState<{id:string, name:string}[]>([]);
   const [erpSubModulesList, setErpSubModulesList] = useState<{id:string, name:string}[]>([]);
   const [softwareSystems, setSoftwareSystems] = useState<SoftwareSystem[]>([]);
-  const [users, setUsers] = useState<Profile[]>([]);
   const [hardwareAssets, setHardwareAssets] = useState<{id: string, asset_code: string, brand: string, model: string}[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -57,24 +54,15 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
   const [erpSubModule, setErpSubModule] = useState("");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isRequirement, setIsRequirement] = useState(false);
+  const [descriptionOfChange, setDescriptionOfChange] = useState("");
+  const [reasonForChange, setReasonForChange] = useState("");
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-  const agentRoles = ["super_admin", "dept_admin", "module_agent"];
-  const isAgent = agentRoles.includes(String(userProfile?.role || ""));
+  const isAgent = canAssign;
 
-  // Fetch assignable users (profiles with agent or admin roles) for the assignment dropdown
-  useEffect(() => {
-    async function loadAssignableUsers() {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("status", "active")
-        .in("role", ["super_admin", "dept_admin", "module_agent"])
-        .order("full_name");
-      if (profiles) setUsers(profiles);
-    }
-    loadAssignableUsers();
-  }, [supabase]);
+  // Assignable users are now passed as props from the server to ensure RBAC integrity
+  const users = assignableUsers;
 
   const handleScopeSelect = async (selectedScope: Scope) => {
     setScope(selectedScope);
@@ -152,9 +140,19 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    
+    if (isRequirement && selectedFiles.length === 0) {
+      toast.error("Document attachment is mandatory for Requirements.");
+      return;
+    }
 
+    setLoading(true);
     const formData = new FormData();
+    formData.append("is_requirement", String(isRequirement));
+    if (isRequirement) {
+      formData.append("description_of_change", descriptionOfChange);
+      formData.append("reason_for_change", reasonForChange);
+    }
     formData.append("module_id", selectedModuleId);
     formData.append("category_id", selectedCategoryId);
     if (selectedSubcategoryId) formData.append("subcategory_id", selectedSubcategoryId);
@@ -315,6 +313,47 @@ export default function TicketFormClient({ initialModules, userProfile }: Ticket
                     <FileSpreadsheet className="h-4 w-4 text-primary" />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-primary">System Context</span>
                   </div>
+
+                  <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <Label className="text-[11px] font-bold uppercase tracking-tight text-primary flex-1">Create as New Requirement / Change Order?</Label>
+                    <input 
+                      type="checkbox" 
+                      checked={isRequirement} 
+                      onChange={e => setIsRequirement(e.target.checked)}
+                      className="h-5 w-5 rounded-md border-primary/30 text-primary focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {isRequirement && (
+                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
+                          1. Description of Change (Mandatory)
+                        </Label>
+                        <Textarea 
+                          required={isRequirement}
+                          placeholder="Provide a detailed description of the new requirement or change..."
+                          value={descriptionOfChange}
+                          onChange={e => setDescriptionOfChange(e.target.value)}
+                          className="min-h-[100px] rounded-xl bg-white border-primary/20 text-[13px] font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
+                          2. Reason for Change (Mandatory)
+                        </Label>
+                        <Textarea 
+                          required={isRequirement}
+                          placeholder="Explain why this change is necessary..."
+                          value={reasonForChange}
+                          onChange={e => setReasonForChange(e.target.value)}
+                          className="min-h-[100px] rounded-xl bg-white border-primary/20 text-[13px] font-medium"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Software System</Label>

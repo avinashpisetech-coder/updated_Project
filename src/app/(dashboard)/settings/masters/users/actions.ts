@@ -64,8 +64,13 @@ async function authorizeProfileManagement(
     throw new Error("Forbidden: Governance Management Protocol Required");
   }
 
-  const canManageAll = hasPermission(permissions, RESOURCES.USERS, "update");
-  const isDeptLead = currentProfile.role === "dept_admin"; // Preserving scoping trigger, but check is permissions based below
+  const canManageAll = hasPermission(permissions, RESOURCES.USERS, "*") || 
+                       hasPermission(permissions, "*", "*");
+  const canUpdateUsers = canManageAll || hasPermission(permissions, RESOURCES.USERS, "update");
+
+  if (!canUpdateUsers) {
+    throw new Error("Insufficient permissions for user management");
+  }
 
   const { data: targetProfile, error: targetErr } = await supabase
     .from("profiles")
@@ -77,12 +82,14 @@ async function authorizeProfileManagement(
     throw new Error("Target profile not found");
   }
 
-  if (targetProfile.role === "super_admin") {
-    throw new Error("Forbidden: cannot manage super admin");
+  // Hierarchy Protection: Only wildcard holders can manage other high-level accounts
+  if (targetProfile.role === "super_admin" && !canManageAll) {
+    throw new Error("Forbidden: cannot manage super admin without global administrative access");
   }
 
-  if (targetProfile.department_id !== currentProfile.department_id) {
-    throw new Error("Forbidden: can only manage users in own department");
+  // Department Scoping: If not a global manager, must match department
+  if (!canManageAll && targetProfile.department_id !== currentProfile.department_id) {
+    throw new Error("Forbidden: your permissions are scoped to your department only");
   }
 
   return { supabase, currentProfile, targetProfile };

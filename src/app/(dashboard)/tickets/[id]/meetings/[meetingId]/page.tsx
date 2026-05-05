@@ -19,8 +19,10 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import MeetingToolSelector from "./MeetingToolSelector";
 import { formatDistanceToNow } from "date-fns";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+import MeetingToolSelector from "./MeetingToolSelector";
 
 export default async function MeetingJoiningPage(props: {
   params: Promise<{ id: string; meetingId: string }>;
@@ -54,7 +56,7 @@ export default async function MeetingJoiningPage(props: {
   }
 
   // --- Parallel Performance Fetch ---
-  const [meetingRes, profileRes] = await Promise.all([
+  const [meetingRes, profileRes, permissions] = await Promise.all([
     supabase
       .from("ticket_meetings")
       .select("*, ticket:tickets(subject, ticket_number)")
@@ -64,7 +66,8 @@ export default async function MeetingJoiningPage(props: {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single()
+      .single(),
+    getUserPermissions(user.id)
   ]);
 
   const meeting = meetingRes.data;
@@ -78,9 +81,10 @@ export default async function MeetingJoiningPage(props: {
   const startsAt = new Date(meeting.starts_at);
   const isPast = startsAt < new Date();
   
-  const isAgent = ["super_admin", "dept_admin", "module_agent"].includes(currentProfile?.role?.toLowerCase().replace(/[^a-z0-9]/g, '_') || "");
+  const canManage = hasPermission(permissions, RESOURCES.TICKETS, "update") || 
+                    hasPermission(permissions, RESOURCES.TICKETS, "manage");
   const isCreator = meeting.created_by === user.id;
-  const canInitialize = isAgent || isCreator;
+  const canInitialize = canManage || isCreator;
   
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-[#0a0c10] text-slate-300 font-sans relative overflow-hidden">

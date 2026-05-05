@@ -8,16 +8,24 @@ import { ShieldCheck, Activity, Layers, Monitor } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+
 export default async function SoftwareSAMPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  const role = profile?.role || "end_user";
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
 
-  if (role === "end_user" && profile?.role !== "module_agent" && profile?.role !== "dept_admin" && profile?.role !== "super_admin" && profile?.role !== "it_admin") {
+  // HEAVY GATE: Matrix-backed security enforcement
+  if (!hasPermission(permissions, RESOURCES.ASSETS, "read") && 
+      !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+      !hasPermission(permissions, "*", "*")) {
       redirect("/assets");
   }
 
@@ -65,7 +73,6 @@ export default async function SoftwareSAMPage() {
           purchases={purchases || []}
           profiles={profiles || []}
           hardware={hardware || []}
-          role={role} 
       />
     </div>
   );

@@ -59,6 +59,7 @@ import {
     DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { AssetDetailPro } from "./AssetDetailPro";
+import { AssetQRLabel } from "@/components/assets/AssetQRLabel";
 
 // --- Types ---
 interface AssetSubType {
@@ -127,10 +128,9 @@ interface Props {
     departments: { id: string; name: string }[];
     catalog: AssetCatalog[];
     uoms: UOM[];
-    role: string;
 }
 
-export function InventoryClient({ initialAssets, subTypes, purchases, profiles, stores, companies, suppliers, departments, catalog, uoms, role }: Props) {
+export function InventoryClient({ initialAssets, subTypes, purchases, profiles, stores, companies, suppliers, departments, catalog, uoms }: Props) {
     const router = useRouter();
     const { isSidebarOpen } = useNavigation();
     const supabase = createClient();
@@ -141,8 +141,9 @@ export function InventoryClient({ initialAssets, subTypes, purchases, profiles, 
     const [pageSize, setPageSize] = React.useState(15);
     
     // --- View/Protocol Management ---
-    type ProtocolMode = 'LIST' | 'INWARD' | 'HANDOVER' | 'RECLAMATION' | 'INTELLIGENCE' | 'RETIREMENT';
+    type ProtocolMode = 'LIST' | 'INWARD' | 'HANDOVER' | 'RECLAMATION' | 'INTELLIGENCE' | 'RETIREMENT' | 'QR_LABEL';
     const [activeProtocol, setActiveProtocol] = React.useState<ProtocolMode>('LIST');
+    const [showQRLabel, setShowQRLabel] = React.useState(false);
     
     // --- Asset CRUD State ---
     const [assets, setAssets] = React.useState<Asset[]>(initialAssets);
@@ -509,6 +510,7 @@ export function InventoryClient({ initialAssets, subTypes, purchases, profiles, 
                                                                 <DropdownMenuItem className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:bg-emerald-500 focus:text-white cursor-pointer" onClick={() => { setSelectedAsset(asset); setActiveProtocol('RECLAMATION'); }}><History size={14} /> Inward_Return</DropdownMenuItem>
                                                                 <DropdownMenuSeparator className="mx-2 my-1 opacity-5" />
                                                                 <DropdownMenuItem className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:bg-slate-900 focus:text-white cursor-pointer" onClick={() => { setSelectedAsset(asset); setActiveProtocol('INTELLIGENCE'); }}><Edit2 size={14} /> Profile_Analysis</DropdownMenuItem>
+                                                                <DropdownMenuItem className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase tracking-widest text-slate-600 focus:bg-indigo-500 focus:text-white cursor-pointer" onClick={() => { setSelectedAsset(asset); setShowQRLabel(true); }}><Camera size={14} /> Generate_Tag</DropdownMenuItem>
                                                                 <DropdownMenuItem className="rounded-xl h-10 gap-3 text-[10px] font-black uppercase tracking-widest text-red-500 focus:bg-red-500 focus:text-white cursor-pointer" onClick={() => { setSelectedAsset(asset); setActiveProtocol('RETIREMENT'); }}><Trash2 size={14} /> Retire_Protocol</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -809,6 +811,12 @@ export function InventoryClient({ initialAssets, subTypes, purchases, profiles, 
                             </div>
                         </div>
                     </div>
+                )}
+                {showQRLabel && selectedAsset && (
+                    <AssetQRLabel 
+                        asset={selectedAsset} 
+                        onClose={() => setShowQRLabel(false)} 
+                    />
                 )}
             </main>
         </div>

@@ -7,6 +7,8 @@ import { ModuleHeader } from "@/components/ModuleHeader";
 import CategoryManager from "./CategoryManager";
 import SoftwareSystemManager from "../SoftwareSystemManager";
 import { Fingerprint } from "lucide-react";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function HelpDeskMasterPage() {
   const supabase = await createClient();
@@ -15,13 +17,16 @@ export default async function HelpDeskMasterPage() {
   if (!user) redirect("/login");
 
   // Performance: Parallelize all lookups to eliminate the 4-step waterfall.
-  const [profile, hdModuleRes, systemsRes] = await Promise.all([
+  const [profile, permissions, hdModuleRes, systemsRes] = await Promise.all([
     ensureProfile(supabase, user),
+    getUserPermissions(user.id),
     supabase.from("modules").select("id").eq("slug", "help-desk").single(),
     supabase.from("software_systems").select("id, name, code, description, status").eq("scope", "it").order("name")
   ]);
 
-  if (profile?.role !== "super_admin") {
+  if (!hasPermission(permissions, RESOURCES.HELP_DESK_MASTER, "manage") && 
+      !hasPermission(permissions, RESOURCES.HELP_DESK_MASTER, "*") &&
+      !hasPermission(permissions, "*", "*")) {
     redirect("/dashboard");
   }
 

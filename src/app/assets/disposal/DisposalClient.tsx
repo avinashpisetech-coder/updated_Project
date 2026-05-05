@@ -61,10 +61,11 @@ interface Props {
     initialDisposals: any[];
     assets: any[];
     profiles: any[];
-    role: string;
+    canManage: boolean;
+    canAuthorize: boolean;
 }
 
-export function DisposalClient({ initialDisposals, assets, profiles, role }: Props) {
+export function DisposalClient({ initialDisposals, assets, profiles, canManage, canAuthorize }: Props) {
     const router = useRouter();
     const supabase = createClient();
     const [view, setView] = useState<'list' | 'details' | 'form'>('list');
@@ -448,7 +449,7 @@ export function DisposalClient({ initialDisposals, assets, profiles, role }: Pro
                                     </div>
                                 </div>
 
-                                {selectedDisposal.status === 'pending_approval' && (role === 'super_admin' || role === 'dept_admin') && (
+                                {selectedDisposal.status === 'pending_approval' && canAuthorize && (
                                     <div className="pt-8 flex items-center gap-4">
                                         <Button 
                                             variant="outline"

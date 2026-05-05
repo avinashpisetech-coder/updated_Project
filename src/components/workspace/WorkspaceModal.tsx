@@ -61,7 +61,7 @@ export function WorkspaceModal({ children, initialData, onSuccess }: WorkspaceMo
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-950 border-none shadow-2xl rounded-xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-[500px] p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-950 border-none shadow-2xl rounded-xl">
         <DialogTitle className="sr-only">{isEditing ? "Edit" : "Create"} Workspace</DialogTitle>
         
         {/* Header */}

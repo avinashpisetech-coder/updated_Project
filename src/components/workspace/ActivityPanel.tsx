@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { addTaskComment } from "@/app/(dashboard)/workspace/actions";
 import { 
-  Send, Search, Bell, Filter, ChevronDown, 
+  Send, ChevronDown, 
   ThumbsUp, SmilePlus, Paperclip, FileIcon
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -120,18 +120,10 @@ export function ActivityPanel({ taskId }: { taskId: string }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-transparent">
         <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Activity</h3>
-        <div className="flex items-center gap-4 text-zinc-500">
-          <Search className="w-4 h-4 cursor-pointer hover:text-zinc-800 transition-colors" />
-          <div className="flex items-center gap-1 cursor-pointer hover:text-zinc-800 transition-colors text-purple-600">
-            <Bell className="w-4 h-4" />
-            <span className="text-xs font-medium">1</span>
-          </div>
-          <Filter className="w-4 h-4 cursor-pointer hover:text-zinc-800 transition-colors" />
-        </div>
       </div>
       
       {/* Scroll Area */}
-      <div className="flex-1 px-6 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 px-6 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent hover:scrollbar-thumb-zinc-300 transition-colors">
         <div className="space-y-6 pt-4 pb-20">
           
           {/* Creation Log */}
@@ -169,7 +161,7 @@ export function ActivityPanel({ taskId }: { taskId: string }) {
               <div className="text-sm text-zinc-700 dark:text-zinc-300 pl-8 mb-4">
                 {renderCommentContent(comment.content)}
               </div>
-
+ 
               {/* Comment Actions Footer */}
               <div className="flex items-center justify-between pl-8 border-t border-zinc-100 dark:border-zinc-800 pt-3">
                 <div className="flex items-center gap-3 text-zinc-400">
@@ -251,19 +243,19 @@ export function ActivityPanel({ taskId }: { taskId: string }) {
         >
           
           <Input 
-            placeholder="Comment, press 'space' for AI, '/' for commands (Drag & Drop files here)" 
+            placeholder="Write a comment..." 
             value={newComment}
             onChange={handleInputChange}
             disabled={loading}
-            className="border-0 shadow-none focus-visible:ring-0 bg-transparent text-sm min-h-[48px] placeholder:text-zinc-400"
+            className="border-0 shadow-none focus-visible:ring-0 bg-transparent text-xs min-h-[40px] placeholder:text-zinc-400 font-medium"
             autoComplete="off"
           />
-
+ 
           {/* Action Row */}
-          <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+          <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded text-xs font-semibold text-red-600 dark:text-red-400 cursor-pointer">
-                Comment <ChevronDown className="w-3 h-3 ml-1" />
+              <div className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/5 rounded text-[9px] font-black uppercase tracking-widest text-primary cursor-pointer border border-primary/10">
+                Comment <ChevronDown className="w-2.5 h-2.5 ml-0.5" />
               </div>
             </div>
             
@@ -272,17 +264,17 @@ export function ActivityPanel({ taskId }: { taskId: string }) {
                 type="submit" 
                 size="sm" 
                 disabled={loading || !newComment.trim()}
-                className="bg-red-400 hover:bg-red-500 text-white h-7 rounded-r-none px-3 border-r border-red-500/30"
+                className="bg-primary hover:bg-primary/90 text-white h-6 rounded-r-none px-3 border-r border-white/10"
               >
-                <Send className="h-3.5 w-3.5" />
+                <Send className="h-3 w-3" />
               </Button>
               <Button 
                 type="button" 
                 size="sm" 
                 disabled={loading || !newComment.trim()}
-                className="bg-red-400 hover:bg-red-500 text-white h-7 rounded-l-none px-1.5"
+                className="bg-primary hover:bg-primary/90 text-white h-6 rounded-l-none px-1"
               >
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-3 w-3" />
               </Button>
             </div>
           </div>

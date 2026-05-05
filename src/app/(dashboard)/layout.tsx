@@ -16,6 +16,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { hasPermission, RESOURCES } from "@/lib/permissions";
 import { getUserPermissions } from "@/lib/permissions-server";
 
+import { CommandPalette } from "@/components/CommandPalette";
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -26,12 +28,17 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  // Performance: fetch profile and permissions in parallel
-  const [profile, permissions, notifications] = await Promise.all([
+  // Performance: fetch profile, permissions, notifications, and cross-module assignments in parallel
+  const [profile, permissions, notifications, assignmentStatus] = await Promise.all([
     supabase.from("profiles").select("id, force_password_change, role, full_name").eq("id", user.id).single()
       .then(res => res.data || ensureProfile(supabase, user, res.data)),
     getUserPermissions(user.id),
-    getUnreadNotifications().catch(() => [])
+    getUnreadNotifications().catch(() => []),
+    Promise.all([
+      supabase.from("task_assignees").select("task_id", { count: 'exact', head: true }).eq("profile_id", user.id).then(res => (res.count || 0) > 0),
+      supabase.from("tickets").select("id", { count: 'exact', head: true }).or(`assigned_to_id.eq.${user.id},requester_id.eq.${user.id}`).then(res => (res.count || 0) > 0),
+      supabase.from("assets").select("id", { count: 'exact', head: true }).eq("current_holder_id", user.id).then(res => (res.count || 0) > 0)
+    ]).then(([tasks, tickets, assets]) => ({ tasks, tickets, assets }))
   ]);
 
   if (profile?.force_password_change && !user.app_metadata?.bypass_force_change) {
@@ -46,16 +53,37 @@ export default async function DashboardLayout({
   const canAccessSecurity = hasPermission(permissions, RESOURCES.ACCESS) || 
                        hasPermission(permissions, RESOURCES.MAIL);
 
+  const canAccessWorkspace = hasPermission(permissions, RESOURCES.WORKSPACE) || assignmentStatus.tasks;
+  const canAccessTickets = hasPermission(permissions, RESOURCES.TICKETS) || hasPermission(permissions, RESOURCES.SUPPORT_QUEUE) || assignmentStatus.tickets;
+  const canAccessAssets = hasPermission(permissions, RESOURCES.ASSETS) || assignmentStatus.assets;
+
   return (
     <NavigationProvider>
       <div className="relative min-h-screen flex flex-col text-foreground selection:bg-primary/30 selection:text-white overflow-x-hidden">
         <ThemeOrnaments />
-        <Navbar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} notifications={notifications} />
-        <Sidebar canAccessMasters={canAccessMasters} canAccessSecurity={canAccessSecurity} profile={profile} permissions={permissions} notifications={notifications} />
+        <Navbar 
+          canAccessMasters={canAccessMasters} 
+          canAccessSecurity={canAccessSecurity} 
+          profile={profile} 
+          permissions={permissions} 
+          notifications={notifications} 
+        />
+        <Sidebar 
+          canAccessMasters={canAccessMasters} 
+          canAccessSecurity={canAccessSecurity} 
+          canAccessWorkspace={canAccessWorkspace}
+          canAccessTickets={canAccessTickets}
+          canAccessAssets={canAccessAssets}
+          profile={profile} 
+          permissions={permissions} 
+          notifications={notifications} 
+        />
 
         <DashboardShell>
           {children}
         </DashboardShell>
+        
+        <CommandPalette />
       </div>
     </NavigationProvider>
   );

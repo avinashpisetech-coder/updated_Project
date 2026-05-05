@@ -2,36 +2,39 @@ import { createClient } from "@/lib/supabase/server";
 import TicketFormClient from "./TicketFormClient";
 import { redirect } from "next/navigation";
 
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+
 export const dynamic = "force-dynamic";
 
 export default async function NewTicketPage() {
   const supabase = await createClient();
 
-  // 1. Parallel pre-fetching of initial data on the server
-  // This eliminates the initial client-side network waterfall.
-  const [
-    { data: { user } },
-    { data: initialModules }
-  ] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.from("modules").select("id, name, slug")
-  ]);
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  // 2. Fetch current profile role to determine if user is an agent
-  const { data: userProfile } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("id", user.id)
-    .single();
+  // 2. Parallel pre-fetching of initial data on the server
+  const [
+    { data: initialModules },
+    permissions,
+    { data: assignableUsers }
+  ] = await Promise.all([
+    supabase.from("modules").select("id, name, slug"),
+    getUserPermissions(user.id),
+    supabase.rpc("get_assignable_profiles")
+  ]);
+
+  const canAssign = hasPermission(permissions, RESOURCES.TICKETS, "update") || 
+                   hasPermission(permissions, RESOURCES.TICKETS, "manage");
 
   return (
     <TicketFormClient 
       initialModules={initialModules || []} 
-      userProfile={userProfile || null}
+      canAssign={canAssign}
+      assignableUsers={assignableUsers || []}
     />
   );
 }

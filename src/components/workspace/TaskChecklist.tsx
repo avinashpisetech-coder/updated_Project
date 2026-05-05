@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, X, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
 
-export function TaskChecklist({ taskId }: { taskId: string }) {
+export function TaskChecklist({ taskId, disabled }: { taskId: string, disabled?: boolean }) {
   const [items, setItems] = useState<any[]>([]);
   const [newItem, setNewItem] = useState("");
   const [loading, setLoading] = useState(true);
@@ -30,16 +30,15 @@ export function TaskChecklist({ taskId }: { taskId: string }) {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItem.trim()) return;
+    if (disabled || !newItem.trim()) return;
     
     try {
-      // Optimistic update
       const tempId = `temp-${Date.now()}`;
       setItems([...items, { id: tempId, content: newItem, is_completed: false }]);
       setNewItem("");
       
       await addChecklistItem(taskId, newItem);
-      await loadChecklists(); // Reload to get real DB items
+      await loadChecklists();
     } catch (error: any) {
       toast.error("Failed to add item: " + error.message);
       loadChecklists();
@@ -47,6 +46,7 @@ export function TaskChecklist({ taskId }: { taskId: string }) {
   };
 
   const handleToggle = async (id: string, currentStatus: boolean) => {
+    if (disabled) return;
     try {
       setItems(items.map(item => item.id === id ? { ...item, is_completed: !currentStatus } : item));
       await toggleChecklistItem(id, !currentStatus);
@@ -57,6 +57,7 @@ export function TaskChecklist({ taskId }: { taskId: string }) {
   };
 
   const handleRemove = async (id: string) => {
+    if (disabled) return;
     try {
       setItems(items.filter(item => item.id !== id));
       await removeChecklistItem(id);
@@ -77,41 +78,46 @@ export function TaskChecklist({ taskId }: { taskId: string }) {
       
       <div className="space-y-2 pl-6">
         {items.map(item => (
-          <div key={item.id} className="flex items-center gap-2 group">
+          <div key={item.id} className={`flex items-center gap-2 group ${disabled ? 'pointer-events-none' : ''}`}>
             <button 
               onClick={() => handleToggle(item.id, item.is_completed)}
-              className="text-zinc-400 hover:text-emerald-500 transition-colors"
+              disabled={disabled}
+              className="text-zinc-400 hover:text-emerald-500 transition-colors disabled:opacity-50"
             >
               {item.is_completed ? <CheckSquare className="w-4 h-4 text-emerald-500" /> : <Square className="w-4 h-4" />}
             </button>
             <span className={`text-sm flex-1 ${item.is_completed ? 'line-through text-zinc-400' : 'text-zinc-700 dark:text-zinc-300'}`}>
               {item.content}
             </span>
-            <button 
-              onClick={() => handleRemove(item.id)}
-              className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all"
-            >
-              <X className="w-3 h-3" />
-            </button>
+            {!disabled && (
+              <button 
+                onClick={() => handleRemove(item.id)}
+                className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
         ))}
 
-        <form onSubmit={handleAdd} className="flex items-center gap-2 pt-2 group">
-          <Button 
-            type="submit"
-            variant="ghost" 
-            size="icon" 
-            className="h-6 w-6 rounded-md hover:bg-emerald-50 hover:text-emerald-600 opacity-0 group-focus-within:opacity-100 transition-opacity"
-          >
-            <Plus className="w-3 h-3" />
-          </Button>
-          <Input 
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            placeholder="Add a step to ensure quality..."
-            className="h-8 text-sm bg-transparent border-none focus-visible:ring-0 shadow-none px-0 placeholder:text-zinc-400 font-medium"
-          />
-        </form>
+        {!disabled && (
+          <form onSubmit={handleAdd} className="flex items-center gap-2 pt-2 group">
+            <Button 
+              type="submit"
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 rounded-md hover:bg-emerald-50 hover:text-emerald-600 opacity-0 group-focus-within:opacity-100 transition-opacity"
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+            <Input 
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              placeholder="Add a step to ensure quality..."
+              className="h-8 text-sm bg-transparent border-none focus-visible:ring-0 shadow-none px-0 placeholder:text-zinc-400 font-medium"
+            />
+          </form>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCachedUser } from "@/lib/supabase/server";
+import { getUserPermissions } from "@/lib/permissions-server";
 import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
 import Link from "next/link";
 import { ArrowLeft, Printer, Shield, Clock, Calendar, CheckSquare } from "lucide-react";
@@ -11,12 +12,20 @@ import { cn } from "@/lib/utils";
 export default async function TaskPage({ params }: { params: { workspaceId: string, projectId: string, taskId: string } }) {
   const { workspaceId, projectId, taskId } = await params;
   
+  const user = await getCachedUser();
+  if (!user) notFound();
+
   const supabase = await createClient();
-  const { data: task, error } = await supabase
-    .from("tasks")
-    .select("*, workspace_projects(name, workspace_id), creator:profiles!created_by(full_name, email), task_assignees(profile_id, profiles(full_name, email))")
-    .eq("id", taskId)
-    .single();
+  const [taskRes, permissions] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("*, workspace_projects(name, workspace_id, workspace:workspaces(name)), creator:profiles!created_by(id, full_name, email), task_assignees(profile_id, profiles(full_name, email))")
+      .eq("id", taskId)
+      .single(),
+    getUserPermissions(user.id)
+  ]);
+
+  const { data: task, error } = taskRes;
 
   if (error || !task) {
     notFound();
@@ -110,8 +119,8 @@ export default async function TaskPage({ params }: { params: { workspaceId: stri
                 <div className="h-1.5 w-1.5 rounded-full bg-primary" /> Sector 2: Task Engagement Console
               </h3>
             </div>
-            <div className="flex-1 min-h-[600px]">
-              <TaskDetailPanel task={task} />
+            <div className="flex-1 h-[750px] min-h-[600px]">
+              <TaskDetailPanel task={task} user={user} permissions={permissions} />
             </div>
           </div>
 

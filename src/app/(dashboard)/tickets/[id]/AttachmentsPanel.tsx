@@ -4,8 +4,23 @@ import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { FileArchive, FileImage, FileText, FileType2, Loader2, FolderOpen, X, Maximize2, Minimize2 } from "lucide-react";
+import { 
+  FileArchive, 
+  FileImage, 
+  FileText, 
+  FileType2, 
+  Loader2, 
+  FolderOpen, 
+  X, 
+  Maximize2, 
+  Minimize2,
+  Upload,
+  Paperclip
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { uploadTicketAttachment } from "@/app/(dashboard)/tickets/actions";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type AttachmentRow = {
   id: string;
@@ -13,13 +28,17 @@ type AttachmentRow = {
   file_size: number;
   content_type: string | null;
   created_at: string;
-  uploaded_by_name: string;
+  uploader?: {
+    full_name: string;
+  };
   storage_path: string;
 };
 
 interface Props {
+  ticketId?: string;
   attachments: AttachmentRow[];
   canView: boolean;
+  canUpload?: boolean;
 }
 
 type FilterType = "all" | "image" | "document" | "archive" | "other";
@@ -75,12 +94,12 @@ function TypeIcon({ category }: { category: FilterType }) {
   return <FileType2 className="h-4 w-4 text-muted-foreground" aria-hidden />;
 }
 
-export default function AttachmentsPanel({ attachments, canView }: Props) {
+export default function AttachmentsPanel({ ticketId, attachments, canView, canUpload = true }: Props) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [loadingUrls, setLoadingUrls] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -110,10 +129,8 @@ export default function AttachmentsPanel({ attachments, canView }: Props) {
       }
     }
 
-    if (isExpanded) {
-      fetchSignedUrls();
-    }
-  }, [attachments, canView, isExpanded, supabase]);
+    fetchSignedUrls();
+  }, [attachments, canView, supabase]);
 
   const filteredAttachments = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -125,155 +142,148 @@ export default function AttachmentsPanel({ attachments, canView }: Props) {
         !query ||
         item.file_name.toLowerCase().includes(query) ||
         (item.content_type ?? "").toLowerCase().includes(query) ||
-        item.uploaded_by_name.toLowerCase().includes(query);
+        (item.uploader?.full_name || "").toLowerCase().includes(query);
 
       return typeMatch && queryMatch;
     });
   }, [attachments, filterType, search]);
 
-  useEffect(() => {
-    const handleHashChange = () => {
-      if (window.location.hash === "#payloads") {
-        setIsExpanded(true);
-      }
-    };
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !ticketId) return;
 
-    handleHashChange();
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
 
-  if (!isExpanded) {
-    return (
-      <div id="payloads" className="scroll-mt-24 group">
-        <div 
-          onClick={() => setIsExpanded(true)}
-          className="flex items-center justify-between cursor-pointer hover:bg-slate-50/50 p-2 rounded-2xl transition-all"
-        >
-          <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-indigo-600">Service Payloads</p>
-            <p className="mt-0.5 text-[10px] font-medium text-slate-400">
-              {attachments.length} {attachments.length === 1 ? 'Object' : 'Objects'} encrypted
-            </p>
-          </div>
-          <button 
-            className="h-8 w-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"
-            title="Maximize Payload Access"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
+    try {
+      await uploadTicketAttachment(ticketId, formData);
+      toast.success("Payload uploaded successfully");
+      // Page will revalidate and show new attachment
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
-    <div id="payloads" className="space-y-4 animate-in font-sans scroll-mt-24">
-      <div 
-        onClick={() => setIsExpanded(false)}
-        className="flex items-center justify-between border-b border-slate-100 pb-3 cursor-pointer hover:bg-slate-50/30 p-2 rounded-t-2xl transition-all"
-      >
-        <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-indigo-600">Secure Object List</p>
-          <p className="mt-0.5 text-[10px] font-medium text-slate-400">Payload Repository Active</p>
+    <div className="space-y-4 animate-in font-sans">
+      
+      {/* Upload Section */}
+      {canUpload && ticketId && (
+        <div className="relative group">
+          <input 
+            type="file" 
+            id="attachment-upload" 
+            className="hidden" 
+            onChange={handleFileUpload}
+            disabled={isUploading}
+          />
+          <label 
+            htmlFor="attachment-upload"
+            className={cn(
+              "flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer transition-all hover:bg-slate-50 hover:border-primary/30 group",
+              isUploading && "opacity-50 cursor-wait"
+            )}
+          >
+            {isUploading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            ) : (
+              <>
+                <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform mb-2">
+                  <Upload className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inject_Payload</span>
+              </>
+            )}
+          </label>
         </div>
-        <button 
-          className="h-8 w-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all"
-          title="Minimize Payload Access"
-        >
-          <Minimize2 className="h-4 w-4" />
-        </button>
-      </div>
+      )}
 
-      <div className="space-y-3 text-sm">
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name, type, or uploader"
-            className="text-xs h-9 rounded-xl border-slate-200 bg-slate-50/50 flex-1"
+            placeholder="Filter payloads..."
+            className="text-[10px] h-8 pl-8 rounded-lg border-slate-200 bg-slate-50/30 w-full"
           />
-          <select
-            value={filterType}
-            onChange={(event) => setFilterType(event.target.value as FilterType)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="all">ALL_PAYLOADS</option>
-            <option value="image">IMAGES</option>
-            <option value="document">DOCUMENTS</option>
-            <option value="archive">ARCHIVES</option>
-            <option value="other">OTHER</option>
-          </select>
+          <Paperclip className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-300" />
         </div>
+        <select
+          value={filterType}
+          onChange={(event) => setFilterType(event.target.value as FilterType)}
+          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[9px] font-black uppercase tracking-widest text-slate-400 focus:outline-none"
+        >
+          <option value="all">ALL</option>
+          <option value="image">IMG</option>
+          <option value="document">DOC</option>
+          <option value="archive">ARC</option>
+        </select>
+      </div>
 
       {!canView ? (
-        <p className="text-[11px] font-medium text-slate-400 italic">
-          You can see attachment metadata. View access is limited to authorized roles.
+        <p className="text-[9px] font-bold text-slate-400 italic">
+          Access Restricted
         </p>
       ) : null}
 
       {filteredAttachments.length === 0 ? (
-        <p className="text-center py-6 text-slate-400 font-medium">No attachments match your search.</p>
+        <p className="text-center py-4 text-slate-400 font-bold text-[8px] uppercase tracking-widest italic opacity-40">Void_Registry</p>
       ) : (
-        <div className="max-h-80 space-y-3 overflow-y-auto pr-2 no-scrollbar">
-          {filteredAttachments.map((item) => {
-            const category = getCategory(item.file_name, item.content_type);
-            const viewUrl = signedUrls[item.id];
+        <div className="max-h-[250px] overflow-y-auto overflow-x-auto pr-1 no-scrollbar border border-slate-100 rounded-xl bg-white/50 shadow-inner">
+          <table className="w-full text-left border-collapse min-w-[300px]">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/50">
+                <th className="px-3 py-2 text-[7px] font-black uppercase tracking-widest text-slate-400">Object</th>
+                <th className="px-3 py-2 text-[7px] font-black uppercase tracking-widest text-slate-400 text-right">Size</th>
+                <th className="px-3 py-2 w-14"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredAttachments.map((item) => {
+                const category = getCategory(item.file_name, item.content_type);
+                const viewUrl = signedUrls[item.id];
 
-            return (
-              <div key={item.id} className="group rounded-2xl border border-slate-100 bg-slate-50/30 p-4 transition-all hover:bg-slate-50 hover:border-slate-200">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-white shadow-sm ring-1 ring-slate-100 group-hover:scale-110 transition-transform">
+                return (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <TypeIcon category={category} />
+                        <span className="truncate font-bold text-slate-600 text-[9px] leading-none max-w-[120px] sm:max-w-none" title={item.file_name}>{item.file_name}</span>
                       </div>
-                      <div className="min-w-0">
-                        <span className="block truncate font-bold text-slate-900 leading-tight">{item.file_name}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider h-5 border-slate-200 bg-white text-slate-500">
-                            {category}
-                          </Badge>
-                          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
-                            {formatBytes(item.file_size)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Uploaded by {item.uploaded_by_name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center self-center">
-                    {canView ? (
-                      viewUrl ? (
-                        <Button asChild size="sm" className="h-9 px-5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all">
-                          <a href={viewUrl} target="_blank" rel="noreferrer">
-                            Open File
-                          </a>
-                        </Button>
-                      ) : (
-                        <Button disabled size="sm" variant="ghost" className="h-9 px-5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-300 bg-slate-100/50">
-                          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Fetching
-                        </Button>
-                      )
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5 opacity-50 bg-slate-100/30 px-3 py-1.5 rounded-lg border border-slate-100">
-                        Restricted
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="text-[8px] font-bold text-slate-300 tabular-nums uppercase">
+                        {formatBytes(item.file_size)}
                       </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                    </td>
+                    <td className="px-3 py-1.5 text-right whitespace-nowrap">
+                      {canView ? (
+                        viewUrl ? (
+                          <a 
+                            href={viewUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center h-5 px-2 rounded-md text-[7px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all"
+                          >
+                            Open
+                          </a>
+                        ) : (
+                          <Loader2 className="h-3 w-3 animate-spin text-slate-200 ml-auto" />
+                        )
+                      ) : (
+                        <span className="text-[7px] font-bold text-slate-200">Gated</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
-  </div>
-);
+  );
 }
-

@@ -4,15 +4,23 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { AssetGovernanceClient } from "./AssetGovernanceClient";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function AssetSettingsPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    const profile = await ensureProfile(supabase, user);
+    const [profile, permissions] = await Promise.all([
+        ensureProfile(supabase, user),
+        getUserPermissions(user.id)
+    ]);
+
     // Restrict access to Admins only
-    if (!profile || (profile.role !== "super_admin" && profile.role !== "dept_admin")) {
+    if (!hasPermission(permissions, RESOURCES.ASSETS, "manage") && 
+        !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+        !hasPermission(permissions, "*", "*")) {
         redirect("/assets");
     }
 
@@ -61,7 +69,7 @@ export default async function AssetSettingsPage() {
         permissions: role.permissions?.map((rp: any) => rp.permissions).filter(Boolean) || [],
     }));
 
-    const permissions = (permissionsData || []).map((perm: any) => ({
+    const allPermissions = (permissionsData || []).map((perm: any) => ({
         id: perm.id,
         name: perm.name,
         description: perm.description,
@@ -90,7 +98,7 @@ export default async function AssetSettingsPage() {
                 users={users || []}
                 modules={modules || []}
                 roles={roles}
-                permissions={permissions}
+                permissions={allPermissions}
                 initialUserRoles={initialUserRoles}
                 currentUserId={user.id}
             />

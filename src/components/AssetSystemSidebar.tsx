@@ -21,7 +21,8 @@ import {
   Palette,
   Trash2,
   Package,
-  Shield
+  Shield,
+  Truck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +78,7 @@ export function AssetSystemSidebar() {
         { href: "/assets/deployment", label: "Deployment", icon: ArrowRightLeft },
         { href: "/assets/handover", label: "Direct Handover", icon: ShieldCheck },
         { href: "/assets/return", label: "Recovery", icon: History },
+        { href: "/assets/gate-pass", label: "Gate Pass", icon: Truck },
         { href: "/assets/maintenance", label: "Service Hub", icon: Settings2 },
         { href: "/assets/disposal", label: "Disposal", icon: Trash2 },
         { href: "/assets/movements", label: "Chronology", icon: FileSearch },

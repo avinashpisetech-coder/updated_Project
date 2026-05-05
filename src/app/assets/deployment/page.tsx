@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { DeploymentHubClient } from "./DeploymentHubClient";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function DeploymentPage() {
     const supabase = await createClient();
@@ -11,8 +13,17 @@ export default async function DeploymentPage() {
 
     if (!user) redirect("/login");
 
-    const profile = await ensureProfile(supabase, user);
-    const role = profile?.role || "end_user";
+    const [profile, permissions] = await Promise.all([
+        ensureProfile(supabase, user),
+        getUserPermissions(user.id)
+    ]);
+
+    // HEAVY GATE: Matrix-backed security enforcement
+    if (!hasPermission(permissions, RESOURCES.ASSETS, "manage") && 
+        !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+        !hasPermission(permissions, "*", "*")) {
+        redirect("/assets");
+    }
 
     // 1. Fetch Masters
     const results = await Promise.all([
@@ -73,7 +84,8 @@ export default async function DeploymentPage() {
             assets={assets || []}
             users={users || []}
             deployments={deployments || []}
-            role={role}
+            canManage={hasPermission(permissions, RESOURCES.ASSETS, "manage")}
+            canAuthorize={hasPermission(permissions, RESOURCES.ASSETS, "*") || hasPermission(permissions, "*", "*")}
             currentUserId={user.id}
         />
     );

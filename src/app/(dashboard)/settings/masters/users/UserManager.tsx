@@ -61,7 +61,8 @@ export default function UserManager({
   companies = [],
   projects = [],
   roles = [],
-  currentUserRole,
+  canManageGlobal,
+  canManageDept,
   currentUserDepartmentId,
 }: {
   initialUsers: Profile[];
@@ -70,7 +71,8 @@ export default function UserManager({
   companies?: { id: string; name: string }[];
   projects?: { id: string; name: string; company_id?: string }[];
   roles?: { id: string; name: string; is_system_role: boolean }[];
-  currentUserRole: string;
+  canManageGlobal: boolean;
+  canManageDept: boolean;
   currentUserDepartmentId?: string;
 }) {
   const router = useRouter();
@@ -178,10 +180,10 @@ export default function UserManager({
   };
 
   const canManageRecord = (user: Profile) => {
-    if (currentUserRole === "super_admin") return true;
-    if (currentUserRole !== "dept_admin") return false;
+    if (canManageGlobal) return true;
+    if (!canManageDept) return false;
     if (!currentUserDepartmentId || user.department_id !== currentUserDepartmentId) return false;
-    if (user.role === "super_admin") return false;
+    if (user.role === "super_admin") return false; // Dept admins cannot manage super admins
     return true;
   };
 
@@ -390,7 +392,7 @@ export default function UserManager({
                         >
                           <UserCog className="h-3.5 w-3.5" />
                         </Button>
-                        {currentUserRole === "super_admin" && (
+                        {canManageGlobal && (
                           <Button
                             variant="ghost"
                             size="icon"

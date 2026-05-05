@@ -19,13 +19,6 @@ import { getUserPermissions } from "@/lib/permissions-server";
 
 export const dynamic = "force-dynamic";
 
-function normalizeRoleKey(role: string | null | undefined) {
-  return String(role ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
 
 export default async function TicketDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -60,6 +53,13 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
   }
 
   const { ticket, activities, attachments } = fullBundleRes.data;
+
+  // If this is a requirement, redirect to the specialized requirement view
+  if (ticket.is_requirement) {
+    const { redirect } = await import("next/navigation");
+    redirect(`/tickets/requests/${ticket.id}`);
+  }
+
   const isAgent = hasPermission(permissions, RESOURCES.TICKETS, "update");
   const assignableUsers = assignableRes.data || [];
 
@@ -101,12 +101,16 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
 
         <div className="flex items-center gap-3">
           {isAgent && <ModifyTicketDialog ticket={ticket as any} />}
-          <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-[#E1F0F7] border-[#C5E1F0] text-slate-700 hover:bg-[#D4E9F4]">
-            <Printer className="h-3.5 w-3.5 mr-2" /> Print Protocol
-          </Button>
-          <Button variant="outline" size="sm" asChild className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100">
-            <Link href={`/workspace?action=createTask&ticketId=${ticket.id}`}>Convert to Task</Link>
-          </Button>
+          {isAgent && (
+            <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-[#E1F0F7] border-[#C5E1F0] text-slate-700 hover:bg-[#D4E9F4]">
+              <Printer className="h-3.5 w-3.5 mr-2" /> Print Protocol
+            </Button>
+          )}
+          {isAgent && (
+            <Button variant="outline" size="sm" asChild className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100">
+              <Link href={`/workspace?action=createTask&ticketId=${ticket.id}`}>Convert to Task</Link>
+            </Button>
+          )}
           <Button variant="outline" size="sm" asChild className="h-9 px-4 rounded-xl text-[10px] font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 border-none">
             <Link href="/tickets">Close</Link>
           </Button>
@@ -216,9 +220,15 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
                    <FolderOpen className="h-3.5 w-3.5" /> Payload Vault
                  </h4>
                  <AttachmentsPanel
+                    ticketId={ticket.id}
                     attachments={(attachments || []).map((a: any) => ({
-                      id: a.id, file_name: a.file_name, file_size: a.file_size, content_type: a.content_type,
-                      created_at: a.created_at, uploaded_by_name: a.uploader?.full_name ?? "System", storage_path: a.storage_path
+                      id: a.id, 
+                      file_name: a.file_name, 
+                      file_size: a.file_size, 
+                      content_type: a.content_type,
+                      created_at: a.created_at, 
+                      uploader: { full_name: a.uploader?.full_name ?? "System" }, 
+                      storage_path: a.storage_path
                     }))}
                     canView={canViewAttachments}
                   />

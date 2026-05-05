@@ -22,7 +22,7 @@ export default async function MyAssetsPage() {
       *,
       sub_type:asset_sub_types(name, category:asset_categories(name))
     `)
-    .eq("custodian_id", user.id)
+    .eq("current_holder_id", user.id)
     .order("created_at", { ascending: false });
 
   return (

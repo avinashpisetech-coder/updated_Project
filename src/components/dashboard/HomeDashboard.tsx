@@ -91,7 +91,7 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
   const shortcuts = [
     { label: "Support Queue", href: "/tickets", icon: Ticket, color: "sky" },
     { label: "Live Analytics", href: "/service-analytics", icon: BarChart3, color: "violet", isVersion: true },
-    { label: "Workspace", href: "/workspace", icon: Kanban, color: "teal" },
+    { label: "My Tasks", href: "/workspace/my-tasks", icon: Kanban, color: "teal" },
     { label: "User Directory", href: "/settings/masters/users", icon: Users, color: "rose" },
   ];
 
@@ -129,6 +129,55 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
            <EliteKPI key={kpi.label} {...kpi} />
         ))}
       </div>
+
+      {/* Personal Pulse: User Cockpit */}
+        <Card className="md:col-span-2 rounded-[25px] bg-gradient-to-br from-slate-900 to-slate-800 border-none shadow-2xl p-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+            <Ticket className="h-48 w-48 text-white" />
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Operational Assignment Control</span>
+                <h3 className="text-3xl font-black text-white tracking-tight italic uppercase">Active_Service_Queue</h3>
+              </div>
+              <div className="flex items-baseline gap-4">
+                <span className="text-7xl font-black text-white tracking-tighter tabular-nums">{data?.myTickets?.total || 0}</span>
+                <div className="flex flex-col">
+                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Global_Load</span>
+                   <span className="text-[12px] font-black text-emerald-400 uppercase tracking-widest mt-1">Status: Active</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 max-w-xl grid grid-cols-2 sm:grid-cols-4 gap-4">
+               {[
+                 { label: "New", value: data?.myTickets?.new || 0, color: "text-blue-400" },
+                 { label: "Assigned", value: data?.myTickets?.assigned || 0, color: "text-indigo-400" },
+                 { label: "Pending", value: (data?.myTickets?.pending_user || 0) + (data?.status_distribution?.pending_dept || 0), color: "text-amber-400" },
+                 { label: "In Progress", value: data?.myTickets?.in_progress || 0, color: "text-sky-400" },
+               ].map((stat) => (
+                 <div key={stat.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+                   <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</div>
+                   <div className={cn("text-xl font-black tabular-nums", stat.color)}>{stat.value}</div>
+                 </div>
+               ))}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button asChild variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest h-10 px-6">
+                <Link href="/tickets">
+                  View Full Registry
+                </Link>
+              </Button>
+              <Button asChild variant="link" className="text-indigo-400 text-[9px] font-black uppercase tracking-[0.2em] p-0 h-auto hover:text-white">
+                <Link href="/workspace/tasks" className="flex items-center gap-2">
+                  <PlusCircle className="h-3 w-3" /> Quick Task Entry
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
 
       {/* WORKFLOW STATUS GRID - Absolute Parity Check */}
       <div className="bg-white p-6 rounded-[25px] shadow-[rl_15px_30px_rgba(100,116,139,0.03)] border border-slate-50">

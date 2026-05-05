@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateTicket, uploadTicketAttachment, registerTicketActivity, approveTicketClose, reopenTicket } from "../actions";
+import { updateTicket, uploadTicketAttachment, registerTicketActivity, approveTicketClose, reopenTicket, escalateTicketToProject } from "../actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { 
   Zap, UserPlus, Activity, Upload, CheckCircle2, Calendar, 
-  Clock, ShieldAlert, Check, Loader2, Users, AlertCircle, XCircle, RefreshCcw 
+  Clock, ShieldAlert, Check, Loader2, Users, AlertCircle, XCircle, RefreshCcw, FolderKanban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -102,6 +109,26 @@ export default function TicketActions({
   const [assignableUsers, setAssignableUsers] = useState<AssigneeOption[]>(initialAssignableUsers);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const supabase = createClient();
+
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalateProjectName, setEscalateProjectName] = useState("");
+
+  const handleEscalate = async () => {
+    if (!escalateProjectName.trim()) {
+      toast.error("Project name is required for escalation.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const project = await escalateTicketToProject(ticketId, escalateProjectName);
+      toast.success("Ticket escalated to Workspace Project");
+      router.push(`/workspace/project/${project.id}`);
+    } catch (error: any) {
+      toast.error("Escalation failed: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Quantum Clock Implementation ---
   const [secondsSpent, setSecondsSpent] = useState(0);
@@ -525,29 +552,82 @@ export default function TicketActions({
                 )}
               </div>
 
-              <Button 
-                className={cn(
-                  "h-12 w-full sm:w-64 rounded-2xl text-[12px] font-bold uppercase tracking-widest transition-all shadow-xl",
-                  hasChanges 
-                    ? "bg-indigo-950 hover:bg-black text-white shadow-indigo-950/20" 
-                    : "bg-slate-100 text-slate-400 pointer-events-none"
-                )}
-                onClick={handleGlobalUpdate}
-                disabled={loading || isPending || !hasChanges}
-              >
-                {loading || isPending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5" />
-                    Commit Strategic Update
-                  </div>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowEscalateModal(true)}
+                  className="h-12 w-full sm:w-auto rounded-2xl border-orange-200 text-orange-600 hover:bg-orange-50 text-[10px] font-black uppercase tracking-[0.2em]"
+                >
+                  <FolderKanban className="h-4 w-4 mr-2" />
+                  Escalate_To_Project
+                </Button>
+
+                <Button 
+                  className={cn(
+                    "h-12 w-full sm:w-64 rounded-2xl text-[12px] font-bold uppercase tracking-widest transition-all shadow-xl",
+                    hasChanges 
+                      ? "bg-indigo-950 hover:bg-black text-white shadow-indigo-950/20" 
+                      : "bg-slate-100 text-slate-400 pointer-events-none"
+                  )}
+                  onClick={handleGlobalUpdate}
+                  disabled={loading || isPending || !hasChanges}
+                >
+                  {loading || isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5" />
+                      Commit Strategic Update
+                    </div>
+                  )}
+                </Button>
+              </div>
             </div>
           </>
         )}
       </div>
+
+      <Dialog open={showEscalateModal} onOpenChange={setShowEscalateModal}>
+        <DialogContent className="sm:max-w-[500px] border-none shadow-2xl bg-white dark:bg-zinc-950 p-0 overflow-hidden rounded-3xl">
+          <div className="h-2 bg-orange-500 w-full" />
+          <div className="p-8 space-y-6">
+            <DialogHeader>
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center mb-4">
+                <FolderKanban className="w-6 h-6 text-orange-500" />
+              </div>
+              <DialogTitle className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Project Escalation Protocol</DialogTitle>
+              <p className="text-zinc-500 text-sm">Escalating this ticket will create a full Workspace Project and move this ticket to 'ESCALATED' status. This is recommended for complex issues requiring multi-task management.</p>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] block pl-1">New Project Name</label>
+              <Input 
+                placeholder="Enter project name..."
+                value={escalateProjectName}
+                onChange={(e) => setEscalateProjectName(e.target.value)}
+                className="h-12 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 focus:ring-orange-500/20 rounded-2xl p-4 text-sm font-bold"
+              />
+            </div>
+
+            <DialogFooter className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-900">
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowEscalateModal(false)}
+                className="text-zinc-400 font-bold uppercase tracking-widest text-[10px]"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleEscalate}
+                disabled={loading}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-black uppercase tracking-widest text-[10px] px-8 rounded-xl h-10 shadow-lg shadow-orange-500/20"
+              >
+                {loading ? "Escalating..." : "Launch_Project_Bridge"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

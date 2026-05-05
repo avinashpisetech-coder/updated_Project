@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { PurchasesClient } from "./PurchasesClient";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function PurchasesPage() {
   const supabase = await createClient();
@@ -13,8 +15,15 @@ export default async function PurchasesPage() {
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  if (profile?.role !== "super_admin" && profile?.role !== "it_admin") {
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
+
+  // HEAVY GATE: Matrix-backed security enforcement
+  if (!hasPermission(permissions, RESOURCES.ASSETS, "manage") && 
+      !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+      !hasPermission(permissions, "*", "*")) {
     redirect("/dashboard");
   }
 

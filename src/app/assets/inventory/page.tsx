@@ -5,17 +5,24 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { InventoryClient } from "./InventoryClient";
 
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
+
 export default async function InventoryPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  const role = profile?.role || "end_user";
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
 
-  // Only staff can access full registry
-  if (role === "end_user" && profile?.role !== "module_agent" && profile?.role !== "dept_admin" && profile?.role !== "super_admin") {
+  // HEAVY GATE: Matrix-backed security enforcement
+  if (!hasPermission(permissions, RESOURCES.ASSETS, "read") && 
+      !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+      !hasPermission(permissions, "*", "*")) {
       redirect("/assets");
   }
 
@@ -116,7 +123,6 @@ export default async function InventoryPage() {
             departments={departments || []}
             catalog={catalog || []}
             uoms={uoms || []}
-            role={role} 
         />
     </div>
   );

@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { HandoverHubClient } from "./HandoverHubClient";
 import { getHandoverRegistry } from "./registry_actions";
+import { getUserPermissions } from "@/lib/permissions-server";
+import { hasPermission, RESOURCES } from "@/lib/permissions";
 
 export default async function HandoverPage() {
   const supabase = await createClient();
@@ -12,11 +14,15 @@ export default async function HandoverPage() {
 
   if (!user) redirect("/login");
 
-  const profile = await ensureProfile(supabase, user);
-  const role = profile?.role || "end_user";
+  const [profile, permissions] = await Promise.all([
+    ensureProfile(supabase, user),
+    getUserPermissions(user.id)
+  ]);
 
-  const staffRoles = ['super_admin', 'it_admin', 'procurement_admin', 'module_agent', 'dept_admin'];
-  if (!staffRoles.includes(role)) {
+  // HEAVY GATE: Matrix-backed security enforcement
+  if (!hasPermission(permissions, RESOURCES.ASSETS, "manage") && 
+      !hasPermission(permissions, RESOURCES.ASSETS, "*") &&
+      !hasPermission(permissions, "*", "*")) {
       redirect("/assets");
   }
 

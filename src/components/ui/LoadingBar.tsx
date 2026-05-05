@@ -13,12 +13,14 @@ export function LoadingBar() {
     // Show loading bar on any route change
     setIsLoading(true);
     
-    // Simulate initial progress
+    // Safety check: force hidden after a short duration even if path changes rapidly
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 600); // Quick pulse for fast routes
+    }, 800); 
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [pathname, searchParams]);
 
   return (

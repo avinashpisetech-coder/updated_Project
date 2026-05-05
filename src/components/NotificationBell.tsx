@@ -15,17 +15,14 @@ import { createClient } from "@/lib/supabase/client";
 
 interface Notification {
   id: string;
-  ticket_id: string | null;
-  task_id?: string | null;
+  user_id: string;
+  title: string;
   message: string;
+  type: string;
+  link: string | null;
   is_read: boolean;
+  metadata: any;
   created_at: string;
-  ticket?: { ticket_number: string } | null;
-  tasks?: { 
-    title: string; 
-    project_id: string; 
-    workspace_projects?: { workspace_id: string } | null 
-  } | null;
 }
 
 interface Props {
@@ -38,22 +35,17 @@ export function NotificationBell({ initial }: Props) {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMounted(true);
     const supabase = createClient();
     
-    // Subscribe to new notifications
+    // Subscribe to GLOBAL notifications
     const channel = supabase
-      .channel('ticket_notifications_realtime')
+      .channel('global_notifications_realtime')
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
-        table: 'ticket_notifications' 
+        table: 'notifications' 
       }, (payload) => {
-        // Since we need joined data (ticket/task), we re-fetch unread notifications
-        // Actually, for simplicity we can just add the message if we don't need complex links
-        // but it's better to stay consistent.
-        // We can't easily call server action here without refreshing, but we can update local state.
         setNotifications(prev => [payload.new as Notification, ...prev]);
       })
       .subscribe();
@@ -129,11 +121,7 @@ export function NotificationBell({ initial }: Props) {
             notifications.map((n) => (
               <Link
                 key={n.id}
-                href={
-                  n.task_id 
-                    ? `/workspace/${n.tasks?.workspace_projects?.workspace_id}/project/${n.tasks?.project_id}/task/${n.task_id}`
-                    : n.ticket_id ? `/tickets/${n.ticket_id}` : "#"
-                }
+                href={n.link || "#"}
                 onClick={() => {
                   if (!n.is_read) {
                     startTransition(async () => {
@@ -150,16 +138,9 @@ export function NotificationBell({ initial }: Props) {
                   n.is_read ? "opacity-60" : ""
                 }`}
               >
-                {n.ticket && (
-                  <span className="text-xs font-semibold text-primary">
-                    {n.ticket.ticket_number}
-                  </span>
-                )}
-                {n.task_id && (
-                  <span className="text-[10px] font-black text-primary uppercase tracking-tighter">
-                    TASK: {n.tasks?.title || "WORKSPACE_EVENT"}
-                  </span>
-                )}
+                <span className="text-xs font-semibold text-primary uppercase tracking-tighter">
+                  {n.title}
+                </span>
                 <span className={n.is_read ? "text-muted-foreground" : "text-foreground font-medium"}>
                   {n.message}
                 </span>

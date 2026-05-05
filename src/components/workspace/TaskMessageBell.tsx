@@ -32,28 +32,41 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMounted(true);
     const supabase = createClient();
     
-    // Initial fetch to be sure
-    getUnreadTaskNotifications().then(fresh => setNotifications(fresh as any));
+    // Initial fetch and subscription setup
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel('task_notifications_realtime')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'task_notifications' 
-      }, async () => {
-        const fresh = await getUnreadTaskNotifications();
-        setNotifications(fresh as any);
-      })
-      .subscribe();
+      // Initial fetch
+      const fresh = await getUnreadTaskNotifications();
+      setNotifications(fresh as any);
+
+      // Subscribe to ONLY this user's notifications
+      const channel = supabase
+        .channel(`task_notifications_${user.id}`)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'task_notifications',
+          filter: `profile_id=eq.${user.id}`
+        }, async (payload) => {
+          // If we have a new notification, just fetch all unread again to be sync
+          const fresh = await getUnreadTaskNotifications();
+          setNotifications(fresh as any);
+        })
+        .subscribe();
+
+      return channel;
+    };
+
+    let channel: any;
+    setupRealtime().then(c => channel = c);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 

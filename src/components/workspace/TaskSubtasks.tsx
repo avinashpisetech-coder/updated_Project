@@ -8,8 +8,9 @@ import { Plus, CheckCircle2, ListTree, User, Calendar, ExternalLink } from "luci
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { TaskModal } from "./TaskModal";
+import { cn } from "@/lib/utils";
 
-export function TaskSubtasks({ parentTaskId, projectId }: { parentTaskId: string, projectId: string }) {
+export function TaskSubtasks({ parentTaskId, projectId, disabled }: { parentTaskId: string, projectId: string, disabled?: boolean }) {
   const [subtasks, setSubtasks] = useState<any[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [loading, setLoading] = useState(true);
@@ -21,12 +22,8 @@ export function TaskSubtasks({ parentTaskId, projectId }: { parentTaskId: string
   const loadSubtasks = async () => {
     setLoading(true);
     try {
-      // In a real optimized app, we'd have a specific getSubtasks function,
-      // but here we filter from getTasks assuming we modify getTasks to allow filtering by parent_task_id
-      // For this implementation, let's assume getTasks fetches ALL project tasks and we filter.
       const allTasks = await getTasks(projectId);
       const filtered = allTasks.filter((t: any) => t.parent_task_id === parentTaskId);
-      // Fetch full details for assignees if possible, or assume getTasks returns them
       setSubtasks(filtered);
     } catch (e) {
       console.error(e);
@@ -37,7 +34,7 @@ export function TaskSubtasks({ parentTaskId, projectId }: { parentTaskId: string
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    if (disabled || !newTaskTitle.trim()) return;
     
     try {
       await createTask(projectId, { 
@@ -54,9 +51,9 @@ export function TaskSubtasks({ parentTaskId, projectId }: { parentTaskId: string
   };
 
   const toggleStatus = async (task: any) => {
+    if (disabled) return;
     const newStatus = task.status === 'COMPLETE' ? 'TODO' : 'COMPLETE';
     try {
-      // Optimistic
       setSubtasks(subtasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
       await updateTaskStatus(task.id, newStatus);
     } catch (error) {
@@ -78,10 +75,20 @@ export function TaskSubtasks({ parentTaskId, projectId }: { parentTaskId: string
         {subtasks.map(task => (
           <div key={task.id} className="flex items-center justify-between group py-1 border-b border-transparent hover:border-zinc-100 dark:hover:border-zinc-800">
             <div className="flex items-center gap-2">
-              <button onClick={() => toggleStatus(task)} className="text-zinc-400 hover:text-emerald-500">
+              <button 
+                onClick={() => toggleStatus(task)} 
+                disabled={disabled}
+                className={cn(
+                  "text-zinc-400 hover:text-emerald-500",
+                  disabled && "cursor-not-allowed opacity-50"
+                )}
+              >
                 <CheckCircle2 className={`w-4 h-4 ${task.status === 'COMPLETE' ? 'text-emerald-500' : ''}`} />
               </button>
-              <span className={`text-sm ${task.status === 'COMPLETE' ? 'line-through text-zinc-400' : 'text-zinc-700 dark:text-zinc-300'}`}>
+              <span className={cn(
+                "text-sm",
+                task.status === 'COMPLETE' ? 'line-through text-zinc-400' : 'text-zinc-700 dark:text-zinc-300'
+              )}>
                 {task.title}
               </span>
             </div>
@@ -106,13 +113,40 @@ export function TaskSubtasks({ parentTaskId, projectId }: { parentTaskId: string
           </div>
         ))}
 
-        <div className="flex items-center gap-2 pt-2">
-           <TaskModal projectId={projectId} parentTaskId={parentTaskId} onSuccess={loadSubtasks}>
-              <Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-primary p-0">
-                <Plus className="w-4 h-4 mr-1" /> Add_Operational_Subtask
+         {!disabled && (
+           <div className="flex items-center gap-4 pt-2">
+              <TaskModal projectId={projectId} parentTaskId={parentTaskId} onSuccess={loadSubtasks}>
+                 <Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-primary p-0">
+                   <Plus className="w-4 h-4 mr-1" /> Add_Operational_Subtask
+                 </Button>
+              </TaskModal>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                disabled={loading}
+                onClick={async () => {
+                  const { generateAISubtasks } = await import("@/app/(dashboard)/workspace/ai-actions");
+                  toast.promise(generateAISubtasks(parentTaskId, projectId), {
+                    loading: 'AI is analyzing and breaking down task...',
+                    success: () => {
+                      loadSubtasks();
+                      return 'Operational breakdown complete!';
+                    },
+                    error: 'AI failed to generate protocol'
+                  });
+                }}
+                className="h-8 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 p-0"
+              >
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-indigo-500 text-white animate-pulse">
+                     <span className="text-[8px]">✨</span>
+                  </div>
+                  Magic_Breakdown
+                </div>
               </Button>
-           </TaskModal>
-        </div>
+           </div>
+         )}
       </div>
     </div>
   );

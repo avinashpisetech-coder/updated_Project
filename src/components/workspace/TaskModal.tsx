@@ -10,9 +10,8 @@ import { UserSelector } from "./UserSelector";
 import { createTask } from "@/app/(dashboard)/workspace/actions";
 import { toast } from "sonner";
 import { 
-  Sparkles, Users, Calendar, Flag, Tags, MoreHorizontal, 
-  Plus, Paperclip, Bell, ChevronDown, CheckCircle2,
-  Minimize2, Maximize2, X, ListTodo
+  Users, Calendar, Flag, 
+  ChevronDown, Minimize2, X, ListTodo
 } from "lucide-react";
 
 export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { projectId: string, parentTaskId?: string, children: React.ReactNode, onSuccess?: () => void }) {
@@ -59,7 +58,7 @@ export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { pr
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[750px] p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-950 border-none shadow-2xl rounded-xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-[750px] p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-950 border-none shadow-2xl rounded-xl">
         <DialogTitle className="sr-only">Create Task</DialogTitle>
         
         {/* Header Breadcrumb */}

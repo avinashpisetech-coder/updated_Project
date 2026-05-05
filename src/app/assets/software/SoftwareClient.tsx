@@ -43,10 +43,9 @@ interface Props {
     purchases: any[];
     profiles: any[];
     hardware: any[];
-    role: string;
 }
 
-export function SoftwareClient({ initialSoftware, suppliers, purchases, profiles, hardware, role }: Props) {
+export function SoftwareClient({ initialSoftware, suppliers, purchases, profiles, hardware }: Props) {
     const { isSidebarOpen } = useNavigation();
     const [view, setView] = useState<'list' | 'details'>('list');
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
