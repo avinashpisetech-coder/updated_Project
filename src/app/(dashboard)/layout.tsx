@@ -11,6 +11,7 @@ import { getUnreadNotifications } from "@/app/(dashboard)/tickets/actions";
 import { NavigationProvider } from "@/components/providers/NavigationProvider";
 import { DashboardShell } from "@/components/DashboardShell";
 import { TopBar } from "@/components/TopBar";
+import { SessionGuard } from "@/components/providers/SessionGuard";
 
 import { hasPermission, RESOURCES } from "@/lib/permissions";
 import { getUserPermissions } from "@/lib/permissions-server";
@@ -29,7 +30,7 @@ export default async function DashboardLayout({
 
   // Performance: fetch profile, permissions, notifications, and cross-module assignments in parallel
   const [profile, permissions, notifications, assignmentStatus] = await Promise.all([
-    supabase.from("profiles").select("id, force_password_change, role, full_name").eq("id", user.id).single()
+    supabase.from("profiles").select("id, force_password_change, role, full_name, current_session_id").eq("id", user.id).single()
       .then(res => res.data || ensureProfile(supabase, user, res.data)),
     getUserPermissions(user.id),
     getUnreadNotifications().catch(() => []),
@@ -56,31 +57,33 @@ export default async function DashboardLayout({
 
   return (
     <NavigationProvider>
-      <div className="relative min-h-screen flex flex-col text-foreground selection:bg-primary/30 selection:text-white overflow-x-hidden">
-        <Navbar 
-          canAccessMasters={canAccessMasters} 
-          canAccessSecurity={canAccessSecurity} 
-          profile={profile} 
-          permissions={permissions} 
-          notifications={notifications} 
-        />
-        <Sidebar 
-          canAccessMasters={canAccessMasters} 
-          canAccessSecurity={canAccessSecurity} 
-          canAccessWorkspace={canAccessWorkspace}
-          canAccessTickets={canAccessTickets}
-          profile={profile} 
-          permissions={permissions} 
-          notifications={notifications} 
-        />
-        <TopBar profile={profile} notifications={notifications} />
+      <SessionGuard>
+        <div className="relative min-h-screen flex flex-col text-foreground selection:bg-primary/30 selection:text-white overflow-x-hidden">
+          <Navbar 
+            canAccessMasters={canAccessMasters} 
+            canAccessSecurity={canAccessSecurity} 
+            profile={profile} 
+            permissions={permissions} 
+            notifications={notifications} 
+          />
+          <Sidebar 
+            canAccessMasters={canAccessMasters} 
+            canAccessSecurity={canAccessSecurity} 
+            canAccessWorkspace={canAccessWorkspace}
+            canAccessTickets={canAccessTickets}
+            profile={profile} 
+            permissions={permissions} 
+            notifications={notifications} 
+          />
+          <TopBar profile={profile} notifications={notifications} />
 
-        <DashboardShell>
-          {children}
-        </DashboardShell>
-        
-        <CommandPalette />
-      </div>
+          <DashboardShell>
+            {children}
+          </DashboardShell>
+          
+          <CommandPalette />
+        </div>
+      </SessionGuard>
     </NavigationProvider>
   );
 }

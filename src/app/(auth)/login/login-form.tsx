@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,18 +16,58 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { signIn, type SignInState } from "../actions";
 
 const initialState: SignInState = {};
 
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(signIn, initialState);
+  const [showForceDialog, setShowForceDialog] = useState(false);
+  const searchParams = useSearchParams();
+  const reason = searchParams.get("reason");
 
   useEffect(() => {
-    if (state?.error) {
+    if (state?.error === "ALREADY_LOGGED_IN") {
+      setShowForceDialog(true);
+    } else if (state?.error) {
       toast.error(state.error);
     }
   }, [state]);
+
+  useEffect(() => {
+    if (reason === "timeout") {
+      toast.error("Session timed out. Please login again.", {
+        duration: 5000,
+        id: "session-timeout"
+      });
+    } else if (reason === "concurrent") {
+      toast.warning("You were logged out because another session was started on a different device.", {
+        duration: 8000,
+        id: "concurrent-session"
+      });
+    }
+  }, [reason]);
+
+  const handleForceLogin = () => {
+    const form = document.querySelector("form") as HTMLFormElement;
+    if (form) {
+      const forceInput = document.createElement("input");
+      forceInput.type = "hidden";
+      forceInput.name = "force";
+      forceInput.value = "true";
+      form.appendChild(forceInput);
+      form.requestSubmit();
+      setShowForceDialog(false);
+    }
+  };
 
   return (
     <div className="w-full flex flex-col gap-6 animate-in fade-in duration-1000">
@@ -42,9 +83,15 @@ export function LoginForm() {
         
         <form action={formAction}>
           <CardContent className="space-y-4 pt-4 pb-2 px-10">
-            {state?.error && (
+            {state?.error && state.error !== "ALREADY_LOGGED_IN" && (
               <div className="text-[10px] font-black text-red-600 text-center rounded-xl bg-red-50 border border-red-100 py-3 px-4 uppercase tracking-widest" role="alert">
                 {state.error}
+              </div>
+            )}
+            
+            {reason === "timeout" && (
+              <div className="text-[10px] font-black text-amber-600 text-center rounded-xl bg-amber-50 border border-amber-100 py-3 px-4 uppercase tracking-widest" role="alert">
+                Session Timed Out
               </div>
             )}
             
@@ -113,6 +160,35 @@ export function LoginForm() {
         <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">Encrypted Session</span>
         <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">v1.0.4</span>
       </div>
+
+      <Dialog open={showForceDialog} onOpenChange={setShowForceDialog}>
+        <DialogContent className="sm:max-w-md rounded-[2rem] border-none shadow-2xl">
+          <DialogHeader className="space-y-3">
+            <DialogTitle className="text-xl font-black tracking-tight text-slate-900">Active Session Detected</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium leading-relaxed">
+              This account is currently logged in on another device or browser. 
+              Continuing will terminate the other session. Do you want to proceed?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex sm:justify-between gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForceDialog(false)}
+              className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[10px] h-11 border-slate-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleForceLogin}
+              className="flex-1 rounded-xl font-bold uppercase tracking-widest text-[10px] h-11 bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200"
+            >
+              Yes, Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

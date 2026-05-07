@@ -9,6 +9,7 @@ import { sendUserCreationNotification } from "@/lib/email";
 const signInSchema = z.object({
   email: z.string().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
+  force: z.boolean().optional(),
 });
 
 export type SignInState = {
@@ -23,6 +24,7 @@ export async function signIn(
   const parsed = signInSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
+    force: formData.get("force") === "true",
   });
 
   if (!parsed.success) {
@@ -35,7 +37,7 @@ export async function signIn(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
@@ -45,6 +47,27 @@ export async function signIn(
       return { error: "Invalid email or password." };
     }
     return { error: error.message };
+  }
+
+  if (authData.user && authData.session) {
+    // Check for existing session
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("current_session_id")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (profile?.current_session_id && profile.current_session_id !== authData.session.id && !parsed.data.force) {
+      // Conflict detected. Log out this temporary session and ask for confirmation.
+      await supabase.auth.signOut();
+      return { error: "ALREADY_LOGGED_IN" };
+    }
+
+    // Update the profile with the new session ID and activity timestamp
+    await supabase.from("profiles").update({
+      current_session_id: authData.session.id,
+      last_activity_at: new Date().toISOString()
+    }).eq("id", authData.user.id);
   }
 
   redirect("/dashboard");
