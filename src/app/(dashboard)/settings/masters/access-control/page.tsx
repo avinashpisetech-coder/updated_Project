@@ -162,28 +162,30 @@ export default async function AccessControlPage() {
   function errored(e: any) { return !!e; }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 p-8 font-sans antialiased">
+    <div className="min-h-screen bg-slate-50/50">
       <ModuleHeader 
         title="USER_PERMISSIONS"
         subtitle="Access Control Management"
       />
-
-      <AccessControlManager
-        initialProfiles={users.map((u) => ({
-          id: u.id,
-          full_name: u.full_name || u.personal_email || "",
-          email: u.personal_email ?? "",
-          department_id: u.department_id,
-          role: u.role,
-        }))}
-        initialModules={mergedModules}
-        initialRoles={roles}
-        initialPermissions={permissions}
-        initialUserRoles={initialUserRoles}
-        canManageGlobal={canManageGlobal}
-        canManageDept={canManageDept}
-        userDeptId={profile.department_id as string | undefined}
-      />
+      
+      <main className="mx-auto max-w-7xl p-10">
+        <AccessControlManager
+          initialProfiles={users.map((u) => ({
+            id: u.id,
+            full_name: u.full_name || u.personal_email || "",
+            email: u.personal_email ?? "",
+            department_id: u.department_id,
+            role: u.role,
+          }))}
+          initialModules={mergedModules}
+          initialRoles={roles}
+          initialPermissions={permissions}
+          initialUserRoles={initialUserRoles}
+          canManageGlobal={canManageGlobal}
+          canManageDept={canManageDept}
+          userDeptId={profile.department_id as string | undefined}
+        />
+      </main>
     </div>
   );
 }

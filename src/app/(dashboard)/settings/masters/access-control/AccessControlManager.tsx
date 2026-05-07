@@ -237,39 +237,40 @@ export default function AccessControlManager({
 
     return (
         <div className="flex flex-col gap-10 pb-20 animate-in fade-in duration-700 font-sans antialiased text-slate-800">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="h-12 p-1 bg-slate-100/40 border border-slate-200/60 rounded-2xl gap-2 mb-8 w-full max-w-2xl backdrop-blur-sm">
-                    <TabsTrigger value="initialize" className="flex-1 rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-10">
+                <TabsList className="h-14 p-1.5 bg-white/50 border border-slate-200/60 rounded-2xl gap-2 w-fit backdrop-blur-sm shadow-sm">
+                    <TabsTrigger value="initialize" className="px-10 h-full rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all font-black uppercase text-[11px] tracking-widest">
                         Initialize
                     </TabsTrigger>
-                    <TabsTrigger value="registry" className="flex-1 rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                    <TabsTrigger value="registry" className="px-10 h-full rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all font-black uppercase text-[11px] tracking-widest">
                         Role Registry
                     </TabsTrigger>
-                    <TabsTrigger value="assign" className="flex-1 rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                    <TabsTrigger value="assign" className="px-10 h-full rounded-xl flex items-center justify-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/20 transition-all font-black uppercase text-[11px] tracking-widest">
                         Assign Directives
                     </TabsTrigger>
                 </TabsList>
 
                 {/* 1. INITIALIZE TAB */}
-                <TabsContent value="initialize" className="space-y-12 outline-none">
-                    <div className="bg-white/40 border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm space-y-8 backdrop-blur-xl">
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-b border-slate-200/40 pb-8">
-                            <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Protocol Name</Label>
+                <TabsContent value="initialize" className="outline-none">
+                    <div className="bg-white/80 border border-slate-200/60 p-10 rounded-[3rem] shadow-xl shadow-slate-200/20 space-y-12 backdrop-blur-2xl">
+                         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 border-b border-slate-200/60 pb-12">
+                            <div className="md:col-span-4 space-y-3">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary ml-1">Protocol Identity</Label>
                                 <Input 
                                     value={newRoleForm.name}
                                     onChange={(e) => setNewRoleForm({ ...newRoleForm, name: e.target.value })}
                                     placeholder="SUPPORT_ADMIN_L1"
-                                    className="h-12 px-5 rounded-xl bg-slate-50 border-slate-200/60 focus:border-primary focus:ring-primary/10 font-black uppercase tracking-widest text-[11px]"
+                                    className="h-14 px-6 rounded-2xl bg-slate-50/50 border-slate-200/60 focus:border-primary focus:ring-primary/10 font-black uppercase tracking-[0.3em] text-xs shadow-inner"
                                 />
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unique identifier for this security profile.</p>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Mandate</Label>
+                            <div className="md:col-span-8 space-y-3">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary ml-1">Strategic Mandate</Label>
                                 <Textarea 
                                     value={newRoleForm.description}
                                     onChange={(e) => setNewRoleForm({ ...newRoleForm, description: e.target.value })}
-                                    placeholder="Operational scope definition..."
-                                    className="min-h-[48px] px-5 py-3 rounded-xl bg-slate-50 border-slate-200/60 focus:border-primary focus:ring-primary/10 font-bold text-xs"
+                                    placeholder="Describe the operational scope and purpose of this protocol..."
+                                    className="min-h-[56px] px-6 py-4 rounded-2xl bg-slate-50/50 border-slate-200/60 focus:border-primary focus:ring-primary/10 font-bold text-[13px] shadow-inner"
                                 />
                             </div>
                          </div>
@@ -401,15 +402,21 @@ export default function AccessControlManager({
                 </TabsContent>
 
                 {/* 2. REGISTRY TAB */}
-                <TabsContent value="registry" className="space-y-8 outline-none">
-                    <div className="max-w-md relative group">
-                        <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
-                        <Input 
-                            placeholder="SEARCH_PROTOCOL..." 
-                            className="h-12 pl-12 rounded-xl bg-white border-slate-200/60 text-[10px] font-black uppercase tracking-widest shadow-sm"
-                            value={roleSearchTerm}
-                            onChange={(e) => setRoleSearchTerm(e.target.value)}
-                        />
+                <TabsContent value="registry" className="outline-none space-y-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+                        <div className="max-w-md w-full relative group">
+                            <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+                            <Input 
+                                placeholder="SEARCH_PROTOCOL..." 
+                                className="h-14 pl-14 rounded-2xl bg-white border-slate-200/60 text-[11px] font-black uppercase tracking-[0.2em] shadow-sm focus:ring-primary/5"
+                                value={roleSearchTerm}
+                                onChange={(e) => setRoleSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <Box size={14} />
+                            <span>Total Protocols: {currentRoles.length}</span>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">
@@ -515,15 +522,21 @@ export default function AccessControlManager({
                 </TabsContent>
 
                 {/* 3. ASSIGN TAB */}
-                <TabsContent value="assign" className="space-y-8 outline-none">
-                    <div className="max-w-md relative group">
-                        <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
-                        <Input 
-                            placeholder="SEARCH_IDENTITY..." 
-                            className="h-12 pl-12 rounded-xl bg-white border-slate-200/60 text-[10px] font-black uppercase tracking-widest shadow-sm"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                <TabsContent value="assign" className="outline-none space-y-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+                        <div className="max-w-md w-full relative group">
+                            <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+                            <Input 
+                                placeholder="SEARCH_IDENTITY..." 
+                                className="h-14 pl-14 rounded-2xl bg-white border-slate-200/60 text-[11px] font-black uppercase tracking-[0.2em] shadow-sm focus:ring-primary/5"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <Users size={14} />
+                            <span>Identities: {accessibleProfiles.length}</span>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
