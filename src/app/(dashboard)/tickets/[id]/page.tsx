@@ -119,7 +119,7 @@ export default async function TicketDetailPage(props: { params: Promise<{ id: st
 
       {/* ── Main content transition area ── */}
       <main className="flex-1 p-4 lg:p-6 bg-slate-50/50">
-        <div className="w-full max-w-[98%] mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="w-full px-4 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
           
           {/* Section 1: Metadata Configuration (Deployment-style) */}
           <div className="bg-card/40 border border-border/40 p-6 rounded-3xl shadow-sm backdrop-blur-xl">

@@ -16,6 +16,7 @@ const inter = Inter({
 
 import { LoadingBar } from "@/components/ui/LoadingBar";
 import { Suspense } from "react";
+import { ThemeProvider } from "@/lib/theme-provider";
 
 export default function RootLayout({
   children,
@@ -30,15 +31,15 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('ui-theme');
-                  if (!theme) theme = 'adios';
-                  document.documentElement.setAttribute('data-theme', theme);
-                  var darkThemes = ['midnight-executive', 'emerald-night', 'charcoal-gold', 'plum-enterprise', 'cyber-pulse'];
-                  if (darkThemes.indexOf(theme) !== -1) {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
+                  var mode = localStorage.getItem('theme-mode');
+                  var color = localStorage.getItem('theme-color');
+                  if (!mode) {
+                    mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                   }
+                  if (!color) color = 'amber-mono';
+                  
+                  if (mode === 'dark') document.documentElement.classList.add('dark');
+                  document.documentElement.setAttribute('data-theme', color);
                 } catch (e) {}
               })()
             `,
@@ -47,14 +48,15 @@ export default function RootLayout({
       </head>
       <body
         className={`${outfit.variable} ${inter.variable} antialiased font-sans`}
-        suppressHydrationWarning
       >
-        <Toaster position="top-right" richColors closeButton />
-        <PageBackground />
-        <Suspense fallback={null}>
-          <LoadingBar />
-        </Suspense>
-        {children}
+        <ThemeProvider>
+          <Toaster position="top-right" richColors closeButton />
+          <PageBackground />
+          <Suspense fallback={null}>
+            <LoadingBar />
+          </Suspense>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

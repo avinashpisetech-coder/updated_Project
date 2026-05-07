@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 
-export function LoadingQuantum() {
+export default function LoadingQuantum() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] p-12 relative overflow-hidden transition-all duration-700 ease-in-out">
       {/* Structural Ambience */}
@@ -78,3 +78,4 @@ export function LoadingQuantum() {
     </div>
   );
 }
+// Force Turbopack re-index

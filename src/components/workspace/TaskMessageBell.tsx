@@ -85,7 +85,7 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
         >
           <MessageSquare className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm shadow-primary/40">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -129,7 +129,7 @@ export function TaskMessageBell({ initial = [] }: { initial?: TaskNotification[]
                   }}
                   className="flex flex-col gap-0.5 border-b border-border/40 px-4 py-3 text-sm transition-colors hover:bg-muted/50 last:border-0"
                 >
-                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">
+                  <span className="text-[10px] font-black text-primary uppercase tracking-tight">
                     {n.tasks?.title || "TASK_UPDATE"}
                   </span>
                   <span className="text-xs font-medium text-foreground">

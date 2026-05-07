@@ -257,6 +257,37 @@ export function ActivityPanel({ taskId }: { taskId: string }) {
               <div className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/5 rounded text-[9px] font-black uppercase tracking-widest text-primary cursor-pointer border border-primary/10">
                 Comment <ChevronDown className="w-2.5 h-2.5 ml-0.5" />
               </div>
+              <input 
+                type="file" 
+                id="comment-attachment-input" 
+                className="hidden" 
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    setLoading(true);
+                    try {
+                      const newAttachment = await uploadTaskAttachment(taskId, formData);
+                      setAttachments(prev => [...prev, { ...newAttachment, profiles: { full_name: "You" } }]);
+                      toast.success("File attached");
+                    } catch (error: any) {
+                      toast.error("Upload failed");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }
+                }}
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 text-zinc-400 hover:text-primary transition-colors"
+                onClick={() => document.getElementById('comment-attachment-input')?.click()}
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+              </Button>
             </div>
             
             <div className="flex items-center">

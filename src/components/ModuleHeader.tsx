@@ -2,6 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { BackButton } from "./BackButton";
 
 interface ModuleHeaderProps {
   title: string;
@@ -9,6 +10,7 @@ interface ModuleHeaderProps {
   actions?: React.ReactNode;
   icon?: React.ReactNode;
   className?: string;
+  showBack?: boolean;
 }
 
 export function ModuleHeader({
@@ -17,15 +19,22 @@ export function ModuleHeader({
   actions,
   icon,
   className,
+  showBack = true,
 }: ModuleHeaderProps) {
   return (
     <header 
       className={cn(
-        "flex h-14 shrink-0 items-center justify-between px-10 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl z-[60] sticky top-0 font-sans antialiased text-slate-900",
+        "flex h-16 shrink-0 items-center justify-between px-10 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl z-[60] sticky top-0 font-sans antialiased text-slate-900",
         className
       )}
     >
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-6">
+        {showBack && (
+          <div className="mr-2">
+            <BackButton showLabel={false} variant="ghost" className="h-10 w-10 rounded-xl" />
+          </div>
+        )}
+        
         <div className="flex flex-col">
           <div className="flex items-center gap-2 mb-0.5">
             {icon ? (

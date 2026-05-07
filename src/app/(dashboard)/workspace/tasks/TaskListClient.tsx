@@ -99,11 +99,11 @@ export default function TaskListClient({ tasks: initialTasks }: TaskListClientPr
   const getStatusConfig = (status: string) => {
     const s = (status || 'todo').toLowerCase();
     switch (s) {
-      case 'complete': return { label: 'SUCCESS', class: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' };
-      case 'in_progress': return { label: 'ACTIVE', class: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' };
-      case 'review': return { label: 'REVIEW', class: 'bg-amber-500/10 text-amber-600 border-amber-500/20' };
-      case 'todo': return { label: 'TODO', class: 'bg-slate-500/10 text-slate-500 border-slate-500/20' };
-      default: return { label: status.toUpperCase(), class: 'bg-slate-500/10 text-slate-600 border-slate-500/20' };
+      case 'complete': return { label: 'SUCCESS', class: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30' };
+      case 'in_progress': return { label: 'ACTIVE', class: 'bg-indigo-500/20 text-indigo-700 border-indigo-500/30' };
+      case 'review': return { label: 'REVIEW', class: 'bg-amber-500/20 text-amber-700 border-amber-500/30' };
+      case 'todo': return { label: 'TODO', class: 'bg-slate-500/20 text-slate-700 border-slate-500/30' };
+      default: return { label: status.toUpperCase(), class: 'bg-slate-500/20 text-slate-700 border-slate-500/30' };
     }
   };
 
@@ -210,16 +210,16 @@ export default function TaskListClient({ tasks: initialTasks }: TaskListClientPr
           </motion.div>
         )}
         
-        <Table className="border-collapse min-w-[1000px]">
-          <TableHeader className="bg-background/80 sticky top-0 z-50 backdrop-blur-md">
-            <TableRow className="h-10 border-b border-border/40 hover:bg-transparent">
-              <TableHead className="pl-10 w-[200px] text-[9px] font-black text-muted-foreground uppercase tracking-widest">Task_Protocol</TableHead>
-              <TableHead className="w-[140px] text-[9px] font-black text-muted-foreground uppercase tracking-widest">Timestamp</TableHead>
-              <TableHead className="text-[9px] font-black text-muted-foreground uppercase tracking-widest px-4">Entity_Subject</TableHead>
-              <TableHead className="w-[150px] text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Project_Zone</TableHead>
-              <TableHead className="w-[200px] text-[9px] font-black text-muted-foreground uppercase tracking-widest pl-8">Assignee_Node</TableHead>
-              <TableHead className="w-[140px] text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Lifecycle</TableHead>
-              <TableHead className="w-[80px] text-right pr-10"></TableHead>
+        <Table className="border-collapse w-full min-w-[1000px]">
+          <TableHeader className="bg-slate-100/90 sticky top-0 z-50 backdrop-blur-md border-b border-border/60">
+            <TableRow className="h-12 border-b border-border/60 hover:bg-transparent">
+              <TableHead className="pl-10 w-[200px] text-[10px] font-black text-slate-900 uppercase tracking-widest">Task_Protocol</TableHead>
+              <TableHead className="w-[140px] text-[10px] font-black text-slate-900 uppercase tracking-widest">Timestamp</TableHead>
+              <TableHead className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-4">Entity_Subject</TableHead>
+              <TableHead className="w-[150px] text-[10px] font-black text-slate-900 uppercase tracking-widest text-center">Project_Zone</TableHead>
+              <TableHead className="w-[200px] text-[10px] font-black text-slate-900 uppercase tracking-widest pl-8">Assignee_Node</TableHead>
+              <TableHead className="w-[120px] text-[10px] font-black text-slate-900 uppercase tracking-widest text-center">Lifecycle</TableHead>
+              <TableHead className="w-[100px] text-[10px] font-black text-slate-900 uppercase tracking-widest text-right pr-10">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -309,9 +309,9 @@ export default function TaskListClient({ tasks: initialTasks }: TaskListClientPr
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right pr-10">
-                      <div className="flex justify-end opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                        <div className="h-9 w-9 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all">
-                          <ExternalLink className="h-4 w-4" />
+                      <div className="flex justify-end transition-all duration-300">
+                        <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-110 transition-all">
+                          <ExternalLink className="h-3.5 w-3.5" />
                         </div>
                       </div>
                     </TableCell>

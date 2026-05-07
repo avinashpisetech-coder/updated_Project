@@ -4,14 +4,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ThemeOrnaments } from "@/components/theme-ornaments";
-import { PageScene } from "@/components/page-scene";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { getUnreadNotifications } from "@/app/(dashboard)/tickets/actions";
 import { NavigationProvider } from "@/components/providers/NavigationProvider";
 import { DashboardShell } from "@/components/DashboardShell";
+import { TopBar } from "@/components/TopBar";
 
 import { hasPermission, RESOURCES } from "@/lib/permissions";
 import { getUserPermissions } from "@/lib/permissions-server";
@@ -36,9 +35,8 @@ export default async function DashboardLayout({
     getUnreadNotifications().catch(() => []),
     Promise.all([
       supabase.from("task_assignees").select("task_id", { count: 'exact', head: true }).eq("profile_id", user.id).then(res => (res.count || 0) > 0),
-      supabase.from("tickets").select("id", { count: 'exact', head: true }).or(`assigned_to_id.eq.${user.id},requester_id.eq.${user.id}`).then(res => (res.count || 0) > 0),
-      supabase.from("assets").select("id", { count: 'exact', head: true }).eq("current_holder_id", user.id).then(res => (res.count || 0) > 0)
-    ]).then(([tasks, tickets, assets]) => ({ tasks, tickets, assets }))
+      supabase.from("tickets").select("id", { count: 'exact', head: true }).or(`assigned_to_id.eq.${user.id},requester_id.eq.${user.id}`).then(res => (res.count || 0) > 0)
+    ]).then(([tasks, tickets]) => ({ tasks, tickets }))
   ]);
 
   if (profile?.force_password_change && !user.app_metadata?.bypass_force_change) {
@@ -55,12 +53,10 @@ export default async function DashboardLayout({
 
   const canAccessWorkspace = hasPermission(permissions, RESOURCES.WORKSPACE) || assignmentStatus.tasks;
   const canAccessTickets = hasPermission(permissions, RESOURCES.TICKETS) || hasPermission(permissions, RESOURCES.SUPPORT_QUEUE) || assignmentStatus.tickets;
-  const canAccessAssets = hasPermission(permissions, RESOURCES.ASSETS) || assignmentStatus.assets;
 
   return (
     <NavigationProvider>
       <div className="relative min-h-screen flex flex-col text-foreground selection:bg-primary/30 selection:text-white overflow-x-hidden">
-        <ThemeOrnaments />
         <Navbar 
           canAccessMasters={canAccessMasters} 
           canAccessSecurity={canAccessSecurity} 
@@ -73,11 +69,11 @@ export default async function DashboardLayout({
           canAccessSecurity={canAccessSecurity} 
           canAccessWorkspace={canAccessWorkspace}
           canAccessTickets={canAccessTickets}
-          canAccessAssets={canAccessAssets}
           profile={profile} 
           permissions={permissions} 
           notifications={notifications} 
         />
+        <TopBar profile={profile} notifications={notifications} />
 
         <DashboardShell>
           {children}

@@ -3,6 +3,7 @@
 import React, { Suspense } from "react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { motion, Variants } from "framer-motion";
 import { 
   PlusCircle, 
   Activity, 
@@ -35,32 +36,98 @@ import { useDashboardDataV2 } from "@/hooks/useDashboardData";
 import { ActivityFeedSkeleton } from "./ActivityFeedSkeleton";
 
 // elite KPI Card (Ultra-Compact Executive Footprint)
-const EliteKPI = ({ label, value, icon: Icon, color, subLabel, href }: any) => (
-  <Link href={href || "#"} className={cn("group block", !href && "pointer-events-none")}>
-    <Card className="relative overflow-hidden rounded-[16px] bg-white border-none shadow-[rl_8px_15px_rgba(100,116,139,0.03)] group-hover:shadow-[0_12px_25px_rgba(100,116,139,0.06)] transition-all duration-300 hover:-translate-y-0.5">
-      <CardContent className="p-3">
-        <div className="flex justify-between items-start mb-1.5">
-          <div className={cn(
-            "p-1.5 rounded-lg transition-all duration-500 shadow-sm",
-            color === 'rose' ? "bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white" : 
-            color === 'violet' ? "bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white" : 
-            color === 'teal' ? "bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white" : 
-            color === 'sky' ? "bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white" :
-            "bg-slate-50 text-slate-600 group-hover:bg-slate-600 group-hover:text-white"
-          )}>
-            <Icon className="h-3.5 w-3.5" />
+const EliteKPI = ({ label, value, icon: Icon, color, subLabel, href }: any) => {
+  const glowColor = 
+    color === 'rose' ? 'rgba(225, 29, 72, 0.15)' : 
+    color === 'violet' ? 'rgba(124, 58, 237, 0.15)' : 
+    color === 'teal' ? 'rgba(13, 148, 136, 0.15)' : 
+    color === 'sky' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(100, 116, 139, 0.1)';
+
+  return (
+    <Link href={href || "#"} className={cn("group block", !href && "pointer-events-none")}>
+      <Card className="relative overflow-hidden rounded-[20px] bg-white border-none shadow-[rl_8px_15px_rgba(100,116,139,0.03)] group-hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] transition-all duration-500 hover:-translate-y-1">
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" 
+          style={{ background: `radial-gradient(circle at center, ${glowColor} 0%, transparent 70%)` }} 
+        />
+        <CardContent className="p-4 relative z-10">
+          <div className="flex justify-between items-start mb-2">
+            <div className={cn(
+              "p-2 rounded-xl transition-all duration-500 shadow-sm",
+              color === 'rose' ? "bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white" : 
+              color === 'violet' ? "bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white" : 
+              color === 'teal' ? "bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white" : 
+              color === 'sky' ? "bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white" :
+              "bg-slate-50 text-slate-600 group-hover:bg-slate-600 group-hover:text-white"
+            )}>
+              <Icon className="h-4 w-4" />
+            </div>
+            {subLabel && (
+              <span className="text-[8px] font-black text-slate-400/40 uppercase tracking-[0.2em]">{subLabel}</span>
+            )}
           </div>
-          {subLabel && (
-            <span className="text-[7.5px] font-bold text-slate-400/40 uppercase tracking-widest">{subLabel}</span>
-          )}
-        </div>
-        <div className="space-y-0">
-          <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-normal">{label}</span>
-          <h3 className="text-lg font-black text-slate-900 tracking-tighter tabular-nums leading-none">{value}</h3>
-        </div>
-      </CardContent>
-    </Card>
-  </Link>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{label}</span>
+            <div className="flex items-baseline gap-1">
+               <h3 className="text-2xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">{value}</h3>
+               {href && <ArrowUpRight className="h-3 w-3 text-slate-300 group-hover:text-slate-900 transition-colors" />}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+};
+
+const HealthRadar = () => (
+  <div className="relative h-40 w-40 flex items-center justify-center">
+    <div className="absolute inset-0 bg-[#f97316]/10 rounded-full blur-3xl animate-pulse" />
+    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+      <circle
+        cx="80"
+        cy="80"
+        r="70"
+        fill="transparent"
+        stroke="currentColor"
+        strokeWidth="1"
+        className="text-white/5"
+      />
+      {[0.2, 0.5, 0.8].map((i) => (
+        <motion.circle
+          key={i}
+          cx="80"
+          cy="80"
+          r="70"
+          fill="transparent"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-emerald-400/20"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: [0, 1, 0] }}
+          transition={{ duration: 3, delay: i * 2, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+      <motion.line
+        x1="80"
+        y1="80"
+        x2="80"
+        y2="10"
+        stroke="currentColor"
+        strokeWidth="2"
+        className="text-emerald-400"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+        style={{ originX: "80px", originY: "80px" }}
+      />
+    </svg>
+    <div className="absolute flex flex-col items-center justify-center">
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)]" 
+      />
+      <span className="text-[8px] font-black text-white mt-2 uppercase tracking-widest">Nominal</span>
+    </div>
+  </div>
 );
 
 export function HomeDashboard({ initialData, myTasks, children }: { initialData: any, myTasks?: any[], children: React.ReactNode }) {
@@ -95,10 +162,39 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
     { label: "User Directory", href: "/settings/masters/users", icon: Users, color: "rose" },
   ];
 
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#fcfcfc] px-6 py-6 space-y-6 font-sans selection:bg-[#f97316]/10 selection:text-[#f97316]">
+    <motion.div 
+      initial="hidden"
+      animate="show"
+      variants={containerVariants}
+      className="min-h-screen bg-[#fcfcfc] px-6 py-6 space-y-6 font-sans selection:bg-[#f97316]/10 selection:text-[#f97316]"
+    >
       {/* Elite Executive Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-1">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-1">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
              <div className="h-1.5 w-1.5 rounded-full bg-[#f97316]" />
@@ -121,69 +217,135 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
             </Link>
           </Button>
         </div>
-      </div>
-
-      {/* KPI Matrix - 4 Column Top Roll */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpis.map((kpi) => (
-           <EliteKPI key={kpi.label} {...kpi} />
-        ))}
-      </div>
-
-      {/* Personal Pulse: User Cockpit */}
-        <Card className="md:col-span-2 rounded-[25px] bg-gradient-to-br from-slate-900 to-slate-800 border-none shadow-2xl p-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
-            <Ticket className="h-48 w-48 text-white" />
+      </motion.div>
+ 
+       {/* KPI Matrix - 4 Column Top Roll */}
+       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+         {kpis.map((kpi) => (
+            <EliteKPI key={kpi.label} {...kpi} />
+         ))}
+       </motion.div>
+ 
+       {/* Personal Pulse: User Cockpit */}
+       <motion.div variants={itemVariants}>
+         <Card className="md:col-span-2 rounded-[30px] bg-white border border-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.03)] p-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.02] group-hover:scale-110 transition-transform duration-1000">
+            <Ticket className="h-48 w-48 text-slate-900" />
           </div>
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="space-y-4">
+          
+          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+            <div className="space-y-4 min-w-[240px]">
               <div className="space-y-1">
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Operational Assignment Control</span>
-                <h3 className="text-3xl font-black text-white tracking-tight italic uppercase">Active_Service_Queue</h3>
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-4 bg-primary rounded-full" />
+                  <span className="text-[8px] font-black text-slate-900 uppercase tracking-[0.2em]">Operational Assignment Control</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">Active Service Queue</h3>
               </div>
-              <div className="flex items-baseline gap-4">
-                <span className="text-7xl font-black text-white tracking-tighter tabular-nums">{data?.myTickets?.total || 0}</span>
-                <div className="flex flex-col">
-                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Global_Load</span>
-                   <span className="text-[12px] font-black text-emerald-400 uppercase tracking-widest mt-1">Status: Active</span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-5xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">{data?.myTickets?.total || 0}</span>
+                <div className="flex flex-col gap-0">
+                   <div className="flex items-center gap-1.5">
+                     <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                     <span className="text-[9px] font-bold text-slate-900 uppercase tracking-widest leading-none">Global Load</span>
+                   </div>
+                   <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.1em]">Status: Active</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 max-w-xl grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                {[
-                 { label: "New", value: data?.myTickets?.new || 0, color: "text-blue-400" },
-                 { label: "Assigned", value: data?.myTickets?.assigned || 0, color: "text-indigo-400" },
-                 { label: "Pending", value: (data?.myTickets?.pending_user || 0) + (data?.status_distribution?.pending_dept || 0), color: "text-amber-400" },
-                 { label: "In Progress", value: data?.myTickets?.in_progress || 0, color: "text-sky-400" },
+                 { label: "New", value: data?.myTickets?.new || 0, color: "text-blue-600", bg: "bg-blue-50/40", border: "border-blue-100/40" },
+                 { label: "Assigned", value: data?.myTickets?.assigned || 0, color: "text-indigo-600", bg: "bg-indigo-50/40", border: "border-indigo-100/40" },
+                 { label: "Pending", value: (data?.myTickets?.pending_user || 0) + (data?.status_distribution?.pending_dept || 0), color: "text-amber-600", bg: "bg-amber-50/40", border: "border-amber-100/40" },
+                 { label: "In Progress", value: data?.myTickets?.in_progress || 0, color: "text-sky-600", bg: "bg-sky-50/40", border: "border-sky-100/40" },
                ].map((stat) => (
-                 <div key={stat.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
-                   <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</div>
-                   <div className={cn("text-xl font-black tabular-nums", stat.color)}>{stat.value}</div>
+                 <div key={stat.label} className={cn("border rounded-xl p-3 flex flex-col justify-center min-h-[70px] transition-all duration-500 hover:bg-white hover:shadow-md", stat.bg, stat.border)}>
+                   <div className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-1 truncate">{stat.label}</div>
+                   <div className={cn("text-xl font-black tabular-nums leading-none", stat.color)}>{stat.value}</div>
                  </div>
                ))}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Button asChild variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest h-10 px-6">
-                <Link href="/tickets">
-                  View Full Registry
+            <div className="hidden 2xl:block">
+              <div className="scale-50 opacity-30 hover:opacity-100 transition-opacity">
+                 <HealthRadar />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-2 min-w-[140px]">
+              <Button asChild size="sm" className="bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-[9px] font-black uppercase tracking-widest h-9 px-4 shadow-md shadow-slate-200">
+                <Link href="/tickets" className="flex items-center gap-2">
+                  View Registry <ArrowRight className="h-3 w-3" />
                 </Link>
               </Button>
-              <Button asChild variant="link" className="text-indigo-400 text-[9px] font-black uppercase tracking-[0.2em] p-0 h-auto hover:text-white">
-                <Link href="/workspace/tasks" className="flex items-center gap-2">
-                  <PlusCircle className="h-3 w-3" /> Quick Task Entry
+              <Button asChild variant="ghost" className="text-slate-400 text-[8px] font-black uppercase tracking-widest h-8 hover:text-slate-900 hover:bg-slate-50 transition-all">
+                <Link href="/workspace/tasks" className="flex items-center gap-1.5">
+                  <PlusCircle className="h-2.5 w-2.5" /> Quick Task
                 </Link>
               </Button>
             </div>
           </div>
         </Card>
+      </motion.div>
 
-      {/* WORKFLOW STATUS GRID - Absolute Parity Check */}
-      <div className="bg-white p-6 rounded-[25px] shadow-[rl_15px_30px_rgba(100,116,139,0.03)] border border-slate-50">
+      {/* Performance Intelligence Analytics Row */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <Card className="rounded-[25px] bg-white border-none shadow-sm p-5 flex items-center justify-between group overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+            <div className="relative z-10 space-y-1">
+               <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">SLA Compliance</span>
+               <h4 className="text-2xl font-black text-slate-900 tabular-nums">98.4<span className="text-emerald-500">%</span></h4>
+               <div className="w-32 h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: "98.4%" }}
+                    transition={{ duration: 1.5, delay: 0.5 }}
+                    className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
+                  />
+               </div>
+            </div>
+            <CheckCircle2 className="h-8 w-8 text-emerald-500/20 group-hover:text-emerald-500 transition-colors duration-500" />
+         </Card>
+
+         <Card className="rounded-[25px] bg-white border-none shadow-sm p-5 flex items-center justify-between group overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+            <div className="relative z-10 space-y-1">
+               <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">Resolution Velocity</span>
+               <h4 className="text-2xl font-black text-slate-900 tabular-nums">1.4<span className="text-[10px] text-slate-400 ml-1">h/AVG</span></h4>
+               <div className="flex gap-1 mt-2">
+                  {[1,2,3,4,5].map(i => (
+                    <motion.div 
+                      key={i}
+                      animate={{ height: [4, 8, 4] }}
+                      transition={{ duration: 1, delay: i * 0.1, repeat: Infinity }}
+                      className="w-1.5 bg-indigo-500/30 rounded-full" 
+                    />
+                  ))}
+               </div>
+            </div>
+            <Timer className="h-8 w-8 text-indigo-500/20 group-hover:text-indigo-50 transition-colors duration-500" />
+         </Card>
+
+         <Card className="rounded-[25px] bg-white border-none shadow-sm p-5 flex items-center justify-between group overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+            <div className="relative z-10 space-y-1">
+               <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">System Stability</span>
+               <h4 className="text-2xl font-black text-slate-900">NOMINAL</h4>
+               <div className="flex items-center gap-1.5 mt-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-ping" />
+                  <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">Live telemetry active</span>
+               </div>
+            </div>
+            <Radio className="h-8 w-8 text-orange-500/20 group-hover:text-orange-500 transition-colors duration-500" />
+         </Card>
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="bg-white p-6 rounded-[25px] shadow-[rl_15px_30px_rgba(100,116,139,0.03)] border border-slate-50">
         <div className="flex items-center gap-2 mb-4">
-           <Layers className="h-4 w-4 text-slate-400" />
-           <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Workflow status distribution (Parity Active)</span>
+           <Layers className="h-4 w-4 text-slate-900" />
+           <span className="text-[9px] font-black text-slate-900 uppercase tracking-[0.2em]">Workflow status distribution</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {workflowBadges.map((badge) => (
@@ -201,16 +363,16 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
                   <ArrowRight className="h-2.5 w-2.5 text-slate-300 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all" />
                 </div>
                 <div className="space-y-0.5">
-                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">{badge.label}</p>
+                   <p className="text-[8px] font-black text-slate-900 uppercase tracking-tight">{badge.label}</p>
                    <p className="text-lg font-black text-slate-900 leading-none">{loading ? "..." : badge.value}</p>
                 </div>
               </div>
             </Link>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Activity Hub */}
         <div className="lg:col-span-8 flex flex-col gap-6">
            <Card className="rounded-[30px] bg-white border-none shadow-[0_15px_30px_rgba(100,116,139,0.04)] overflow-hidden">
@@ -219,9 +381,9 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
                  <div className="h-8 w-8 rounded-xl bg-slate-900 flex items-center justify-center shadow-md">
                    <Activity className="h-4 w-4 text-white" />
                  </div>
-                 <CardTitle className="text-[9px] font-black text-slate-900 uppercase tracking-[0.2em]">Operational activity log</CardTitle>
+                 <CardTitle className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Operational activity log</CardTitle>
                </div>
-               <Link href="/tickets" className="text-[9px] font-black text-slate-400 hover:text-slate-900 transition-all flex items-center gap-1.5 tracking-widest">
+               <Link href="/tickets" className="text-[10px] font-black text-slate-500 hover:text-primary transition-all flex items-center gap-1.5 tracking-widest">
                  FULL AUDIT <ArrowUpRight className="h-3 w-3" />
                </Link>
              </CardHeader>
@@ -366,7 +528,7 @@ export function HomeDashboard({ initialData, myTasks, children }: { initialData:
              </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

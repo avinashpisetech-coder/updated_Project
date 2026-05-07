@@ -277,7 +277,7 @@ export default function UserManager({
             >
               <Filter className="h-3 w-3" /> Reset Filters
             </button>
-            <Button asChild className="h-10 px-6 rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white text-[11px] flex items-center gap-2">
+            <Button asChild className="h-10 px-6 rounded-xl font-black uppercase tracking-widest shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] flex items-center gap-2 transition-all">
               <Link href="/register"><Plus className="h-4 w-4" /> Add New User</Link>
             </Button>
           </div>
@@ -286,22 +286,22 @@ export default function UserManager({
         <div className="rounded-2xl border border-border/40 bg-card/60 overflow-hidden shadow-2xl">
           <div className="max-h-[600px] overflow-y-auto">
             <Table>
-            <TableHeader className="bg-muted/50 backdrop-blur sticky top-0 z-10 border-b border-border/60">
-              <TableRow className="border-none hover:bg-transparent">
-                <TableHead onClick={() => toggleSort("full_name")} className="cursor-pointer group">
-                  <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 py-4 px-2">
-                    User <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <TableHeader className="bg-slate-100/90 sticky top-0 z-10 border-b border-border/60 backdrop-blur-md">
+              <TableRow className="h-12 border-none hover:bg-transparent">
+                <TableHead onClick={() => toggleSort("full_name")} className="cursor-pointer group w-[250px]">
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-900 py-4 px-2">
+                    User_Identity <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </TableHead>
-                <TableHead onClick={() => toggleSort("employee_id")} className="cursor-pointer group">
-                  <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 py-4 px-2">
-                    Employee ID <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <TableHead onClick={() => toggleSort("employee_id")} className="cursor-pointer group w-[140px]">
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-900 py-4 px-2">
+                    ID_Protocol <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Role</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Department & Unit</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 text-center">Status</TableHead>
-                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 px-4">Actions</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-900 w-[140px]">Privilege</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-900 px-4">Org_Unit</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-900 text-center w-[120px]">Status</TableHead>
+                <TableHead className="text-right text-[10px] font-black uppercase tracking-widest text-slate-900 px-4 w-[140px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -353,34 +353,34 @@ export default function UserManager({
                     <TableCell className="text-center">
                       <Badge
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest",
+                          "rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest shadow-sm",
                           user.status === "active"
-                            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                            : "bg-destructive/10 text-destructive border border-destructive/20"
+                            ? "bg-emerald-500/20 text-emerald-700 border border-emerald-500/30"
+                            : "bg-destructive/20 text-destructive border border-destructive/30"
                         )}
                       >
                         {user.status === 'active' ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right px-4">
-                      <div className="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1.5 transition-opacity">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleStatusToggle(user.id, user.status)}
                           disabled={!canManageRecord(user) || loading}
                           className={cn(
-                            "h-8 rounded-lg text-[9px] font-bold uppercase tracking-wider",
-                            user.status === 'active' ? 'text-destructive hover:bg-destructive/5' : 'text-emerald-600 hover:bg-emerald-500/5'
+                            "h-7 rounded-lg text-[8px] font-black uppercase tracking-widest border border-transparent hover:border-current transition-all",
+                            user.status === 'active' ? 'text-destructive hover:bg-destructive/5' : 'text-emerald-700 hover:bg-emerald-500/5'
                           )}
                         >
-                          {user.status === 'active' ? 'Deactivate' : 'Restore'}
+                          {user.status === 'active' ? 'Disable' : 'Restore'}
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           disabled={!canManageRecord(user) || loading}
-                          className="h-8 w-8 rounded-lg hover:bg-primary/5 text-primary"
+                          className="h-8 w-8 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary shadow-sm border border-primary/20 transition-all hover:scale-110"
                           onClick={() => {
                             setEditingUser(user);
                             setSelectedCompanyIds(user.company_ids?.length ? user.company_ids : user.company_id ? [user.company_id] : []);
@@ -397,8 +397,8 @@ export default function UserManager({
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(user.id)}
-                            disabled={loading || user.id === initialUsers[0]?.id /* Avoid self delete if possible */}
-                            className="h-8 w-8 rounded-lg hover:bg-destructive/5 text-destructive"
+                            disabled={loading || user.id === initialUsers[0]?.id}
+                            className="h-8 w-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 transition-all hover:scale-110"
                           >
                             <UserMinus className="h-3.5 w-3.5" />
                           </Button>

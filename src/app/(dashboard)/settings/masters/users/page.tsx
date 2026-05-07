@@ -129,7 +129,7 @@ export default async function UserMasterPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-10 font-sans antialiased bg-slate-50/20">
+    <div className="w-full space-y-6 p-6 font-sans antialiased bg-slate-50/20">
       <ModuleHeader 
         title="USER_DIRECTORY"
         subtitle="Identity Lifecycle Node"

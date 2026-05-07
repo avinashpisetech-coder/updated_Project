@@ -1,1660 +1,245 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
-/* Tailwind v4 directives. Note: 'Unknown at rule' warnings from the IDE are expected 
-   because standard CSS validators do not yet recognize Tailwind v4 specific 
-   at-rules like @theme, @custom-variant, or @apply without a PostCSS plugin. */
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
+@theme {
+  /* Core Palette Mapping */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), var(--font-outfit), Inter, sans-serif;
-  --font-mono: Fira Code, monospace;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
-  --font-serif: Playfair Display, serif;
-  --radius: 0.5rem;
-  --tracking-tighter: -0.05em;
-  --tracking-tight: -0.025em;
-  --tracking-wide: 0.025em;
-  --tracking-wider: 0.05em;
-  --tracking-widest: 0.1em;
-  --tracking-normal: 0em;
-  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.15);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --spacing: 0.25rem;
-  --letter-spacing: 0em;
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-scene-bg-start: var(--theme-scene-bg-start);
-  --color-scene-bg-end: var(--theme-scene-bg-end);
-  --shadow-premium: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
-}
-
-/* ── Logistical Premium Glassmorphism ── */
-.glass-card {
-  @apply bg-white/40 backdrop-blur-md border border-white/20 shadow-sm;
-}
-
-.glass-card-dark {
-  @apply bg-slate-900/40 backdrop-blur-md border border-white/10 shadow-xl;
-}
-
-/* ── Technical Grid Utilities ── */
-.technical-grid {
-  @apply grid gap-6;
-}
-
-/* ── High-Fidelity Shadow systems ── */
-.shadow-premium {
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
-}
-
-.shadow-executive {
-  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
-}
-
-/* ── Fluid Resolution Utilities ── */
-.resolution-aware-container {
-  @apply mx-auto transition-all duration-500 ease-in-out;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   GLOBAL SIDEBAR-AWARE FULL-SCREEN LAYOUT RULE
-   ──────────────────────────────────────────────────────────────────────────────
-   The --sidebar-width CSS variable is set dynamically on <html> by
-   NavigationProvider whenever the sidebar expands or collapses. Both the
-   DashboardShell (ticketing) and AssetMainContent (assets) consume this token
-   via inline styles so their content areas always fill exactly:
-     width = 100vw - var(--sidebar-width)
-   ensuring true full-screen coverage at every sidebar state.
-
-   Default values (overridden live by NavigationProvider):
-     Expanded  → 256px (ticketing) / 288px (assets)
-     Collapsed → 64px  (both systems)
-   ══════════════════════════════════════════════════════════════════════════════ */
-:root {
-  --sidebar-width: 256px;    /* Default: ticketing sidebar expanded */
-  --sidebar-width-num: 256;  /* Numeric-only companion for JS use */
-}
-
-/* Utility class: apply to any wrapper that should be sidebar-aware full-screen */
-.sidebar-aware-page {
-  margin-left: var(--sidebar-width, 256px);
-  width: calc(100vw - var(--sidebar-width, 256px));
-  min-height: 100vh;
-  transition: margin-left 300ms ease-in-out, width 300ms ease-in-out;
-  will-change: margin-left, width;
-}
-
-/* When sidebar is hidden (horizontal nav mode) */
-.sidebar-aware-page.sidebar-hidden {
-  margin-left: 0;
-  width: 100vw;
-}
-
-:root {
-  /* High-end Minimal Professional Theme */
-  --background: oklch(0.98 0.005 240);
-  --foreground: oklch(0.22 0.015 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.015 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.015 250);
-  --primary: oklch(0.55 0.12 250); /* Professional Blue */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.94 0.01 245);
-  --secondary-foreground: oklch(0.32 0.02 250);
-  --muted: oklch(0.96 0.005 245);
-  --muted-foreground: oklch(0.48 0.015 250);
-  --accent: oklch(0.92 0.03 240);
-  --accent-foreground: oklch(0.28 0.08 250);
-  --destructive: oklch(0.6 0.18 25);
-  --border: oklch(0.91 0.01 245);
-  --input: oklch(0.93 0.01 245);
-  --ring: oklch(0.55 0.12 250 / 0.2);
-  --radius: 0.625rem;
-  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   
-  --theme-spot-a: color-mix(in oklab, var(--primary) 8%, transparent);
-  --theme-spot-b: color-mix(in oklab, var(--accent) 6%, transparent);
-  --theme-card-radius: 12px;
-  --theme-input-radius: 8px;
-  --theme-badge-radius: 99px;
-  --theme-button-radius: 8px;
-  --theme-card-shadow: 0 4px 12px rgb(0 0 0 / 0.03), 0 1px 2px rgb(0 0 0 / 0.02);
-  --theme-card-bg-start: oklch(1 0 0);
-  --theme-card-bg-end: oklch(0.995 0.002 245);
-  --theme-badge-bg: color-mix(in oklab, var(--primary) 10%, transparent);
-  --theme-badge-border: color-mix(in oklab, var(--primary) 20%, transparent);
-  --theme-badge-fg: var(--primary);
-  --theme-scene-bg-start: oklch(1 0 0);
-  --theme-scene-bg-end: oklch(0.98 0.01 245);
+  --radius-xl: var(--radius);
+  --radius-lg: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 8px);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), sans-serif;
 }
-
-/* Themes Purged - Consolidated to End of File */
-
-.dark {
-  --background: oklch(0.19 0.02 250);
-  --foreground: oklch(0.92 0.01 245);
-  --card: oklch(0.23 0.02 250);
-  --card-foreground: oklch(0.92 0.01 245);
-  --popover: oklch(0.23 0.02 250);
-  --popover-foreground: oklch(0.92 0.01 245);
-  --primary: oklch(0.65 0.12 250);
-  --primary-foreground: oklch(0.19 0.02 250);
-  --secondary: oklch(0.3 0.02 248);
-  --secondary-foreground: oklch(0.9 0.01 245);
-  --muted: oklch(0.27 0.015 248);
-  --muted-foreground: oklch(0.73 0.015 245);
-  --accent: oklch(0.36 0.05 235);
-  --accent-foreground: oklch(0.92 0.01 245);
-  --destructive: oklch(0.6368 0.2078 25.3313);
-  --border: oklch(0.33 0.02 248);
-  --input: oklch(0.29 0.018 248);
-  --ring: oklch(0.65 0.12 250);
-  --chart-1: oklch(0.69 0.12 250);
-  --chart-2: oklch(0.68 0.09 210);
-  --chart-3: oklch(0.69 0.1 170);
-  --chart-4: oklch(0.71 0.11 35);
-  --chart-5: oklch(0.67 0.12 320);
-  --sidebar: oklch(0.22 0.02 250);
-  --sidebar-foreground: oklch(0.92 0.01 245);
-  --sidebar-primary: oklch(0.65 0.12 250);
-  --sidebar-primary-foreground: oklch(0.19 0.02 250);
-  --sidebar-accent: oklch(0.35 0.04 235);
-  --sidebar-accent-foreground: oklch(0.92 0.01 245);
-  --sidebar-border: oklch(0.33 0.02 248);
-  --sidebar-ring: oklch(0.65 0.12 250);
-  --destructive-foreground: oklch(1 0 0);
-  --radius: 0.625rem;
-  --font-sans: Roboto, sans-serif;
-  --font-serif: Playfair Display, serif;
-  --font-mono: Fira Code, monospace;
-  --shadow-color: hsl(255 86% 66%);
-  --shadow-opacity: 0.2;
-  --shadow-blur: 4px;
-  --shadow-spread: 0px;
-  --shadow-offset-x: 2px;
-  --shadow-offset-y: 2px;
-  --letter-spacing: 0em;
-  --spacing: 0.25rem;
-  --shadow-2xs: 2px 2px 4px 0px hsl(255 86% 66% / 0.1);
-  --shadow-xs: 2px 2px 4px 0px hsl(255 86% 66% / 0.1);
-  --shadow-sm:
-    2px 2px 4px 0px hsl(255 86% 66% / 0.2),
-    2px 1px 2px -1px hsl(255 86% 66% / 0.2);
-  --shadow:
-    2px 2px 4px 0px hsl(255 86% 66% / 0.2),
-    2px 1px 2px -1px hsl(255 86% 66% / 0.2);
-  --shadow-md:
-    2px 2px 4px 0px hsl(255 86% 66% / 0.2),
-    2px 2px 4px -1px hsl(255 86% 66% / 0.2);
-  --shadow-lg:
-    2px 2px 4px 0px hsl(255 86% 66% / 0.2),
-    2px 4px 6px -1px hsl(255 86% 66% / 0.2);
-  --shadow-xl:
-    2px 2px 4px 0px hsl(255 86% 66% / 0.2),
-    2px 8px 10px -1px hsl(255 86% 66% / 0.2);
-  --shadow-2xl: 2px 2px 4px 0px hsl(255 86% 66% / 0.5);
-}
-
-@layer utilities {
-  .scene-mesh {
-    background-image: 
-      radial-gradient(at 0% 0%, var(--theme-spot-a) 0, transparent 50%),
-      radial-gradient(at 100% 0%, var(--theme-spot-b) 0, transparent 50%),
-      radial-gradient(at 100% 100%, var(--theme-spot-a) 0, transparent 50%),
-      radial-gradient(at 0% 100%, var(--theme-spot-b) 0, transparent 50%);
-    background-attachment: fixed;
-    filter: blur(80px);
-    opacity: 0.15;
-    pointer-events: none;
-  }
-}
-
-/* Universal transitions removed for performance. Components should define their own transitions. */
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-    letter-spacing: var(--tracking-normal);
-    background-image:
-      radial-gradient(
-        circle at 50% 100%,
-        color-mix(in oklab, var(--primary) 8%, transparent),
-        transparent 46%
-      ),
-      linear-gradient(
-        to right,
-        color-mix(in oklab, var(--border) 18%, transparent) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        color-mix(in oklab, var(--border) 14%, transparent) 1px,
-        transparent 1px
-      ),
-      radial-gradient(circle at 10% 0%, var(--theme-spot-a), transparent 35%),
-      radial-gradient(circle at 86% 12%, var(--theme-spot-b), transparent 34%);
-    background-size:
-      auto,
-      42px 42px,
-      42px 42px,
-      auto,
-      auto;
-    background-attachment: fixed;
-  }
-  html {
-    @apply font-sans;
+  :root {
+    --background: oklch(0.99 0.005 250);
+    --foreground: oklch(0.15 0.04 250);
+    --card: oklch(1 0 0 / 0.8);
+    --card-foreground: oklch(0.15 0.04 250);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.15 0.04 250);
+    --primary: oklch(0.7 0.2 50);
+    --primary-foreground: oklch(0.1 0.05 50);
+    --secondary: oklch(0.96 0.02 250);
+    --secondary-foreground: oklch(0.3 0.04 250);
+    --muted: oklch(0.98 0.005 250);
+    --muted-foreground: oklch(0.35 0.04 250); /* Darkened for better legibility */
+    --accent: oklch(0.7 0.2 50);
+    --accent-foreground: oklch(0.1 0.05 50);
+    --destructive: oklch(0.6 0.2 25);
+    --destructive-foreground: oklch(0.98 0.005 250);
+    --border: oklch(0.92 0.02 250);
+    --input: oklch(0.94 0.02 250);
+    --ring: oklch(0.7 0.2 50 / 0.4);
+    --radius: 1rem;
   }
 
-  /* Dynamic design language by theme: not only color, also shape and surface style */
-  [data-slot="card"] {
-    border-radius: var(--theme-card-radius) !important;
-    box-shadow: var(--theme-card-shadow) !important;
-    background-image: linear-gradient(
-      160deg,
-      var(--theme-card-bg-start),
-      var(--theme-card-bg-end)
-    ) !important;
-    backdrop-filter: blur(10px);
-  }
-
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--border) 80%, transparent)
-      transparent;
-  }
-
-  *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  *::-webkit-scrollbar-thumb {
-    background: color-mix(in oklab, var(--border) 72%, transparent);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in oklab, var(--primary) 45%, var(--border) 55%);
-    background-clip: content-box;
-  }
-
-  [data-slot="input"],
-  [data-slot="textarea"],
-  [data-slot="select-trigger"] {
-    border-radius: var(--theme-input-radius) !important;
-    background: var(--theme-field-bg) !important;
-    border-color: color-mix(
-      in oklab,
-      var(--border) 72%,
-      var(--primary) 28%
-    ) !important;
-    transition:
-      border-color 220ms ease,
-      box-shadow 220ms ease,
-      background 220ms ease;
-  }
-
-  [data-slot="input"]:focus,
-  [data-slot="textarea"]:focus,
-  [data-slot="select-trigger"]:focus,
-  [data-slot="select-trigger"]:focus-visible {
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent) !important;
-  }
-
-  [data-slot="table-container"] {
-    border-radius: calc(var(--theme-card-radius) - 2px) !important;
-    overflow: hidden;
-    box-shadow: inset 0 0 0 1px
-      color-mix(in oklab, var(--border) 75%, transparent);
-  }
-
-  [data-slot="table-header"] {
-    background: var(--theme-table-head-bg) !important;
-  }
-
-  [data-slot="table-row"]:hover {
-    background: var(--theme-table-row-hover) !important;
-  }
-
-  [data-slot="button"] {
-    border-radius: var(--theme-button-radius) !important;
-  }
-
-  [data-slot="button"][data-variant="default"] {
-    background-image: linear-gradient(
-      135deg,
-      color-mix(in oklab, var(--primary) 86%, white 14%),
-      color-mix(in oklab, var(--accent) 38%, var(--primary) 62%)
-    ) !important;
-    border-color: color-mix(
-      in oklab,
-      var(--primary) 78%,
-      var(--accent) 22%
-    ) !important;
-  }
-
-  [data-slot="badge"] {
-    border-radius: var(--theme-badge-radius) !important;
-    background: var(--theme-badge-bg) !important;
-    border-color: var(--theme-badge-border) !important;
-    color: var(--theme-badge-fg) !important;
-    text-shadow: none !important;
-  }
-
-  [data-slot="badge"][data-variant="default"] {
-    background: color-mix(in oklab, var(--primary) 88%, black 12%) !important;
-    color: var(--primary-foreground) !important;
-    border-color: color-mix(
-      in oklab,
-      var(--primary) 75%,
-      transparent
-    ) !important;
-  }
-
-  [data-slot="badge"][data-variant="secondary"] {
-    background: var(--theme-badge-bg) !important;
-    color: var(--theme-badge-fg) !important;
-    border-color: var(--theme-badge-border) !important;
-  }
-
-  [data-slot="badge"][data-variant="outline"] {
-    background: color-mix(
-      in oklab,
-      var(--card) 80%,
-      var(--secondary) 20%
-    ) !important;
-    color: color-mix(
-      in oklab,
-      var(--foreground) 88%,
-      var(--secondary-foreground) 12%
-    ) !important;
-  }
-
-  /* Legacy class compatibility: remap hardcoded color classes to active theme tokens */
-  [class*="bg-slate-900"]:not([data-slot="badge"]),
-  [class*="bg-slate-800"]:not([data-slot="badge"]),
-  [class*="bg-slate-700"]:not([data-slot="badge"]),
-  [class*="bg-gray-900"]:not([data-slot="badge"]),
-  [class*="bg-gray-800"]:not([data-slot="badge"]),
-  [class*="bg-gray-700"]:not([data-slot="badge"]) {
-    background-color: color-mix(
-      in oklab,
-      var(--card) 86%,
-      var(--muted) 14%
-    ) !important;
-  }
-
-  [class*="bg-slate-50"]:not([data-slot="badge"]),
-  [class*="bg-gray-50"]:not([data-slot="badge"]),
-  [class*="bg-white"]:not([data-slot="badge"]) {
-    background-color: var(--card) !important;
-  }
-
-  [class*="border-slate-"],
-  [class*="border-gray-"] {
-    border-color: var(--border) !important;
-  }
-
-  [class*="text-slate-50"]:not([data-slot="badge"]),
-  [class*="text-slate-100"]:not([data-slot="badge"]),
-  [class*="text-slate-200"]:not([data-slot="badge"]),
-  [class*="text-gray-900"]:not([data-slot="badge"]),
-  [class*="text-gray-800"]:not([data-slot="badge"]),
-  [class*="text-gray-700"]:not([data-slot="badge"]) {
-    color: var(--foreground) !important;
-  }
-
-  [class*="text-slate-300"]:not([data-slot="badge"]),
-  [class*="text-slate-400"]:not([data-slot="badge"]),
-  [class*="text-slate-500"]:not([data-slot="badge"]),
-  [class*="text-gray-600"]:not([data-slot="badge"]),
-  [class*="text-gray-500"]:not([data-slot="badge"]),
-  [class*="text-gray-400"]:not([data-slot="badge"]) {
-    color: var(--muted-foreground) !important;
-  }
-
-  /* Theme-safe semantic tints for hardcoded success/info utility shades */
-  [class*="bg-emerald-"][class*="/10"],
-  [class*="bg-blue-"][class*="/10"],
-  [class*="bg-indigo-"][class*="/10"] {
-    background-color: color-mix(
-      in oklab,
-      var(--primary) 14%,
-      transparent
-    ) !important;
-  }
-
-  [class*="bg-emerald-"][class*="/15"],
-  [class*="bg-blue-"][class*="/15"],
-  [class*="bg-indigo-"][class*="/15"],
-  [class*="bg-emerald-"][class*="/20"],
-  [class*="bg-blue-"][class*="/20"],
-  [class*="bg-indigo-"][class*="/20"] {
-    background-color: color-mix(
-      in oklab,
-      var(--primary) 18%,
-      transparent
-    ) !important;
-  }
-
-  [class*="hover:bg-emerald-"],
-  [class*="hover:bg-blue-"],
-  [class*="hover:bg-indigo-"] {
-    background-color: color-mix(
-      in oklab,
-      var(--primary) 84%,
-      black 16%
-    ) !important;
-  }
-
-  [class*="border-emerald-"],
-  [class*="border-blue-"],
-  [class*="border-indigo-"] {
-    border-color: color-mix(
-      in oklab,
-      var(--primary) 48%,
-      transparent
-    ) !important;
-  }
-
-  [class*="text-emerald-"]:not([data-slot="badge"]) {
-    color: color-mix(
-      in oklab,
-      var(--primary) 78%,
-      var(--foreground) 22%
-    ) !important;
-  }
-
-  [class*="text-blue-"]:not([data-slot="badge"]),
-  [class*="text-indigo-"]:not([data-slot="badge"]) {
-    color: color-mix(
-      in oklab,
-      var(--primary) 72%,
-      var(--foreground) 28%
-    ) !important;
-  }
-
-  /* Solid hardcoded utility backgrounds should still remain readable */
-  [class*="bg-emerald-500"],
-  [class*="bg-blue-500"],
-  [class*="bg-indigo-500"],
-  [class*="bg-emerald-600"],
-  [class*="bg-blue-600"],
-  [class*="bg-indigo-600"],
-  [class*="bg-emerald-700"],
-  [class*="bg-blue-700"],
-  [class*="bg-indigo-700"] {
-    background-color: color-mix(
-      in oklab,
-      var(--primary) 88%,
-      black 12%
-    ) !important;
-    color: var(--primary-foreground) !important;
-  }
-
-  [class*="text-red-"]:not([data-slot="badge"]) {
-    color: var(--destructive) !important;
-  }
-
-  [class*="border-red-"] {
-    border-color: color-mix(
-      in oklab,
-      var(--destructive) 60%,
-      transparent
-    ) !important;
-  }
-
-  [class*="bg-red-"] {
-    background-color: color-mix(
-      in oklab,
-      var(--destructive) 14%,
-      transparent
-    ) !important;
-  }
-
-  [data-slot="badge"] {
-    box-shadow: inset 0 0 0 1px
-      color-mix(in oklab, var(--border) 55%, transparent);
-  }
-
-  [data-scene="panel"] {
-    background-image: linear-gradient(
-      130deg,
-      var(--theme-scene-bg-start),
-      var(--theme-scene-bg-end)
-    ) !important;
-    border-color: color-mix(
-      in oklab,
-      var(--border) 68%,
-      var(--primary) 32%
-    ) !important;
-  }
-
-  [data-scene="vector"] {
-    background: color-mix(
-      in oklab,
-      var(--background) 85%,
-      var(--primary) 15%
-    ) !important;
-    border-color: color-mix(
-      in oklab,
-      var(--border) 62%,
-      var(--primary) 38%
-    ) !important;
-  }
-
-  [data-scene="icon"] {
-    background: color-mix(
-      in oklab,
-      var(--primary) 18%,
-      var(--card) 82%
-    ) !important;
-    border-color: color-mix(
-      in oklab,
-      var(--primary) 50%,
-      transparent
-    ) !important;
-  }
-
-  /* Global density tuning for dashboard pages using repeated large wrapper classes */
-  [class*="max-w-7xl"][class*="mx-auto"][class*="p-8"] {
-    padding: 1rem !important;
-  }
-
-  .dashboard-shell [class*="max-w-7xl"][class*="mx-auto"][class*="p-6"] {
-    padding: 0.9rem !important;
-  }
-
-  [class*="max-w-7xl"][class*="mx-auto"][class*="space-y-8"] {
-    gap: 1rem !important;
-  }
-
-  .dashboard-shell [class*="space-y-6"] {
-    gap: 0.85rem !important;
-  }
-
-  .dashboard-shell h1 {
-    line-height: 1.15 !important;
-  }
-
-  .dashboard-shell h1[class*="text-3xl"] {
-    font-size: clamp(1.6rem, 2.4vw, 2rem) !important;
-  }
-
-  .dashboard-shell h1[class*="text-2xl"] {
-    font-size: clamp(1.45rem, 2vw, 1.75rem) !important;
-  }
-
-  .dashboard-shell p[class*="mt-2"] {
-    margin-top: 0.2rem !important;
-  }
-
-  .dashboard-shell [class*="mb-2"] {
-    margin-bottom: 0.3rem !important;
-  }
-
-  ul li::marker,
-  ol li::marker {
-    color: var(--primary);
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.97 0 0);
+    --card: oklch(0.18 0.02 0 / 0.8);
+    --card-foreground: oklch(0.97 0 0);
+    --popover: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.97 0 0);
+    --primary: oklch(0.7 0.2 50);
+    --primary-foreground: oklch(0.1 0.05 50);
+    --secondary: oklch(0.2 0.03 0);
+    --secondary-foreground: oklch(0.97 0 0);
+    --muted: oklch(0.18 0.02 0);
+    --muted-foreground: oklch(0.8 0.02 0); /* Lighter in dark mode for contrast */
+    --accent: oklch(0.7 0.2 50);
+    --accent-foreground: oklch(0.1 0.05 50);
+    --destructive: oklch(0.5 0.2 25);
+    --destructive-foreground: oklch(0.97 0 0);
+    --border: oklch(0.25 0.03 0);
+    --input: oklch(0.2 0.03 0);
+    --ring: oklch(0.7 0.2 50 / 0.5);
   }
 }
 
 /* ═══════════════════════════════════════════════════════════
-   STRUCTURAL THEME BACKGROUNDS
-   Each theme changes not just colors but also background art,
-   sidebar texture, header style, and decorative gradients.
+   PREMIUM THEME REGISTRY (TWEAKCN CURATED)
+   Applied to documentElement (html)
    ═══════════════════════════════════════════════════════════ */
 
-/* --- corporate-blue (Ocean Finance) — clean diagonal light wash --- */
-:root[data-theme="corporate-blue"] body {
-  background-image:
-    linear-gradient(135deg, oklch(0.96 0.03 240 / 0.6) 0%, transparent 60%),
-    linear-gradient(225deg, oklch(0.88 0.08 210 / 0.35) 0%, transparent 55%),
-    radial-gradient(
-      ellipse 80% 50% at 50% -10%,
-      oklch(0.82 0.1 250 / 0.2),
-      transparent
-    );
-  background-attachment: fixed;
+/* 1. Amber Mono 2.0 (The Industrial Standard) */
+[data-theme="amber-mono"] {
+  --primary: oklch(0.666 0.179 58.318);
+  --primary-foreground: oklch(0.1 0.05 50);
 }
 
-/* --- executive-navy (Royal Navy) — sharp angular stripes --- */
-:root[data-theme="executive-navy"] body {
-  background-image:
-    repeating-linear-gradient(
-      -45deg,
-      oklch(0.92 0.03 255 / 0.25) 0px,
-      oklch(0.92 0.03 255 / 0.25) 1px,
-      transparent 1px,
-      transparent 24px
-    ),
-    linear-gradient(160deg, oklch(0.94 0.04 265 / 0.4) 0%, transparent 50%),
-    radial-gradient(
-      ellipse at 100% 0%,
-      oklch(0.7 0.12 265 / 0.15),
-      transparent 60%
-    );
-  background-attachment: fixed;
+/* 2. Purple Rain (The Deep Royal) */
+[data-theme="purple-rain"] {
+  --primary: oklch(0.5424 0.2454 293.0160);
+  --primary-foreground: oklch(1 0 0);
 }
 
-/* --- forest-ledger (Forest Ledger) — organic blob shapes --- */
-:root[data-theme="forest-ledger"] body {
-  background-image:
-    radial-gradient(
-      ellipse 120% 80% at -10% 110%,
-      oklch(0.72 0.14 150 / 0.18),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 90% 60% at 105% -10%,
-      oklch(0.78 0.12 130 / 0.16),
-      transparent 55%
-    ),
-    linear-gradient(
-      180deg,
-      oklch(0.97 0.015 150) 0%,
-      oklch(0.975 0.02 150) 100%
-    );
-  background-attachment: fixed;
+/* 3. Playable (The Vibrant Solar) */
+[data-theme="playable"] {
+  --primary: oklch(0.7686 0.1647 70.0804);
+  --primary-foreground: oklch(0.1 0.05 50);
 }
 
-/* --- crimson-boardroom — dramatic radial vignette --- */
-:root[data-theme="crimson-boardroom"] body {
-  background-image:
-    radial-gradient(
-      ellipse 100% 70% at 50% 0%,
-      oklch(0.85 0.07 22 / 0.35),
-      transparent 60%
-    ),
-    radial-gradient(
-      circle at 90% 95%,
-      oklch(0.72 0.1 38 / 0.2),
-      transparent 40%
-    ),
-    linear-gradient(180deg, oklch(0.99 0.01 15) 0%, oklch(0.975 0.015 15) 100%);
-  background-attachment: fixed;
+/* 4. India (The Saffron Spice) */
+[data-theme="india"] {
+  --primary: oklch(0.7204 0.1833 52.8311);
+  --primary-foreground: oklch(0.1 0.05 50);
 }
 
-/* --- amber-ledger — warm parchment glow --- */
-:root[data-theme="amber-ledger"] body {
-  background-image:
-    radial-gradient(
-      ellipse 140% 60% at 50% 100%,
-      oklch(0.86 0.1 90 / 0.3),
-      transparent 60%
-    ),
-    radial-gradient(
-      circle at 5% 5%,
-      oklch(0.88 0.12 75 / 0.25),
-      transparent 40%
-    ),
-    linear-gradient(170deg, oklch(0.995 0.015 85) 0%, oklch(0.975 0.02 90) 100%);
-  background-attachment: fixed;
+/* 5. Stella (The Bright Morning) */
+[data-theme="stella"] {
+  --primary: oklch(0.8512 0.1254 73.9788);
+  --primary-foreground: oklch(0.1 0.05 50);
 }
 
-/* --- slate-minimal — barely-there grid lines --- */
-:root[data-theme="slate-minimal"] body {
-  background-image:
-    linear-gradient(oklch(0.85 0.006 255 / 0.45) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.85 0.006 255 / 0.45) 1px, transparent 1px);
-  background-size: 40px 40px;
-  background-attachment: fixed;
+/* 6. Catppuccin Mocha (The Soft Pastel) */
+[data-theme="mocha"] {
+  --primary: oklch(0.5547 0.2503 297.0156);
+  --primary-foreground: oklch(1 0 0);
 }
 
-/* --- midnight-executive — deep space radial glow --- */
-:root[data-theme="midnight-executive"] body {
-  background-image:
-    radial-gradient(
-      ellipse 90% 60% at 50% 0%,
-      oklch(0.4 0.12 250 / 0.22),
-      transparent 60%
-    ),
-    radial-gradient(
-      circle at 88% 88%,
-      oklch(0.35 0.1 235 / 0.18),
-      transparent 40%
-    ),
-    linear-gradient(180deg, oklch(0.16 0.03 255) 0%, oklch(0.14 0.025 258) 100%);
-  background-attachment: fixed;
+/* 7. Black & Pink (The Cyber Edge) */
+[data-theme="black-pink"] {
+  --primary: oklch(0.67 0.29 341);
+  --primary-foreground: oklch(1 0 0);
 }
 
-/* --- emerald-night — aurora layers --- */
-:root[data-theme="emerald-night"] body {
-  background-image:
-    radial-gradient(
-      ellipse 80% 40% at 50% -5%,
-      oklch(0.55 0.14 155 / 0.28),
-      transparent 55%
-    ),
-    radial-gradient(
-      ellipse 60% 30% at 100% 60%,
-      oklch(0.48 0.1 140 / 0.18),
-      transparent 50%
-    ),
-    linear-gradient(175deg, oklch(0.17 0.03 165) 0%, oklch(0.15 0.025 168) 100%);
-  background-attachment: fixed;
+/* 8. Sukuna (The Cursed Energy) */
+[data-theme="sukuna"] {
+  --primary: oklch(0.4569 0.1726 15.5480);
+  --primary-foreground: oklch(1 0 0);
 }
 
-/* --- charcoal-gold — dark forge with gold accent glow --- */
-:root[data-theme="charcoal-gold"] body {
-  background-image:
-    radial-gradient(
-      ellipse 70% 45% at 20% 0%,
-      oklch(0.6 0.12 85 / 0.16),
-      transparent 55%
-    ),
-    radial-gradient(
-      circle at 80% 100%,
-      oklch(0.55 0.1 68 / 0.14),
-      transparent 40%
-    ),
-    repeating-linear-gradient(
-      60deg,
-      oklch(0.24 0.025 82 / 0.3) 0px,
-      oklch(0.24 0.025 82 / 0.3) 1px,
-      transparent 1px,
-      transparent 32px
-    );
-  background-attachment: fixed;
+/* 9. Cyberpunk (The Neon Tokyo) */
+[data-theme="cyberpunk"] {
+  --primary: oklch(0.6083 0.2973 312.1096);
+  --primary-foreground: oklch(1 0 0);
 }
 
-/* --- plum-enterprise — velvet luxury with diagonal shimmer --- */
-:root[data-theme="plum-enterprise"] body {
-  background-image:
-    radial-gradient(
-      ellipse 100% 65% at 0% 100%,
-      oklch(0.55 0.16 320 / 0.2),
-      transparent 55%
-    ),
-    radial-gradient(
-      ellipse 80% 50% at 100% 0%,
-      oklch(0.5 0.13 292 / 0.2),
-      transparent 50%
-    ),
-    repeating-linear-gradient(
-      135deg,
-      oklch(0.28 0.05 315 / 0.2) 0px,
-      oklch(0.28 0.05 315 / 0.2) 1px,
-      transparent 1px,
-      transparent 28px
-    );
-  background-attachment: fixed;
+/* 10. Agora Events (The Night Life) */
+[data-theme="agora"] {
+  --primary: oklch(0.7372 0.2172 318.8676);
+  --primary-foreground: oklch(1 0 0);
 }
-
-/* ── Structural surface shifts per theme ── */
-
-/* Light themes: sidebar gets a gentle tinted gradient */
-:root[data-theme="corporate-blue"] [data-sidebar="sidebar"],
-:root[data-theme="executive-navy"] [data-sidebar="sidebar"],
-:root[data-theme="forest-ledger"] [data-sidebar="sidebar"],
-:root[data-theme="crimson-boardroom"] [data-sidebar="sidebar"],
-:root[data-theme="amber-ledger"] [data-sidebar="sidebar"],
-:root[data-theme="slate-minimal"] [data-sidebar="sidebar"] {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--sidebar) 96%, var(--primary) 4%) 0%,
-    color-mix(in oklab, var(--sidebar) 88%, var(--accent) 12%) 100%
-  ) !important;
-  border-right: 1px solid
-    color-mix(in oklab, var(--border) 70%, var(--primary) 30%) !important;
-}
-
-/* Dark themes: sidebar gets a deep frosted glass look */
-:root[data-theme="midnight-executive"] [data-sidebar="sidebar"],
-:root[data-theme="emerald-night"] [data-sidebar="sidebar"],
-:root[data-theme="charcoal-gold"] [data-sidebar="sidebar"],
-:root[data-theme="plum-enterprise"] [data-sidebar="sidebar"] {
-  background-image: linear-gradient(
-    175deg,
-    color-mix(in oklab, var(--sidebar) 92%, var(--primary) 8%) 0%,
-    color-mix(in oklab, var(--sidebar) 82%, black 18%) 100%
-  ) !important;
-  border-right: 1px solid
-    color-mix(in oklab, var(--border) 55%, var(--primary) 45%) !important;
-  box-shadow: 4px 0 24px color-mix(in oklab, var(--primary) 10%, transparent) !important;
-}
-
-/* Card hover elevations — amplified per theme */
-:root[data-theme="corporate-blue"] [data-slot="card"]:hover,
-:root[data-theme="forest-ledger"] [data-slot="card"]:hover {
-  box-shadow: 0 12px 40px color-mix(in oklab, var(--primary) 22%, transparent) !important;
-  transform: translateY(-1px);
-  transition:
-    box-shadow 200ms ease,
-    transform 200ms ease;
-}
-
-:root[data-theme="midnight-executive"] [data-slot="card"]:hover,
-:root[data-theme="emerald-night"] [data-slot="card"]:hover,
-:root[data-theme="charcoal-gold"] [data-slot="card"]:hover,
-:root[data-theme="plum-enterprise"] [data-slot="card"]:hover {
-  box-shadow: 0 16px 48px color-mix(in oklab, var(--primary) 30%, transparent) !important;
-  transform: translateY(-2px);
-  transition:
-    box-shadow 200ms ease,
-    transform 200ms ease;
-}
-
-/* Crimson boardroom: sharp professional card borders */
-:root[data-theme="crimson-boardroom"] [data-slot="card"] {
-  border-left: 3px solid color-mix(in oklab, var(--primary) 70%, transparent) !important;
-}
-
-/* Amber executive: warm paper-like cards */
-:root[data-theme="amber-ledger"] [data-slot="card"] {
-  background-image: linear-gradient(
-    160deg,
-    oklch(1 0.005 85) 0%,
-    oklch(0.99 0.012 90) 100%
-  ) !important;
-}
-
-/* Slate minimal: borderless flat cards with subtle shadow */
-:root[data-theme="slate-minimal"] [data-slot="card"] {
-  border: 1px solid oklch(0.9 0.005 255) !important;
-  box-shadow: 0 2px 8px oklch(0.5 0.03 255 / 0.08) !important;
-  background-image: none !important;
-}
-
-/* Dark themes: inner glow on cards from primary color */
-:root[data-theme="midnight-executive"] [data-slot="card"],
-:root[data-theme="emerald-night"] [data-slot="card"] {
-  box-shadow:
-    0 8px 30px color-mix(in oklab, var(--primary) 18%, transparent),
-    inset 0 1px 0 color-mix(in oklab, var(--primary) 20%, transparent) !important;
-}
-
-:root[data-theme="charcoal-gold"] [data-slot="card"] {
-  box-shadow:
-    0 8px 30px color-mix(in oklab, var(--primary) 20%, transparent),
-    inset 0 1px 0 color-mix(in oklab, oklch(0.9 0.15 88) 25%, transparent) !important;
-}
-
-:root[data-theme="plum-enterprise"] [data-slot="card"] {
-  box-shadow:
-    0 8px 30px color-mix(in oklab, var(--primary) 22%, transparent),
-    inset 0 1px 0 color-mix(in oklab, var(--primary) 28%, transparent) !important;
-}
-
-/* Scene panel identity per theme */
-:root[data-theme="corporate-blue"] [data-scene="panel"] {
-  border-radius: 16px;
-  box-shadow: 0 8px 26px color-mix(in oklab, var(--primary) 14%, transparent);
-}
-
-:root[data-theme="executive-navy"] [data-scene="panel"] {
-  border-radius: 12px;
-  background-image:
-    repeating-linear-gradient(
-      -35deg,
-      color-mix(in oklab, var(--primary) 8%, transparent) 0px,
-      color-mix(in oklab, var(--primary) 8%, transparent) 1px,
-      transparent 1px,
-      transparent 18px
-    ),
-    linear-gradient(
-      130deg,
-      var(--theme-scene-bg-start),
-      var(--theme-scene-bg-end)
-    ) !important;
-}
-
-:root[data-theme="forest-ledger"] [data-scene="panel"] {
-  border-radius: 20px;
-  background-image:
-    radial-gradient(
-      circle at 88% 20%,
-      color-mix(in oklab, var(--accent) 18%, transparent),
-      transparent 34%
-    ),
-    linear-gradient(
-      130deg,
-      var(--theme-scene-bg-start),
-      var(--theme-scene-bg-end)
-    ) !important;
-}
-
-:root[data-theme="crimson-boardroom"] [data-scene="panel"] {
-  border-radius: 10px;
-  border-left: 4px solid color-mix(in oklab, var(--primary) 75%, transparent) !important;
-}
-
-:root[data-theme="amber-ledger"] [data-scene="panel"] {
-  border-radius: 20px;
-  box-shadow:
-    0 8px 24px color-mix(in oklab, var(--accent) 10%, transparent),
-    inset 0 1px 0 color-mix(in oklab, white 80%, transparent);
-}
-
-:root[data-theme="slate-minimal"] [data-scene="panel"] {
-  border-radius: 8px;
-  background-image: none !important;
-  background-color: color-mix(
-    in oklab,
-    var(--card) 94%,
-    var(--muted) 6%
-  ) !important;
-  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 8%, transparent) !important;
-}
-
-:root[data-theme="midnight-executive"] [data-scene="panel"] {
-  border-radius: 16px;
-  box-shadow:
-    0 12px 34px color-mix(in oklab, var(--primary) 20%, transparent),
-    inset 0 1px 0 color-mix(in oklab, var(--primary) 28%, transparent);
-}
-
-:root[data-theme="emerald-night"] [data-scene="panel"] {
-  border-radius: 20px;
-  box-shadow:
-    0 12px 36px color-mix(in oklab, var(--primary) 18%, transparent),
-    inset 0 1px 0 color-mix(in oklab, var(--accent) 18%, transparent);
-}
-
-:root[data-theme="charcoal-gold"] [data-scene="panel"] {
-  border-radius: 12px;
-  background-image: linear-gradient(
-    120deg,
-    color-mix(
-      in oklab,
-      var(--theme-scene-bg-start) 92%,
-      oklch(0.86 0.12 88) 8%
-    ),
-    color-mix(in oklab, var(--theme-scene-bg-end) 90%, oklch(0.86 0.12 88) 10%)
-  ) !important;
-}
-
-:root[data-theme="plum-enterprise"] [data-scene="panel"] {
-  border-radius: 22px;
-  background-image:
-    radial-gradient(
-      ellipse at 95% 5%,
-      color-mix(in oklab, var(--primary) 14%, transparent),
-      transparent 40%
-    ),
-    linear-gradient(
-      130deg,
-      var(--theme-scene-bg-start),
-      var(--theme-scene-bg-end)
-    ) !important;
-}
-
-:root[data-theme="nova"] [data-scene="panel"] {
-  border-radius: 22px;
-  box-shadow:
-    0 16px 40px color-mix(in oklab, var(--primary) 16%, transparent),
-    inset 0 1px 0 color-mix(in oklab, white 70%, transparent);
-}
-
-:root[data-theme="cyber-pulse"] [data-scene="panel"] {
-  border-radius: 16px;
-  box-shadow:
-    0 0 24px color-mix(in oklab, var(--primary) 26%, transparent),
-    0 0 32px color-mix(in oklab, var(--accent) 14%, transparent);
-}
-
-/* Badge readability and style consistency */
-[data-scene="badge-wrap"] [data-slot="badge"] {
-  font-weight: 700 !important;
-  letter-spacing: 0.01em;
-  padding-inline: 0.6rem;
-}
-
-:root[data-theme="corporate-blue"]
-  [data-scene="badge-wrap"]
-  [data-slot="badge"],
-:root[data-theme="executive-navy"]
-  [data-scene="badge-wrap"]
-  [data-slot="badge"],
-:root[data-theme="forest-ledger"] [data-scene="badge-wrap"] [data-slot="badge"],
-:root[data-theme="crimson-boardroom"]
-  [data-scene="badge-wrap"]
-  [data-slot="badge"],
-:root[data-theme="amber-ledger"] [data-scene="badge-wrap"] [data-slot="badge"],
-:root[data-theme="slate-minimal"] [data-scene="badge-wrap"] [data-slot="badge"],
-:root[data-theme="nova"] [data-scene="badge-wrap"] [data-slot="badge"] {
-  background: color-mix(in oklab, var(--secondary) 78%, white 22%) !important;
-  color: color-mix(in oklab, var(--foreground) 86%, black 14%) !important;
-  border-color: color-mix(
-    in oklab,
-    var(--primary) 24%,
-    var(--border) 76%
-  ) !important;
-}
-
-:root[data-theme="midnight-executive"]
-  [data-scene="badge-wrap"]
-  [data-slot="badge"],
-:root[data-theme="emerald-night"] [data-scene="badge-wrap"] [data-slot="badge"],
-:root[data-theme="charcoal-gold"] [data-scene="badge-wrap"] [data-slot="badge"],
-:root[data-theme="plum-enterprise"]
-  [data-scene="badge-wrap"]
-  [data-slot="badge"],
-:root[data-theme="cyber-pulse"] [data-scene="badge-wrap"] [data-slot="badge"] {
-  background: color-mix(in oklab, var(--secondary) 82%, black 18%) !important;
-  color: color-mix(in oklab, var(--foreground) 92%, white 8%) !important;
-  border-color: color-mix(
-    in oklab,
-    var(--primary) 30%,
-    var(--border) 70%
-  ) !important;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   DESIGN_SYSTEM_OVERRIDE: Premium Enterprise UI
-   Defining global typography and premium UI tokens for the ADIOS Platform.
-   ───────────────────────────────────────────────────────────────────────────── */
 
 @layer base {
-  h1 {
-    @apply text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight mb-4;
-    filter: none;
-    background: none;
-    -webkit-background-clip: initial;
-    background-clip: initial;
-    -webkit-text-fill-color: initial;
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
   }
 
-  h2 {
-    @apply text-xl md:text-2xl font-bold tracking-tight text-foreground/90 leading-snug mb-3;
+  /* Target all labels for higher contrast and theme-aligned darkness */
+  label, .text-muted-foreground {
+    color: oklch(from var(--primary) 0.35 0.02 h) !important;
+    font-weight: 600;
   }
 
-  h3 {
-    @apply text-lg md:text-xl font-bold tracking-tight text-foreground/80 leading-none mb-2;
-  }
-
-  p {
-    @apply text-sm leading-relaxed text-muted-foreground/70 font-medium;
-  }
-}
-
-@layer components {
-  .premium-card {
-    @apply relative overflow-hidden rounded-2xl border border-border/40 bg-card/40 backdrop-blur-xl transition-all duration-500 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-0.5;
-  }
-
-  .premium-card::before {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100;
-  }
-
-  .enterprise-grid {
-    @apply grid gap-6 md:grid-cols-2 lg:grid-cols-3;
-  }
-
-  .professional-heading-node {
-    @apply flex flex-col gap-1 mb-8 border-l-4 border-primary/40 pl-6;
-  }
-
-  .heading-descriptor {
-    @apply text-[10px] font-bold uppercase tracking-[0.15em] text-primary/70 leading-none mb-1;
+  .dark label, .dark .text-muted-foreground {
+    color: oklch(from var(--primary) 0.85 0.02 h) !important;
   }
 }
 
-/* Global Micro-Animations */
-@keyframes soft-pulse {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.02); }
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL THEME INJECTION (MAXIMUM EFFECT)
+   ═══════════════════════════════════════════════════════════ */
+
+/* 1. Global Selection Color */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
-.animate-soft-pulse {
-  animation: soft-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Scrollbar Refinement */
+/* 2. Custom Themed Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 8px;
+  height: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: var(--background);
 }
-
 ::-webkit-scrollbar-thumb {
-  @apply bg-border/40 rounded-full hover:bg-primary/30 transition-colors;
+  background: var(--primary);
+  border-radius: 10px;
+  border: 2px solid var(--background);
+}
+::-webkit-scrollbar-thumb:hover {
+  filter: brightness(1.2);
 }
 
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
+/* 3. Themed Focus Rings */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
-@keyframes scan-sweep {
-  0% { left: -100%; }
-  100% { left: 200%; }
+/* 4. Advanced Glassmorphism & Themed Shadows */
+.bg-card, [class*="bg-white/80"] {
+  background-color: var(--card) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 30px -10px oklch(from var(--primary) l c h / 0.1) !important;
 }
 
-.animate-scanline {
-  animation: scanline 8s linear infinite;
+.dark .bg-card {
+  box-shadow: 0 20px 40px -15px oklch(0 0 0 / 0.4) !important;
 }
 
-.animate-scan-sweep {
-  animation: scan-sweep 4s ease-in-out infinite;
+/* 5. Interactive Theme Effects */
+.bg-primary {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  box-shadow: 0 8px 20px -6px oklch(from var(--primary) l c h / 0.4);
 }
 
-.dash-animate {
-  animation: dash 3s ease-out forwards;
+.text-primary {
+  color: var(--primary) !important;
 }
 
-@keyframes dash {
-  from { stroke-dashoffset: 2000; }
-  to { stroke-dashoffset: 0; }
+.border-primary {
+  border-color: var(--primary) !important;
 }
 
-@keyframes grid-drift {
-  0% { background-position: 0 0; }
-  100% { background-position: 40px 40px; }
+/* 6. Sidebar Theming (Subtle Background Glow) */
+aside {
+  background-image: radial-gradient(circle at 0% 0%, oklch(from var(--primary) l c h / 0.03) 0%, transparent 50%) !important;
 }
 
-@keyframes signal-pulse {
-  0%, 100% { opacity: 0.2; transform: scale(0.95); }
-  50% { opacity: 0.6; transform: scale(1.05); }
+/* 7. Premium Typography */
+h1, h2, h3, h4, h5, h6, .font-black {
+  font-family: var(--font-outfit), sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
-@keyframes hardware-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.animate-grid-drift {
-  animation: grid-drift 20s linear infinite;
-}
-
-.animate-signal-pulse {
-  animation: signal-pulse 2s ease-in-out infinite;
-}
-
-.animate-hardware-blink {
-  animation: hardware-blink 3s step-end infinite;
-}
-
-.tactical-corner-tl {
-  position: absolute;
-  top: 0; left: 0;
-  width: 12px; height: 12px;
-  border-top: 2px solid currentColor;
-  border-left: 2px solid currentColor;
-  opacity: 0.4;
-}
-
-.tactical-corner-tr {
-  position: absolute;
-  top: 0; right: 0;
-  width: 12px; height: 12px;
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-  opacity: 0.4;
-}
-
-.tactical-corner-bl {
-  position: absolute;
-  bottom: 0; left: 0;
-  width: 12px; height: 12px;
-  border-bottom: 2px solid currentColor;
-  border-left: 2px solid currentColor;
-  opacity: 0.4;
-}
-
-.tactical-corner-br {
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 12px; height: 12px;
-  border-bottom: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-  opacity: 0.4;
-}
-
-.glow-cyan {
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-}
-
-.glow-emerald {
-  text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 01: ASTRA (CLEAN ENTERPRISE)                                         */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="astra"] {
-  --bg-main: oklch(0.98 0.005 240);
-  --bg-surface: oklch(1 0 0);
-  --bg-subtle: oklch(0.96 0.01 240);
-  --text-primary: oklch(0.18 0.02 240);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --popover: var(--bg-surface);
-  --popover-foreground: var(--text-primary);
-  --primary: oklch(0.55 0.18 250);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.3 0.05 240);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.96 0.01 245);
-  --muted-foreground: oklch(0.4 0.02 245);
-  --accent: oklch(0.5 0.2 280);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.6 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0.03 240);
-  --input: oklch(0.9 0.02 240);
-  --ring: oklch(0.55 0.18 250 / 0.15);
-  --radius: 12px;
-
-  --header-bg: oklch(0.93 0.03 240);
-  --header-border: oklch(0.85 0.05 240);
-  --infra-surface: oklch(0.97 0.01 240);
-  
-  --theme-spot-a: oklch(0.55 0.18 250 / 0.15);
-  --theme-spot-b: oklch(0.55 0.18 250 / 0.1);
-
-  /* Legacy Class Overrides - High Performance Injection */
-  & .bg-slate-50, & .bg-slate-50\/50, & .bg-slate-50\/70 { background-color: var(--infra-surface) !important; }
-  & .bg-slate-100, & .bg-slate-100\/50, & .bg-slate-100\/80 { background-color: var(--bg-main) !important; }
-  & .bg-white, & .bg-white\/50, & .bg-white\/70, & .bg-white\/80 { background-color: var(--bg-surface) !important; }
-  & .bg-slate-900, & .bg-slate-950, & .bg-black { background-color: var(--primary) !important; color: var(--primary-foreground) !important; }
-  & .bg-slate-800, & .bg-slate-700 { background-color: var(--secondary) !important; color: var(--secondary-foreground) !important; }
-  & .text-slate-900, & .text-slate-800, & .text-slate-700 { color: var(--text-primary) !important; }
-  & .text-slate-500, & .text-slate-400 { color: var(--muted-foreground) !important; }
-  & .border-slate-100, & .border-slate-50, & .border-slate-200 { border-color: var(--border) !important; }
-  & .shadow-sm, & .shadow-md, & .shadow-xl { box-shadow: 0 4px 12px rgb(0 0 0 / 0.03) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 02: DIVI (ELEGANT PURPLE)                                            */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="divi"] {
-  --bg-main: oklch(0.98 0.01 280);
-  --bg-surface: oklch(1 0 0);
-  --bg-subtle: oklch(0.94 0.02 280);
-  --text-primary: oklch(0.2 0.04 280);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --popover: var(--bg-surface);
-  --popover-foreground: var(--text-primary);
-  --primary: oklch(0.6 0.18 300);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.03 290);
-  --secondary-foreground: oklch(0.35 0.1 300);
-  --muted: oklch(0.96 0.01 280);
-  --muted-foreground: oklch(0.5 0.05 280);
-  --accent: oklch(0.94 0.05 310);
-  --accent-foreground: oklch(0.4 0.15 310);
-  --border: oklch(0.88 0.03 280);
-  --input: oklch(0.9 0.02 280);
-  --ring: oklch(0.6 0.18 300 / 0.2);
-  --radius: 12px;
-
-  --header-bg: oklch(0.92 0.04 300);
-  --header-border: oklch(0.85 0.08 300);
-  --infra-surface: oklch(0.96 0.03 280);
-  --theme-spot-a: oklch(0.6 0.18 300 / 0.1);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-50\/50 { background-color: var(--infra-surface) !important; }
-  & .bg-slate-100 { background-color: var(--bg-main) !important; }
-  & .bg-white, & .bg-white\/50, & .bg-white\/80 { background-color: var(--bg-surface) !important; }
-  & .bg-slate-900, & .bg-slate-950, & .bg-black { background-color: var(--primary) !important; color: var(--primary-foreground) !important; }
-  & .bg-slate-800, & .bg-slate-700 { background-color: var(--secondary) !important; color: var(--secondary-foreground) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 03: MINIFY (SHARP MONOCHROME)                                       */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="minify"] {
-  --bg-main: oklch(0.05 0 0);
-  --bg-surface: oklch(0.12 0 0);
-  --bg-subtle: oklch(0.18 0 0);
-  --text-primary: oklch(0.98 0 0);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --popover: var(--bg-surface);
-  --popover-foreground: var(--text-primary);
-  --primary: oklch(1 0 0);
-  --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.2 0 0);
-  --secondary-foreground: oklch(0.9 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.3 0 0);
-  --accent-foreground: oklch(1 0 0);
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.28 0 0);
-  --ring: oklch(1 0 0 / 0.3);
-  --radius: 0px;
-
-  --header-bg: oklch(0 0 0);
-  --header-border: oklch(0.15 0 0);
-  --infra-surface: oklch(0.1 0 0);
-  --theme-spot-a: oklch(1 0 0 / 0.05);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-50\/50 { background-color: var(--infra-surface) !important; }
-  & .bg-slate-100 { background-color: var(--bg-main) !important; }
-  & .bg-white, & .bg-white\/50, & .bg-white\/80 { background-color: var(--bg-surface) !important; }
-  & .bg-slate-900, & .bg-slate-950, & .bg-black { background-color: var(--primary) !important; color: var(--primary-foreground) !important; }
-  & .bg-slate-800, & .bg-slate-700 { background-color: var(--secondary) !important; color: var(--secondary-foreground) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .text-slate-400, & .text-slate-500 { color: var(--muted-foreground) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 04: OCEANWP (CORPORATE NAUTICAL)                                     */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="oceanwp"] {
-  --bg-main: oklch(0.97 0.01 230);
-  --bg-surface: oklch(1 0 0);
-  --bg-subtle: oklch(0.92 0.02 230);
-  --text-primary: oklch(0.15 0.04 240);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.5 0.16 235);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.92 0.03 230);
-  --secondary-foreground: oklch(0.3 0.05 240);
-  --muted: oklch(0.94 0.02 230);
-  --muted-foreground: oklch(0.45 0.04 240);
-  --accent: oklch(0.88 0.08 220);
-  --accent-foreground: oklch(0.2 0.1 240);
-  --border: oklch(0.88 0.02 230);
-  --input: oklch(0.9 0.02 230);
-  --ring: oklch(0.5 0.16 235 / 0.2);
-  --radius: 6px;
-
-  --header-bg: oklch(0.9 0.05 235);
-  --header-border: oklch(0.8 0.1 235);
-  --infra-surface: oklch(0.94 0.02 230);
-  --theme-spot-a: oklch(0.5 0.16 235 / 0.1);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-50\/50 { background-color: var(--infra-surface) !important; }
-  & .bg-white { background-color: var(--bg-surface) !important; }
-  & .bg-slate-900, & .bg-slate-950, & .bg-black { background-color: var(--primary) !important; color: var(--primary-foreground) !important; }
-  & .bg-slate-800, & .bg-slate-700 { background-color: var(--secondary) !important; color: var(--secondary-foreground) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 05: ADIOS (ARTISTIC RED)                                             */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="adios"] {
-  --bg-main: oklch(0.98 0.005 0);
-  --bg-surface: oklch(1 0 0);
-  --text-primary: oklch(0.1 0 0);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.55 0.22 25);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.01 0);
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.96 0.01 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.1 0 0);
-  --accent-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0 0);
-  --input: oklch(0.88 0 0);
-  --ring: oklch(0.55 0.22 25 / 0.2);
-  --radius: 0px;
-
-  --header-bg: oklch(0.1 0 0);
-  --header-border: oklch(0 0 0);
-  --infra-surface: oklch(0.95 0.01 0);
-  --theme-spot-a: oklch(0.55 0.22 25 / 0.05);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-100 { background-color: var(--infra-surface) !important; }
-  & .bg-white { background-color: var(--bg-surface) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 06: ANA (SOFT ELEGANCE)                                              */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="ana"] {
-  --bg-main: oklch(0.98 0.01 350);
-  --bg-surface: oklch(1 0 0);
-  --text-primary: oklch(0.25 0.04 350);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.8 0.1 350);
-  --primary-foreground: oklch(0.3 0.05 350);
-  --secondary: oklch(0.96 0.02 350);
-  --secondary-foreground: oklch(0.4 0.05 350);
-  --muted: oklch(0.97 0.01 350);
-  --muted-foreground: oklch(0.6 0.05 350);
-  --accent: oklch(0.94 0.03 350);
-  --accent-foreground: oklch(0.4 0.08 350);
-  --border: oklch(0.92 0.03 350);
-  --input: oklch(0.94 0.02 350);
-  --ring: oklch(0.8 0.1 350 / 0.3);
-  --radius: 20px;
-
-  --header-bg: oklch(0.95 0.05 350);
-  --header-border: oklch(0.9 0.1 350);
-  --infra-surface: oklch(0.97 0.02 350);
-  --theme-spot-a: oklch(0.8 0.1 350 / 0.15);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-100 { background-color: var(--infra-surface) !important; }
-  & .bg-white { background-color: var(--bg-surface) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 07: WEBIFY (CYBER TECH)                                              */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="webify"] {
-  --bg-main: oklch(0.12 0.03 240);
-  --bg-surface: oklch(0.18 0.04 240);
-  --text-primary: oklch(0.95 0.02 240);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.7 0.2 240);
-  --primary-foreground: oklch(0.1 0.05 240);
-  --secondary: oklch(0.22 0.05 240);
-  --secondary-foreground: oklch(0.9 0.04 240);
-  --muted: oklch(0.25 0.04 240);
-  --muted-foreground: oklch(0.7 0.02 240);
-  --accent: oklch(0.3 0.1 260);
-  --accent-foreground: oklch(0.98 0.02 240);
-  --border: oklch(0.3 0.06 240);
-  --input: oklch(0.28 0.05 240);
-  --ring: oklch(0.7 0.2 240 / 0.4);
-  --radius: 10px;
-
-  --header-bg: oklch(0.08 0.05 240);
-  --header-border: oklch(0.25 0.1 240);
-  --infra-surface: oklch(0.15 0.03 240);
-  --theme-spot-a: oklch(0.7 0.2 240 / 0.05);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-50\/50, & .bg-slate-100 { background-color: var(--infra-surface) !important; }
-  & .bg-white, & .bg-white\/80 { background-color: var(--bg-surface) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 08: ENFOLD (PROFESSIONAL SLATE)                                       */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="enfold"] {
-  --bg-main: oklch(0.96 0.01 250);
-  --bg-surface: oklch(1 0 0);
-  --text-primary: oklch(0.15 0.02 250);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.35 0.05 250);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.92 0.02 250);
-  --secondary-foreground: oklch(0.3 0.03 250);
-  --muted: oklch(0.9 0.02 250);
-  --muted-foreground: oklch(0.45 0.02 250);
-  --accent: oklch(0.88 0.05 240);
-  --accent-foreground: oklch(0.2 0.05 250);
-  --border: oklch(0.85 0.03 250);
-  --input: oklch(0.88 0.02 250);
-  --ring: oklch(0.35 0.05 250 / 0.2);
-  --radius: 4px;
-
-  --header-bg: oklch(0.94 0.01 250);
-  --header-border: oklch(0.88 0.02 250);
-  --infra-surface: oklch(0.95 0.01 250);
-  --theme-spot-a: oklch(0.35 0.05 250 / 0.1);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50 { background-color: var(--infra-surface) !important; }
-  & .bg-white { background-color: var(--bg-surface) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 09: GRAVITY (INDUSTRIAL DARK)                                        */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="gravity"] {
-  --bg-main: oklch(0.15 0.01 80);
-  --bg-surface: oklch(0.2 0.02 80);
-  --text-primary: oklch(0.98 0.01 80);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.7 0.15 80);
-  --primary-foreground: oklch(0.1 0.02 80);
-  --secondary: oklch(0.25 0.03 80);
-  --secondary-foreground: oklch(0.9 0.03 80);
-  --muted: oklch(0.28 0.02 80);
-  --muted-foreground: oklch(0.7 0.02 80);
-  --accent: oklch(0.35 0.06 90);
-  --accent-foreground: oklch(1 0.1 80);
-  --border: oklch(0.3 0.04 80);
-  --input: oklch(0.32 0.03 80);
-  --ring: oklch(0.7 0.15 80 / 0.3);
-  --radius: 8px;
-
-  --header-bg: oklch(0.12 0.02 80);
-  --header-border: oklch(0.25 0.05 80);
-  --infra-surface: oklch(0.18 0.02 80);
-  --theme-spot-a: oklch(0.7 0.15 80 / 0.05);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50, & .bg-slate-100 { background-color: var(--infra-surface) !important; }
-  & .bg-white, & .bg-white\/80 { background-color: var(--bg-surface) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
-}
-
-/* -------------------------------------------------------------------------- */
-/* THEME 10: ZELLE PRO (MODERN VIBRANT)                                       */
-/* -------------------------------------------------------------------------- */
-:root[data-theme="zelle-pro"] {
-  --bg-main: oklch(0.98 0.005 240);
-  --bg-surface: oklch(1 0 0);
-  --text-primary: oklch(0.1 0 0);
-
-  --background: var(--bg-main);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --primary: oklch(0.55 0.2 25);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.94 0.02 240);
-  --secondary-foreground: oklch(0.2 0.05 240);
-  --muted: oklch(0.96 0.01 240);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.2 0.05 250);
-  --accent-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.01 240);
-  --input: oklch(0.92 0.01 240);
-  --ring: oklch(0.55 0.2 25 / 0.2);
-  --radius: 15px;
-
-  --header-bg: oklch(0.95 0.02 25);
-  --header-border: oklch(0.9 0.05 25);
-  --infra-surface: oklch(0.97 0.01 240);
-  --theme-spot-a: oklch(0.55 0.2 25 / 0.08);
-
-  /* Legacy Class Overrides */
-  & .bg-slate-50 { background-color: var(--infra-surface) !important; }
-  & .bg-white { background-color: var(--bg-surface) !important; }
-  & .text-slate-900, & .text-slate-800 { color: var(--text-primary) !important; }
-  & .border-slate-100, & .border-slate-200 { border-color: var(--border) !important; }
+/* Technical Monospace Accents */
+.font-mono, [class*="tracking-widest"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }

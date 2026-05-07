@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getCachedUser } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
-import { ThemeOrnaments } from "@/components/theme-ornaments";
 import { hasPermission, RESOURCES } from "@/lib/permissions";
 import { getUserPermissions } from "@/lib/permissions-server";
 
@@ -32,7 +31,6 @@ export default async function AnalyticsLayout({
 
   return (
     <div className="relative min-h-screen flex flex-col bg-[#16192c] text-white selection:bg-[#00f2ff]/30 overflow-x-hidden">
-      <ThemeOrnaments />
       <main className="flex-1">
         {children}
       </main>

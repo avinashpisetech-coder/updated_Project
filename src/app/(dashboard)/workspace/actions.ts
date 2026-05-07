@@ -131,13 +131,8 @@ export async function getTasks(projectId: string) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) throw new Error("Unauthorized");
 
-  const permissions = await getUserPermissions(userData.user.id);
-  const canReadAll = hasPermission(permissions, RESOURCES.WORKSPACE, "read") || 
-                     hasPermission(permissions, "*", "manage");
-
-  const queryClient = canReadAll ? createAdminClient() : supabase;
-
-  const { data, error } = await queryClient
+  const adminClient = createAdminClient();
+  const { data, error } = await adminClient
     .from("tasks")
     .select("*, task_assignees(profile_id, profiles(full_name, avatar_url))")
     .eq("project_id", projectId)
@@ -165,11 +160,16 @@ export async function createTask(projectId: string, taskData: any) {
 
   // Insert assignees if any
   if (assignees && assignees.length > 0) {
+    // Use admin client for assignments to ensure they persist regardless of creator's granular RLS on the join table
+    const adminClient = createAdminClient();
     const assigneeInserts = assignees.map((profile_id: string) => ({
       task_id: task.id,
       profile_id
     }));
-    await supabase.from("task_assignees").insert(assigneeInserts);
+    const { error: assignError } = await adminClient.from("task_assignees").insert(assigneeInserts);
+    if (assignError) {
+      console.error("Failed to insert task assignees:", assignError);
+    }
 
     // Auto-enroll assignees as workspace members so they can see the workspace
     try {
@@ -201,7 +201,24 @@ export async function createTask(projectId: string, taskData: any) {
     metadata: { title: task.title }
   }]);
 
-  revalidatePath(`/workspace`); // Need precise revalidation
+  // Revalidate both the general workspace and the specific project page
+  revalidatePath(`/workspace`);
+  
+  // Attempt to revalidate the specific project path if we can resolve the workspace_id
+  try {
+    const adminClient = createAdminClient();
+    const { data: projectData } = await adminClient
+      .from("workspace_projects")
+      .select("workspace_id")
+      .eq("id", projectId)
+      .single();
+    
+    if (projectData?.workspace_id) {
+      revalidatePath(`/workspace/${projectData.workspace_id}/project/${projectId}`);
+    }
+  } catch (err) {
+    console.warn("Failed to perform precise revalidation:", err);
+  }
 
   // Background Notifications
   (async () => {

@@ -5,14 +5,16 @@ import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserSelector } from "./UserSelector";
 import { createTask } from "@/app/(dashboard)/workspace/actions";
 import { toast } from "sonner";
 import { 
   Users, Calendar, Flag, 
-  ChevronDown, Minimize2, X, ListTodo
+  ChevronDown, Minimize2, X, ListTodo, Paperclip
 } from "lucide-react";
+import { uploadTaskAttachment } from "@/app/(dashboard)/workspace/actions";
 
 export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { projectId: string, parentTaskId?: string, children: React.ReactNode, onSuccess?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +28,8 @@ export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { pr
     status: "TODO",
     priority: "LOW",
     due_date: "",
-    assignees: [] as string[]
+    assignees: [] as string[],
+    attachments: [] as File[]
   });
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -41,10 +44,20 @@ export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { pr
     }
     setLoading(true);
     try {
-      await createTask(projectId, { ...formData, parent_task_id: parentTaskId });
+      const task = await createTask(projectId, { ...formData, parent_task_id: parentTaskId });
+      
+      // Upload attachments if any
+      if (formData.attachments.length > 0) {
+        for (const file of formData.attachments) {
+          const fileData = new FormData();
+          fileData.append("file", file);
+          await uploadTaskAttachment(task.id, fileData);
+        }
+      }
+
       toast.success("Task created successfully");
       setOpen(false);
-      setFormData({ title: "", description: "", status: "TODO", priority: "LOW", due_date: "", assignees: [] });
+      setFormData({ title: "", description: "", status: "TODO", priority: "LOW", due_date: "", assignees: [], attachments: [] });
       if (onSuccess) onSuccess();
     } catch (error: any) {
       toast.error("Error creating task: " + error.message);
@@ -198,6 +211,34 @@ export function TaskModal({ projectId, parentTaskId, children, onSuccess }: { pr
                   ))}
                 </div>
               )}
+            </div>
+            
+            {/* Attachment Button */}
+            <div className="relative">
+              <input 
+                type="file" 
+                multiple 
+                id="task-create-attachments" 
+                className="hidden" 
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setFormData({...formData, attachments: Array.from(e.target.files)});
+                  }
+                }}
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className={cn(
+                  "h-8 text-xs gap-1.5",
+                  formData.attachments.length > 0 ? "text-primary border-primary/30 bg-primary/5" : "text-zinc-500"
+                )}
+                onClick={() => document.getElementById('task-create-attachments')?.click()}
+              >
+                <Paperclip className="w-3.5 h-3.5" /> 
+                {formData.attachments.length > 0 ? `${formData.attachments.length} Files` : 'Attach'}
+              </Button>
             </div>
 
           </div>

@@ -3,7 +3,6 @@
 import { useNavigation } from "./providers/NavigationProvider";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { PageScene } from "@/components/page-scene";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { isSidebarOpen, navMode } = useNavigation();
@@ -16,7 +15,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   if (pathname === "/service-analytics" || isVersioned) {
     return (
       <main className="flex-1 w-full relative">
-         <PageScene>{children}</PageScene>
+         {children}
       </main>
     );
   }
@@ -25,9 +24,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     <main
       className={cn(
         "dashboard-shell relative z-10 flex-1 p-2 sm:p-4 bg-muted/20 transition-all duration-300 ease-in-out",
-        navMode === "horizontal" ? "pt-20" : "pt-4"
+        "pt-24"
       )}
       style={{
+        paddingTop: "64px",
         marginLeft: navMode === "vertical" ? "var(--sidebar-width, 256px)" : 0,
         width: navMode === "vertical"
           ? "calc(100% - var(--sidebar-width, 256px))"
@@ -36,7 +36,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       }}
     >
       <div className="w-full h-full transition-all duration-500 ease-in-out">
-        <PageScene>{children}</PageScene>
+        {children}
       </div>
     </main>
   );

@@ -39,7 +39,7 @@ export default async function WorkspaceProjectsPage({
                     hasPermission(permissions, "*", "manage");
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-6 w-full space-y-6">
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">

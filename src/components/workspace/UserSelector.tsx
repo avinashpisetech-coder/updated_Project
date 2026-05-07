@@ -82,6 +82,7 @@ export function UserSelector({ value, onChange, customTrigger }: { value: string
                 key={user.id}
                 checked={value.includes(user.id)}
                 onCheckedChange={() => toggleUser(user.id)}
+                onSelect={(e) => e.preventDefault()}
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Avatar className="h-6 w-6">

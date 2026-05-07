@@ -113,7 +113,6 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     const erpModule = formData.get("erp_module") as string | null;
     const erpSubModule = formData.get("erp_sub_module") as string | null;
     const assignedToId = formData.get("assigned_to_id") as string | null;
-    const assetId = formData.get("asset_id") as string | null;
     const isRequirement = formData.get("is_requirement") === "true";
     const descriptionOfChange = formData.get("description_of_change") as string | null;
     const reasonForChange = formData.get("reason_for_change") as string | null;
@@ -156,7 +155,6 @@ export async function createTicket(formData: FormData): Promise<{ success: boole
     if (subcategoryId) insertData.subcategory_id = subcategoryId;
     if (preferredResolutionDate) insertData.preferred_resolution_date = preferredResolutionDate;
     if (affectedPerson && affectedPerson !== "_none") insertData.affected_person_id = affectedPerson;
-    if (assetId && assetId !== "_none") insertData.asset_id = assetId;
     
     const metadata: Record<string, unknown> = {};
     if (affectedAsset) metadata.affected_asset = affectedAsset;

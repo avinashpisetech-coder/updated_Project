@@ -38,7 +38,6 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
   const [erpModulesList, setErpModulesList] = useState<{id:string, name:string}[]>([]);
   const [erpSubModulesList, setErpSubModulesList] = useState<{id:string, name:string}[]>([]);
   const [softwareSystems, setSoftwareSystems] = useState<SoftwareSystem[]>([]);
-  const [hardwareAssets, setHardwareAssets] = useState<{id: string, asset_code: string, brand: string, model: string}[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Form state
@@ -51,7 +50,6 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
   const [preferredResolutionDate, setPreferredResolutionDate] = useState("");
   const [affectedPerson, setAffectedPerson] = useState("");
   const [affectedAsset, setAffectedAsset] = useState("");
-  const [selectedAssetId, setSelectedAssetId] = useState("");
   const [selectedSoftwareSystemId, setSelectedSoftwareSystemId] = useState("");
   const [erpModule, setErpModule] = useState("");
   const [erpSubModule, setErpSubModule] = useState("");
@@ -91,14 +89,6 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
         );
       }
 
-      if (selectedScope === "IT") {
-        promises.push(
-          supabase.from("assets")
-            .select("id, asset_code, brand, model")
-            .order("asset_code") as any
-        );
-      }
-
       if (selectedScope === "ERP") {
         promises.push(supabase.from("erp_modules").select("id, name") as any);
       }
@@ -115,10 +105,6 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
       // Index 2 (if exists for ERP): ERP Modules
       const erpRes = selectedScope === "ERP" ? (results.length > 2 ? results[2] : results[1]) : null;
       if (erpRes?.data) setErpModulesList(erpRes.data);
-
-      // Index 2 (if exists for IT): Assets
-      const assetsRes = selectedScope === "IT" ? results[2] : null;
-      if (assetsRes?.data) setHardwareAssets(assetsRes.data);
     }
   };
 
@@ -165,7 +151,6 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
     if (preferredResolutionDate) formData.append("preferred_resolution_date", preferredResolutionDate);
     if (affectedPerson && affectedPerson !== "_none") formData.append("affected_person", affectedPerson);
     if (affectedAsset) formData.append("affected_asset", affectedAsset);
-    if (selectedAssetId && selectedAssetId !== "_none") formData.append("asset_id", selectedAssetId);
     if (selectedSoftwareSystemId) formData.append("software_system_id", selectedSoftwareSystemId);
     if (scope === 'ERP') {
       if (erpModule) formData.append("erp_module", erpModule);
@@ -206,15 +191,15 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
 
   if (!scope) {
     return (
-      <div className="max-w-4xl mx-auto py-8 px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-2">
-            <Badge variant="outline" className="px-3 py-1 border-primary/30 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full">
+      <div className="w-full py-4 px-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
+        <div className="text-center space-y-1">
+          <div className="flex justify-center mb-1">
+            <Badge variant="outline" className="px-2 py-0.5 border-primary/30 bg-primary/5 text-primary text-[9px] font-bold uppercase tracking-widest rounded-full">
               Support Services
             </Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground leading-tight">Create Support Request</h1>
-          <p className="text-sm text-muted-foreground/60 font-medium">Select a department to proceed with your ticket submission.</p>
+          <h1 className="text-2xl font-black tracking-tight text-foreground leading-tight">Create Support Request</h1>
+          <p className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Select a department to proceed</p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-4">
@@ -232,11 +217,11 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
               onClick={() => handleScopeSelect(item.id as Scope)}
             >
               <div className={cn("absolute -top-10 -right-10 h-32 w-32 rounded-full blur-[40px] opacity-0 group-hover:opacity-20 transition-opacity", item.bg)} />
-              <CardHeader className="text-center pb-1 pt-4 px-4">
-                <div className={cn("h-12 w-12 mx-auto rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 shadow-sm", item.bg, item.color)}>
-                  <item.icon className="w-6 h-6" />
+              <CardHeader className="text-center pb-1 pt-3 px-4">
+                <div className={cn("h-10 w-10 mx-auto rounded-xl flex items-center justify-center mb-2 transition-transform group-hover:scale-110 shadow-sm", item.bg, item.color)}>
+                  <item.icon className="w-5 h-5" />
                 </div>
-                <CardTitle className="text-[10px] font-bold tracking-widest uppercase opacity-80">{item.label}</CardTitle>
+                <CardTitle className="text-[9px] font-black tracking-widest uppercase opacity-80">{item.label}</CardTitle>
               </CardHeader>
               <CardContent className="text-center text-[10px] font-medium leading-relaxed text-muted-foreground/60 px-4 pb-4">
                 {item.desc}
@@ -250,29 +235,34 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
 
   return (
     <>
-      <div className="max-w-3xl mx-auto py-8 px-4 font-sans animate-in fade-in slide-in-from-bottom-2">
-        <div className="flex gap-4 mb-6">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary hover:bg-primary/5 text-xs font-bold uppercase tracking-wide" onClick={() => setScope(null)}>
-            <ArrowLeft className="w-3.5 h-3.5 mr-2" /> Change Category
+      <div className="w-full py-4 px-6 font-sans animate-in fade-in slide-in-from-bottom-2">
+        <div className="flex gap-4 mb-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 text-muted-foreground hover:text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest opacity-100 transition-all active:scale-95" 
+            onClick={() => setScope(null)}
+          >
+            <ArrowLeft className="w-3 h-3 mr-2" /> Change Category
           </Button>
         </div>
         
-        <Card className="border-border/40 bg-card/60 shadow-2xl rounded-2xl overflow-hidden relative backdrop-blur-sm">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20" />
+        <Card className="border-border/40 bg-card/90 shadow-2xl rounded-2xl overflow-hidden relative backdrop-blur-md">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-primary/40" />
           <CardHeader className="p-5 pb-2">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary border-primary/30">Standard Request</Badge>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Step 2: Details</span>
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary border-primary/40 bg-primary/5">Standard Request</Badge>
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-40">Step 2: Details</span>
             </div>
-            <CardTitle className="text-2xl font-bold tracking-tight text-foreground leading-tight">
+            <CardTitle className="text-xl font-black tracking-tight text-foreground leading-none mb-0.5">
               {scope === 'IT' ? 'IT Infrastructure' : scope === 'ERP' ? 'Enterprise Systems' : 'General Support'}
             </CardTitle>
-            <CardDescription className="text-[13px] font-medium text-muted-foreground/60 mt-1">
+            <CardDescription className="text-[11px] font-bold text-muted-foreground/80 mt-1">
               Please provide the details of your request to help us assist you better.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-5 pt-0">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -311,47 +301,47 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
               </div>
 
               {scope === 'ERP' && (
-                <div className="space-y-4 p-5 rounded-2xl border border-primary/20 bg-primary/5 transition-all">
+                <div className="space-y-3 p-4 rounded-2xl border border-primary/20 bg-primary/5 transition-all">
                   <div className="flex items-center gap-2 mb-1">
                     <FileSpreadsheet className="h-4 w-4 text-primary" />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-primary">System Context</span>
                   </div>
 
-                  <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-primary/10 border border-primary/20">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <Label className="text-[11px] font-bold uppercase tracking-tight text-primary flex-1">Create as New Requirement / Change Order?</Label>
+                  <div className="flex items-center gap-2 mb-2 p-2 px-3 rounded-xl bg-primary/10 border border-primary/20">
+                    <Zap className="h-3 w-3 text-primary" />
+                    <Label className="text-[10px] font-black uppercase tracking-tight text-primary flex-1">Create as New Requirement / Change Order?</Label>
                     <input 
                       type="checkbox" 
                       checked={isRequirement} 
                       onChange={e => setIsRequirement(e.target.checked)}
-                      className="h-5 w-5 rounded-md border-primary/30 text-primary focus:ring-primary/20"
+                      className="h-4 w-4 rounded-md border-primary/30 text-primary focus:ring-primary/20"
                     />
                   </div>
 
                   {isRequirement && (
-                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
-                          1. Description of Change (Mandatory)
+                    <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black text-primary flex items-center gap-1.5 uppercase">
+                          1. Description of Change
                         </Label>
                         <Textarea 
                           required={isRequirement}
-                          placeholder="Provide a detailed description of the new requirement or change..."
+                          placeholder="Provide a detailed description of the new requirement..."
                           value={descriptionOfChange}
                           onChange={e => setDescriptionOfChange(e.target.value)}
-                          className="min-h-[100px] rounded-xl bg-white border-primary/20 text-[13px] font-medium"
+                          className="min-h-[80px] rounded-xl bg-white border-primary/20 text-[12px] font-medium"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
-                          2. Reason for Change (Mandatory)
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black text-primary flex items-center gap-1.5 uppercase">
+                          2. Reason for Change
                         </Label>
                         <Textarea 
                           required={isRequirement}
                           placeholder="Explain why this change is necessary..."
                           value={reasonForChange}
                           onChange={e => setReasonForChange(e.target.value)}
-                          className="min-h-[100px] rounded-xl bg-white border-primary/20 text-[13px] font-medium"
+                          className="min-h-[80px] rounded-xl bg-white border-primary/20 text-[12px] font-medium"
                         />
                       </div>
                     </div>
@@ -391,36 +381,7 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
                 </div>
               )}
 
-              {scope === 'IT' && (
-                <div className="space-y-4 p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 transition-all">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Monitor className="h-4 w-4 text-emerald-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Asset Context (ITAM)</span>
-                  </div>
-                  <div className="grid md:grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Related Hardware Asset</Label>
-                      <Select value={selectedAssetId || undefined} onValueChange={(val) => {
-                        setSelectedAssetId(val);
-                        const asset = hardwareAssets.find(a => a.id === val);
-                        if (asset) setAffectedAsset(`${asset.asset_code} - ${asset.brand} ${asset.model}`);
-                      }}>
-                        <SelectTrigger className="h-10 rounded-xl bg-card border-border/40 text-xs font-semibold">
-                          <SelectValue placeholder="Link an Asset (Optional)" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-2xl border-border/40 bg-card shadow-xl max-h-[250px]">
-                          <SelectItem value="_none" className="text-xs font-bold italic opacity-40">-- No Asset Linked --</SelectItem>
-                          {hardwareAssets.map((asset) => (
-                            <SelectItem key={asset.id} value={asset.id} className="text-xs font-medium">
-                              {asset.asset_code} <span className="ml-1 opacity-40">({asset.brand} {asset.model})</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              )}
+
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
@@ -436,13 +397,13 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
                   <Monitor className="h-3 w-3 text-primary" /> Description (Mandatory)
                 </Label>
                 <Textarea 
                   required 
-                  className="min-h-[120px] rounded-xl bg-muted/20 border-border/60 border text-[13px] font-medium placeholder:text-muted-foreground/30 focus-visible:ring-primary/20 shadow-sm" 
+                  className="min-h-[100px] rounded-xl bg-muted/20 border-border/60 border text-[13px] font-medium placeholder:text-muted-foreground/30 focus-visible:ring-primary/20 shadow-sm" 
                   placeholder="Provide full operational details or steps to reproduce..."
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -557,11 +518,11 @@ export default function TicketFormClient({ initialModules, canAssign, assignable
                 </div>
               </div>
 
-              <div className="pt-4 text-center">
-                <Button type="submit" className="w-full h-11 rounded-xl text-sm font-bold uppercase tracking-wider transition-all shadow-xl shadow-primary/10 bg-primary hover:bg-primary/90 flex items-center justify-center gap-2" disabled={loading}>
+              <div className="pt-2 text-center">
+                <Button type="submit" className="w-full h-10 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl shadow-primary/10 bg-primary hover:bg-primary/90 flex items-center justify-center gap-2" disabled={loading}>
                   {loading ? "Submitting..." : <><Send className="h-4 w-4" /> Submit Ticket</>}
                 </Button>
-                <p className="text-[9px] text-center text-muted-foreground/40 mt-4 font-bold uppercase tracking-widest">Your request will be routed to the appropriate team</p>
+                <p className="text-[8px] text-center text-muted-foreground/40 mt-3 font-bold uppercase tracking-widest">Your request will be routed to the appropriate team</p>
               </div>
             </form>
           </CardContent>

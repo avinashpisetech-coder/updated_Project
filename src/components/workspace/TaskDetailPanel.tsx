@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { TaskChecklist } from "./TaskChecklist";
 import { TaskSubtasks } from "./TaskSubtasks";
+import { TaskAttachments } from "./TaskAttachments";
 import { hasPermission, RESOURCES } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import {
@@ -327,6 +328,7 @@ export function TaskDetailPanel({ task, user, permissions }: { task: any, user: 
           <div className="pt-6 space-y-8 pb-12">
             <TaskChecklist taskId={task.id} disabled={isFrozen} />
             <TaskSubtasks parentTaskId={task.id} projectId={task.project_id} disabled={isFrozen} />
+            <TaskAttachments taskId={task.id} disabled={isFrozen} />
             
             {!isFrozen && (
               <div className="pt-10 flex justify-end">

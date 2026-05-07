@@ -22,7 +22,6 @@ import {
   Settings,
   LogOut,
   Fingerprint,
-  Zap,
   Home,
   Package,
   Box,
@@ -38,8 +37,16 @@ import {
   CreditCard,
   Kanban,
   ListTodo,
-  CheckSquare
+  CheckSquare,
+  Activity,
+  Clock,
+  Archive,
+  ShieldCheck,
+  CheckCircle2,
+  Zap
 } from "lucide-react";
+import { motion } from "framer-motion";
+import { signOut } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
 import { useNavigation } from "./providers/NavigationProvider";
 import { Button } from "@/components/ui/button";
@@ -49,6 +56,7 @@ import { ProfileRow } from "@/lib/ensure-profile";
 import { Badge } from "@/components/ui/badge";
 import { NotificationBell } from "./NotificationBell";
 import { TaskMessageBell } from "./workspace/TaskMessageBell";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SidebarItemProps {
   href?: string;
@@ -82,6 +90,7 @@ function SidebarItem({
   const pathname = usePathname();
   const isActive = propActive ?? (href ? (pathname === href || (href !== "/dashboard" && pathname.startsWith(href))) : false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isMenuHovered, setIsMenuHovered] = useState(false);
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -89,20 +98,22 @@ function SidebarItem({
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
-    onMouseLeave?.();
+    // Add a small delay to bridge the physical gap between trigger and content
+    setTimeout(() => {
+      setIsHovered(false);
+      onMouseLeave?.();
+    }, 200);
   };
 
   const content = (
-    <div 
+    <motion.div 
+      whileHover={{ x: 4 }}
       className={cn(
         "flex items-center gap-3 w-full px-3 py-1.5 rounded-lg transition-all duration-200 group relative",
         isActive && !hasSubItems 
-          ? "text-primary bg-primary/5 shadow-sm shadow-primary/5" 
+          ? "text-primary bg-primary/10 shadow-sm shadow-primary/10 border border-primary/20" 
           : (variant === "destructive" ? "text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
       )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       <Icon className={cn(
         "h-4 w-4 shrink-0 transition-colors duration-200",
@@ -130,60 +141,81 @@ function SidebarItem({
         </div>
       )}
       {isActive && !hasSubItems && (
-        <div className="absolute left-0 top-1 bottom-1 w-1 bg-primary rounded-r-full animate-in slide-in-from-left duration-300" />
+        <motion.div 
+          layoutId="active-indicator"
+          className="absolute left-0 top-1 bottom-1 w-1 bg-primary rounded-r-full shadow-[0_0_8px_rgba(79,70,229,0.5)]" 
+        />
       )}
-
-      {/* FLY-OUT MENU (Collapsed Mode) */}
-      {!isOpen && hasSubItems && isHovered && subItems && (
-        <div className="absolute left-full top-0 ml-2 py-2 px-1 bg-background border border-border/60 shadow-xl rounded-xl min-w-[180px] z-[200] animate-in fade-in slide-in-from-left-2 duration-200 backdrop-blur-md">
-          <div className="px-3 py-1.5 mb-1 border-b border-border/40">
-             <span className="text-[10px] font-black text-primary uppercase tracking-widest">{label}</span>
-          </div>
-          <div className="space-y-0.5">
-            {subItems.map((si, idx) => (
-              <Link
-                key={idx}
-                href={si.href}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {si.icon && <si.icon size={12} className="opacity-60" />}
-                {si.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 
   const isExternalIdentifier = label === "Tactical Command Center" || label === "Intelligence Hub";
   const isActionOnly = !href || href === "#";
 
-  if (isActionOnly) {
-    return (
-      <div 
-        className="w-full cursor-pointer"
-        onClick={() => {
-          if (hasSubItems) {
-            onClick?.();
-          }
-        }}
-      >
-        {content}
-      </div>
-    );
-  }
-
   return (
-    <Link 
-      href={href || "#"} 
-      target={isExternalIdentifier ? "_blank" : undefined}
-      rel={isExternalIdentifier ? "noopener noreferrer" : undefined}
-      className="w-full"
+    <div 
+      className="w-full relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {content}
-    </Link>
+      {isActionOnly ? (
+        <div 
+          className="w-full cursor-pointer"
+          onClick={() => {
+            if (hasSubItems) {
+              onClick?.();
+            }
+          }}
+        >
+          {content}
+        </div>
+      ) : (
+        <Link 
+          href={href || "#"} 
+          target={isExternalIdentifier ? "_blank" : undefined}
+          rel={isExternalIdentifier ? "noopener noreferrer" : undefined}
+          className="w-full"
+        >
+          {content}
+        </Link>
+      )}
+
+      {/* FLY-OUT MENU (Collapsed Mode) - USING TOOLTIP FOR PORTAL TO PREVENT CLIPPING */}
+      {!isOpen && hasSubItems && subItems && (
+        <Tooltip open={isHovered || isMenuHovered}>
+          <TooltipTrigger asChild>
+            <div className="absolute inset-0 pointer-events-none" />
+          </TooltipTrigger>
+          <TooltipContent 
+            side="right" 
+            align="start" 
+            sideOffset={10}
+            className="p-0 border-none bg-transparent shadow-none"
+            onMouseEnter={() => setIsMenuHovered(true)}
+            onMouseLeave={() => setIsMenuHovered(false)}
+          >
+            <div className="py-2 px-1 bg-background border border-border/60 shadow-xl rounded-xl min-w-[180px] z-[200] animate-in fade-in slide-in-from-left-2 duration-200 backdrop-blur-md">
+              <div className="px-3 py-1.5 mb-1 border-b border-border/40">
+                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">{label}</span>
+              </div>
+              <div className="space-y-0.5">
+                {subItems.map((si, idx) => (
+                  <Link
+                    key={idx}
+                    href={si.href}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {si.icon && <si.icon size={12} className="opacity-60" />}
+                    {si.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 }
 
@@ -218,7 +250,6 @@ export function Sidebar({
   canAccessSecurity,
   canAccessWorkspace,
   canAccessTickets,
-  canAccessAssets,
   profile,
   permissions = [],
   notifications = []
@@ -227,7 +258,6 @@ export function Sidebar({
   canAccessSecurity: boolean;
   canAccessWorkspace: boolean;
   canAccessTickets: boolean;
-  canAccessAssets: boolean;
   profile: ProfileRow | null;
   permissions?: Permission[];
   notifications?: any[];
@@ -240,8 +270,7 @@ export function Sidebar({
 
   React.useEffect(() => {
     setMounted(true);
-    if (pathname.startsWith("/assets")) setExpandedGroup("assets");
-    else if (pathname.startsWith("/settings/masters")) setExpandedGroup("masters");
+    if (pathname.startsWith("/settings/masters")) setExpandedGroup("masters");
     else if (pathname.startsWith("/tickets/requests")) setExpandedGroup("requirements");
     else if (pathname.startsWith("/tickets")) setExpandedGroup("support");
     else if (pathname.startsWith("/workspace")) setExpandedGroup("workspace");
@@ -266,7 +295,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 bottom-0 z-[100] border-r border-border/40 bg-background/80 backdrop-blur-md transition-all duration-500 ease-in-out group/sidebar hidden lg:flex flex-col",
+        "fixed left-0 top-0 bottom-0 z-[100] border-r border-border/40 bg-background transition-all duration-500 ease-in-out group/sidebar hidden lg:flex flex-col",
         isSidebarOpen ? "w-64" : "w-20"
       )}
     >
@@ -282,7 +311,7 @@ export function Sidebar({
         <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
 
-      <div className="flex flex-col h-full py-4">
+      <div className="flex flex-col h-full pt-4 pb-0">
         {/* Branding */}
         <div className="px-5 mb-6 flex items-center gap-3 select-none overflow-hidden h-10 shrink-0">
           <Link 
@@ -306,7 +335,8 @@ export function Sidebar({
 
         {/* Navigation */}
         <div className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar">
-          {hasPermission(permissions, RESOURCES.DASHBOARD) && (
+          <TooltipProvider delayDuration={0}>
+            {hasPermission(permissions, RESOURCES.DASHBOARD) && (
             <SidebarItem 
               href="/dashboard" 
               label="Home" 
@@ -342,6 +372,7 @@ export function Sidebar({
                 isActive={pathname.startsWith("/workspace")}
                 href="/workspace/my-tasks"
                 onClick={() => toggleGroup("workspace")}
+                onMouseEnter={() => isSidebarOpen && setExpandedGroup("workspace")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "workspace"}
                 subItems={[
@@ -368,8 +399,18 @@ export function Sidebar({
                 isOpen={isSidebarOpen} 
                 isActive={pathname.startsWith("/tickets") && !pathname.includes("catalog") && pathname !== "/tickets/new"} 
                 onClick={() => toggleGroup("support")}
+                onMouseEnter={() => isSidebarOpen && setExpandedGroup("support")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "support"}
+                subItems={[
+                  { href: "/tickets", label: "All Tickets", icon: Ticket },
+                  { href: "/tickets?status=new", label: "New Tickets", icon: PlusCircle },
+                  { href: "/tickets?status=assigned", label: "Assigned", icon: User },
+                  { href: "/tickets?status=in_progress", label: "In Progress", icon: Activity },
+                  { href: "/tickets?status=pending_user", label: "Pending (User)", icon: Clock },
+                  { href: "/tickets?status=resolved", label: "Resolved", icon: CheckCircle2 },
+                  { href: "/tickets?status=closed", label: "Closed Archive", icon: Archive },
+                ]}
               />
               {expandedGroup === "support" && isSidebarOpen && (
                 <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -393,8 +434,13 @@ export function Sidebar({
                 isOpen={isSidebarOpen} 
                 isActive={pathname.startsWith("/tickets/requests")} 
                 onClick={() => toggleGroup("requirements")}
+                onMouseEnter={() => isSidebarOpen && setExpandedGroup("requirements")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "requirements"}
+                subItems={[
+                  { href: "/tickets/requests", label: "All Requirements", icon: FileCode },
+                  { href: "/settings/notifications", label: "Message Governance", icon: Mail },
+                ]}
               />
               {expandedGroup === "requirements" && isSidebarOpen && (
                 <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -430,8 +476,15 @@ export function Sidebar({
                 isOpen={isSidebarOpen} 
                 isActive={pathname.startsWith("/settings/masters") && !pathname.includes("access-control") && !pathname.includes("assets")}
                 onClick={() => toggleGroup("masters")}
+                onMouseEnter={() => isSidebarOpen && setExpandedGroup("masters")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "masters"}
+                subItems={[
+                  ...(hasPermission(permissions, RESOURCES.USERS) ? [{ href: "/settings/masters/users", label: "User Directory", icon: User }] : []),
+                  ...(hasPermission(permissions, RESOURCES.ERP) ? [{ href: "/settings/masters/erp", label: "ERP Systems", icon: Fingerprint }] : []),
+                  ...(hasPermission(permissions, RESOURCES.HELP_DESK_MASTER) ? [{ href: "/settings/masters/help-desk", label: "Help Desk Setup", icon: Zap }] : []),
+                  ...(hasPermission(permissions, RESOURCES.ORGS) ? [{ href: "/settings/masters/organizations", label: "Org Entities", icon: Building2 }] : []),
+                ]}
               />
               {expandedGroup === "masters" && isSidebarOpen && (
                 <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -457,8 +510,13 @@ export function Sidebar({
                 isOpen={isSidebarOpen} 
                 isActive={pathname.includes("access-control") || pathname.includes("mail")}
                 onClick={() => toggleGroup("settings")}
+                onMouseEnter={() => isSidebarOpen && setExpandedGroup("settings")}
                 hasSubItems
                 isSubItemExpanded={expandedGroup === "settings"}
+                subItems={[
+                  ...(hasPermission(permissions, RESOURCES.ACCESS) ? [{ href: "/settings/masters/access-control", label: "Permissions & Roles", icon: ShieldCheck }] : []),
+                  ...(hasPermission(permissions, RESOURCES.MAIL) ? [{ href: "/settings/mail", label: "Mail Protocol", icon: Mail }] : []),
+                ]}
               />
               {expandedGroup === "settings" && isSidebarOpen && (
                 <div className="mt-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -491,55 +549,19 @@ export function Sidebar({
             label="My Account" 
             icon={User} 
             isOpen={isSidebarOpen} 
-            isActive={pathname === "/profile"} 
+            isActive={pathname === "/profile"}            
           />
+          </TooltipProvider>
         </div>
 
-        {/* Footer & Identity */}
-        <div className="px-3 pt-6 border-t border-border/40 space-y-3 mt-auto pb-4">
-          {/* Identity Info */}
-          <div className={cn(
-            "flex items-center gap-3 p-2.5 rounded-2xl bg-muted/20 border border-border/40 transition-all duration-500 overflow-hidden",
-            !isSidebarOpen && "justify-center p-1 border-transparent bg-transparent"
-          )}>
-            <div className={cn("flex items-center gap-2", !isSidebarOpen && "flex-col gap-3")}>
-               <div className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <User className="h-4.5 w-4.5 text-primary opacity-60" />
-              </div>
-              <TaskMessageBell />
-              <NotificationBell initial={notifications} />
-            </div>
-            {isSidebarOpen && (
-              <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left-2 duration-500 font-sans">
-                <span className="text-[11px] font-bold text-foreground truncate">
-                  {profile?.full_name || "Authorized User"}
-                </span>
-                <span className="text-[9px] font-bold text-primary uppercase tracking-wider opacity-60">
-                  {profile?.role?.replace("_", " ") || "Member"}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <button
-              onClick={toggleNavMode}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all text-[11px] font-bold uppercase tracking-wider group/mode font-sans"
-            >
-              <Layout className="h-4 w-4 shrink-0 transition-transform group-hover/mode:rotate-90" />
-              {isSidebarOpen && <span className="truncate">Horizontal View</span>}
-            </button>
-            
-            <form action="/api/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all text-[11px] font-bold uppercase tracking-widest group/signout font-sans"
-              >
-                <LogOut className="h-4 w-4 shrink-0 transition-transform group-hover/signout:-translate-x-1" />
-                {isSidebarOpen && <span className="truncate">Sign Out</span>}
-              </button>
-            </form>
-          </div>
+        <div className="px-3 pt-2 border-t border-border/20 mt-auto pb-0">
+          <button
+            onClick={toggleNavMode}
+            className="w-full flex items-center gap-2 px-2 py-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all text-[9px] font-bold uppercase tracking-widest group/mode font-sans"
+          >
+            <Layout className={cn("h-3.5 w-3.5 shrink-0 transition-transform group-hover/mode:rotate-90", !isSidebarOpen && "mx-auto")} />
+            {isSidebarOpen && <span className="truncate">Horizontal View</span>}
+          </button>
         </div>
       </div>
     </aside>

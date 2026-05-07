@@ -2,36 +2,78 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "light" | "dark";
+type Mode = "light" | "dark";
+type ColorTheme = 
+  | "amber-mono"
+  | "purple-rain"
+  | "playable"
+  | "india"
+  | "stella"
+  | "mocha"
+  | "black-pink"
+  | "sukuna"
+  | "cyberpunk"
+  | "agora";
 
 interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
+  mode: Mode;
+  colorTheme: ColorTheme;
+  setMode: (mode: Mode) => void;
+  setColorTheme: (theme: ColorTheme) => void;
+  toggleMode: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    const stored = localStorage.getItem("theme");
-    if (stored === "light" || stored === "dark") return stored;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  });
+  const [mode, setModeState] = useState<Mode>("light");
+  const [colorTheme, setColorThemeState] = useState<ColorTheme>("amber-mono");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+    // Initial load from localStorage
+    const savedMode = localStorage.getItem("theme-mode") as Mode;
+    const savedColor = localStorage.getItem("theme-color") as ColorTheme;
+    
+    if (savedMode) setModeState(savedMode);
+    else if (window.matchMedia("(prefers-color-scheme: dark)").matches) setModeState("dark");
+    
+    if (savedColor) setColorThemeState(savedColor);
+    
+    setMounted(true);
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  useEffect(() => {
+    if (!mounted) return;
+    
+    // Apply Mode (Light/Dark)
+    const root = document.documentElement;
+    if (mode === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("theme-mode", mode);
+  }, [mode, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
+    // Apply Color Theme
+    console.log("🎨 THEME_ENGINE: Applying Color Theme ->", colorTheme);
+    document.documentElement.setAttribute("data-theme", colorTheme);
+    localStorage.setItem("theme-color", colorTheme);
+  }, [colorTheme, mounted]);
+
+  const toggleMode = () => {
+    setModeState((prev) => (prev === "light" ? "dark" : "light"));
   };
 
+  const setMode = (m: Mode) => setModeState(m);
+  const setColorTheme = (c: ColorTheme) => setColorThemeState(c);
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ mode, colorTheme, setMode, setColorTheme, toggleMode }}>
       {children}
     </ThemeContext.Provider>
   );

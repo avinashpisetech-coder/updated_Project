@@ -21,6 +21,7 @@ import {
   Palette,
   BarChart3
 } from "lucide-react";
+import { signOut } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNavigation } from "./providers/NavigationProvider";
@@ -100,9 +101,9 @@ export function Navbar({
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-border/40 bg-background/80 backdrop-blur-md transition-all duration-500 font-sans antialiased">
-      <div className="mx-auto max-w-7xl h-16 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-border/40 bg-white/90 backdrop-blur-md transition-all duration-500 font-sans antialiased">
+      <div className="w-full h-16 px-8 flex items-center justify-between">
+        <div className="flex items-center gap-2 shrink-0">
           <Link 
             href="/dashboard" 
             className="flex items-center gap-3 mr-4 select-none group"
@@ -110,20 +111,22 @@ export function Navbar({
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-lg shadow-primary/20 ring-1 ring-primary/20 transition-transform active:scale-95">
               A
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col hidden sm:flex">
               <span className="text-sm font-bold tracking-tight uppercase text-foreground/90 group-hover:text-primary transition-colors tracking-[0.1em]">ADIOS</span>
               <span className="text-[8px] text-primary uppercase tracking-[0.2em] font-bold opacity-40">Portal</span>
             </div>
           </Link>
 
-          <div className="mr-4 h-8 w-px bg-border/40" />
+          <div className="mr-4 h-8 w-px bg-border/40 hidden md:block" />
           <BackButton showLabel={true} variant="ghost" className="mr-2" />
+        </div>
 
-          <div className="flex items-center gap-1 font-sans">
+        <div className="flex-1 min-w-0 px-4">
+          <div className="flex items-center gap-1 font-sans overflow-x-auto no-scrollbar py-2">
             {hasPermission(permissions, RESOURCES.DASHBOARD) && <NavItem href="/dashboard" label="Home" icon={Home} />}
             {hasPermission(permissions, RESOURCES.INTEL) && <NavItem href="/service-analytics" label="Intelligence" icon={BarChart3} />}
             {hasPermission(permissions, RESOURCES.TICKETS) && <NavItem href="/tickets" label="Support Queue" icon={Ticket} />}
-            {hasPermission(permissions, RESOURCES.ASSETS) && <NavItem href="/assets" label="Assets" icon={Package} />}
+
             {hasPermission(permissions, RESOURCES.THEMES) && <NavItem href="/settings?tab=themes" label="Themes" icon={Palette} />}
             {hasPermission(permissions, RESOURCES.TICKETS, "create") && <NavItem href="/tickets/new" label="Create Ticket" icon={PlusCircle} />}
             
@@ -133,7 +136,7 @@ export function Navbar({
                   <Button 
                     variant="ghost" 
                     className={cn(
-                      "flex items-center gap-2 px-4 h-10 rounded-xl transition-all font-bold uppercase tracking-tight",
+                      "flex items-center gap-2 px-4 h-10 rounded-xl transition-all font-bold uppercase tracking-tight whitespace-nowrap",
                       pathname.startsWith("/settings/masters") && !pathname.includes("access-control")
                         ? "text-primary bg-primary/5"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -141,10 +144,10 @@ export function Navbar({
                   >
                     <Settings2 className="h-4 w-4" />
                     <span className="text-[13px]">Administration</span>
-                    <ChevronDown className="h-3 w-3 opacity-50 transition-transform group-hover:rotate-180" />
+                    <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl border-border/40 bg-card/95 backdrop-blur shadow-2xl mt-1 animate-in fade-in slide-in-from-top-2 duration-300 font-sans">
+                <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl border-border/40 bg-card/95 backdrop-blur shadow-2xl mt-1 font-sans">
                   {hasPermission(permissions, RESOURCES.USERS) && (
                     <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
                       <Link href="/settings/masters/users" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">User Directory</Link>
@@ -175,7 +178,7 @@ export function Navbar({
                   <Button 
                     variant="ghost" 
                     className={cn(
-                      "flex items-center gap-2 px-4 h-10 rounded-xl transition-all font-bold uppercase tracking-tight",
+                      "flex items-center gap-2 px-4 h-10 rounded-xl transition-all font-bold uppercase tracking-tight whitespace-nowrap",
                       pathname.startsWith("/settings") && (!pathname.includes("masters") || pathname.includes("access-control")) || pathname.includes("/settings/mail")
                         ? "text-primary bg-primary/5"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -183,10 +186,10 @@ export function Navbar({
                   >
                     <Settings className="h-4 w-4" />
                     <span className="text-[13px]">Systems</span>
-                    <ChevronDown className="h-3 w-3 opacity-50 transition-transform group-hover:rotate-180" />
+                    <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl border-border/40 bg-card/95 backdrop-blur shadow-2xl mt-1 animate-in fade-in slide-in-from-top-2 duration-300 font-sans">
+                <DropdownMenuContent align="start" className="w-60 p-2 rounded-2xl border-border/40 bg-card/95 backdrop-blur shadow-2xl mt-1 font-sans">
                   {hasPermission(permissions, RESOURCES.THEMES) && (
                     <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/10 focus:text-primary">
                       <Link href="/settings" className="cursor-pointer text-[11px] font-bold uppercase tracking-widest p-3">Core Parameters</Link>
@@ -211,19 +214,23 @@ export function Navbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <TaskMessageBell />
-          <NotificationBell initial={notifications} />
-          <DashboardVersionSwitcher />
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          <div className="flex items-center gap-2 md:gap-4 mr-2">
+            <TaskMessageBell />
+            <NotificationBell initial={notifications} />
+            <div className="hidden lg:block">
+              <DashboardVersionSwitcher />
+            </div>
+          </div>
           
-          {/* User Info */}
-          <div className="hidden md:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-muted/20 border border-border/40 overflow-hidden font-sans">
+          {/* User Info - Compact on smaller screens */}
+          <div className="hidden xl:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-muted/20 border border-border/40 overflow-hidden font-sans max-w-[200px]">
             <div className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
               <User className="h-4 w-4 text-primary opacity-60" />
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-[11px] font-bold text-foreground truncate">
-                {profile?.full_name || "Authorized User"}
+                {profile?.full_name?.split(' ')[0] || "User"}
               </span>
               <span className="text-[9px] font-bold text-primary uppercase tracking-wider opacity-60">
                 {profile?.role?.replace("_", " ") || "Member"}
@@ -231,26 +238,26 @@ export function Navbar({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 border-l border-border/40 pl-4 font-sans">
+          <div className="flex items-center gap-1 border-l border-border/40 pl-3 font-sans">
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleNavMode}
-              className="rounded-xl h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group/mode"
+              className="rounded-xl h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
               title="Switch to Sidebar Layout"
             >
-              <Layout className="h-5 w-5 rotate-90 transition-transform group-hover:scale-110" />
+              <Layout className="h-5 w-5 rotate-90" />
             </Button>
 
-            <form action="/api/auth/signout" method="POST">
+            <form action={signOut}>
               <Button 
                 type="submit" 
                 variant="ghost" 
                 size="icon" 
-                className="rounded-xl h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all group/logout"
+                className="rounded-xl h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
                 title="Sign Out"
               >
-                <LogOut className="h-5 w-5 transition-transform group-hover:-translate-x-0.5" />
+                <LogOut className="h-5 w-5" />
               </Button>
             </form>
           </div>

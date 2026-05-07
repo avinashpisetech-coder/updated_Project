@@ -25,7 +25,7 @@ export default async function RequestListPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-6 space-y-8 font-sans">
+    <div className="w-full py-4 px-6 space-y-6 font-sans">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase">Requirement Registry</h1>
