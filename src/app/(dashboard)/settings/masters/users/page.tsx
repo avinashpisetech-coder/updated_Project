@@ -40,10 +40,15 @@ export default async function UserMasterPage() {
   ]);
 
   const currentProfile = profileResponse.data;
+
+  // Strict null check for TypeScript narrowing
   if (!currentProfile) {
     redirect("/dashboard");
     return null;
   }
+
+  const role = currentProfile.role;
+  const departmentId = currentProfile.department_id || "";
 
   const canManageGlobal = hasPermission(permissions, "*", "*");
   const canManageDept = hasPermission(permissions, RESOURCES.USERS, "manage");
@@ -52,8 +57,6 @@ export default async function UserMasterPage() {
     redirect("/dashboard");
     return null;
   }
-
-  const departmentId = currentProfile.department_id || "";
 
   const profiles = profilesResponse.data || [];
   const departments = departmentsResponse.data || [];
