@@ -36,7 +36,11 @@ export default async function DashboardLayout({
     getUnreadNotifications().catch(() => []),
     Promise.all([
       supabase.from("task_assignees").select("task_id", { count: 'exact', head: true }).eq("profile_id", user.id).then(res => (res.count || 0) > 0),
-      supabase.from("tickets").select("id", { count: 'exact', head: true }).or(`assigned_to_id.eq.${user.id},requester_id.eq.${user.id}`).then(res => (res.count || 0) > 0)
+      // Split OR into two parallel checks for better indexing performance
+      Promise.all([
+        supabase.from("tickets").select("id", { count: 'exact', head: true }).eq("assigned_to_id", user.id).limit(1).then(res => (res.count || 0) > 0),
+        supabase.from("tickets").select("id", { count: 'exact', head: true }).eq("requester_id", user.id).limit(1).then(res => (res.count || 0) > 0)
+      ]).then(([assigned, requested]) => assigned || requested)
     ]).then(([tasks, tickets]) => ({ tasks, tickets }))
   ]);
 

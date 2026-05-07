@@ -68,7 +68,7 @@ export function DashboardV2({ initialData, _myTasks }: { initialData: any, _myTa
     end
   }), [deptId, moduleId, categoryId, userId, status, start, end]);
 
-  const { data: dashboardData, loading, error, refetch } = useDashboardDataV2(filters, page, pageSize);
+  const { data: dashboardData, loading, error, refetch } = useDashboardDataV2(filters, page, pageSize, initialData);
   
   const data = dashboardData || initialData;
 

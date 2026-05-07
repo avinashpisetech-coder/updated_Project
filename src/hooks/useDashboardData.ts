@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardV2Data } from "@/components/dashboard/v2/types";
 import { transformDashboardData } from "@/lib/dashboard-transformer";
@@ -16,11 +16,13 @@ export function useDashboardDataV2(
     end?: string | null;
   } | null, 
   page: number = 1, 
-  pageSize: number = 10
+  pageSize: number = 10,
+  initialData?: any
 ) {
-  const [data, setData] = useState<DashboardV2Data | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DashboardV2Data | null>(initialData || null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<any>(null);
+  const isInitialMount = useRef(true);
   const supabase = useMemo(() => createClient(), []);
 
   const fetchData = useCallback(async (isSilent = false) => {
@@ -69,26 +71,21 @@ export function useDashboardDataV2(
     } catch (err: any) {
       setError(err);
       console.error("Dashboard Global Error:", err);
-      // Attempt to log full details from Supabase if available
-      if (err.message || err.code || err.details) {
-        console.error("Supabase RPC 상세 오류:", {
-          msg: err.message || "No message",
-          code: err.code || "No code",
-          details: err.details || "No details",
-          hint: err.hint || "No hint",
-          raw: JSON.stringify(err, null, 2)
-        });
-      } else {
-        // Fallback for weird objects or strings
-        console.warn("Unexpected Error Type:", typeof err, JSON.stringify(err));
-      }
     } finally {
       setLoading(false);
     }
   }, [filters, page, pageSize, supabase]);
 
   useEffect(() => {
-    fetchData();
+    // Optimization: Skip initial fetch if we have initialData and no active filters
+    const hasActiveFilters = filters && Object.values(filters).some(v => v !== null && v !== "");
+    
+    if (isInitialMount.current && initialData && !hasActiveFilters && page === 1) {
+      isInitialMount.current = false;
+      setLoading(false);
+    } else {
+      fetchData();
+    }
     
     // Set up auto-refresh
     const interval = setInterval(() => {
@@ -96,7 +93,7 @@ export function useDashboardDataV2(
     }, 60000); // Poll every 60 seconds
 
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, initialData, filters, page]);
 
   return { data, loading, error, refetch: () => fetchData(false) };
 }

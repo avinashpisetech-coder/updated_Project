@@ -286,9 +286,11 @@ export default function AccessControlManager({
                                     return (
                                         <div key={group.label} className="space-y-5">
                                             <div className="flex items-center justify-between px-2">
-                                                <div className="flex items-center gap-2">
-                                                    <group.icon size={14} className="text-primary/60" />
-                                                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">{group.label}</h3>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                                                        <group.icon size={14} className="text-primary" />
+                                                    </div>
+                                                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">{group.label}</h3>
                                                 </div>
                                                 <div className="flex gap-2">
                                                      <Button 
@@ -310,7 +312,7 @@ export default function AccessControlManager({
                                                 </div>
                                             </div>
                                             
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-1">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
                                                 {filteredModules.map(module => {
                                                     const raw = module.slug.toLowerCase().trim();
                                                     const withUnderscore = raw.replace(/[-]/g, "_");
@@ -320,7 +322,7 @@ export default function AccessControlManager({
                                                         variants.includes(p.resource)
                                                     );
                                                     return (
-                                                        <div key={module.id} className="bg-slate-50/50 border border-slate-200/60 p-6 rounded-3xl space-y-6 hover:border-primary/20 transition-all group relative overflow-hidden">
+                                                        <div key={module.id} className="bg-white/60 border border-slate-200/60 p-4 rounded-[2rem] space-y-5 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all group relative overflow-hidden backdrop-blur-sm">
                                                             <div className="flex items-center justify-between border-b border-slate-200/40 pb-3">
                                                                 <p className="text-[10px] font-black uppercase tracking-tighter text-slate-800">{module.name}</p>
                                                                 <div className="flex gap-2">
@@ -362,8 +364,8 @@ export default function AccessControlManager({
                                                                     
                                                                     const isChecked = perm ? newRolePerms.includes(perm.id) : false;
                                                                     return (
-                                                                        <div key={attr.key} className="flex items-center justify-between">
-                                                                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 opacity-60">{attr.label}</span>
+                                                                        <div key={attr.key} className="flex items-center justify-between group/row">
+                                                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover/row:text-primary transition-colors">{attr.label}</span>
                                                                             <Checkbox 
                                                                                 checked={isChecked}
                                                                                 disabled={!perm}
@@ -456,7 +458,7 @@ export default function AccessControlManager({
                                          )}
                                     </div>
                                 </div>
-                                <div className="p-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {initialModules.map(module => {
                                         const raw = module.slug.toLowerCase().trim();
                                         const withUnderscore = raw.replace(/[-]/g, "_");
@@ -488,8 +490,8 @@ export default function AccessControlManager({
                                                         ) : false;
 
                                                         return (
-                                                            <div key={attr.key} className="flex items-center justify-between gap-2">
-                                                                <span className="text-[7px] font-bold uppercase tracking-widest text-slate-400 opacity-60 italic">{attr.label}</span>
+                                                            <div key={attr.key} className="flex items-center justify-between gap-2 group/perm">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 group-hover/perm:text-primary transition-colors">{attr.label}</span>
                                                                 <Checkbox 
                                                                     checked={hasPerm}
                                                                     disabled={!isEditing || !perm}
@@ -524,7 +526,7 @@ export default function AccessControlManager({
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {accessibleProfiles.map(user => {
                             const isEditing = editingUserId === user.id;
                             return (
